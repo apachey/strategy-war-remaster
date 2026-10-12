@@ -496,11 +496,11 @@ const resource: Builder = () => {
   return g;
 };
 
-/** Wall piece: a low grey bar with a pale top, arms reaching towards neighbouring walls (bits N1 E2 S4 W8). */
+/** Wall piece: a low dark grey bar with a lighter top, arms reaching towards neighbouring walls (bits N1 E2 S4 W8). */
 const wall: Builder = (mask) => {
   const h = 0.22;
   const t = 0.3;
-  const g = group(box(t, h, t, 'steel', [0, 0, 0]), box(t + 0.02, 0.04, t + 0.02, 'steelLight', [0, h, 0]));
+  const g = group(box(t, h, t, 'steelDark', [0, 0, 0]), box(t + 0.02, 0.04, t + 0.02, 'steel', [0, h, 0]));
   const arms: [number, number, number][] = [
     [1, 0, -1],
     [2, 1, 0],
@@ -511,8 +511,8 @@ const wall: Builder = (mask) => {
     if (!(mask & bit)) continue;
     const w = dx ? 0.5 : t;
     const d = dz ? 0.5 : t;
-    g.add(box(w, h, d, 'steel', [dx * 0.25, 0, dz * 0.25]));
-    g.add(box(dx ? 0.5 : t + 0.02, 0.04, dz ? 0.5 : t + 0.02, 'steelLight', [dx * 0.25, h, dz * 0.25]));
+    g.add(box(w, h, d, 'steelDark', [dx * 0.25, 0, dz * 0.25]));
+    g.add(box(dx ? 0.5 : t + 0.02, 0.04, dz ? 0.5 : t + 0.02, 'steel', [dx * 0.25, h, dz * 0.25]));
   }
   return g;
 };
