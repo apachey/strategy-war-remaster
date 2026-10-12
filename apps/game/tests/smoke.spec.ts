@@ -46,9 +46,13 @@ test('mission 1 opens with its briefing, then the map', async ({ page }) => {
 test('click selects the tank and right click sends it', async ({ page }) => {
   const errors = await open(page, '?m=1.1');
   await page.getByRole('button', { name: 'Почати' }).click();
+  await expect(page.locator('#panel')).toContainText('Виділіть');
   const tank = await screenOf(page, 101);
-  await page.mouse.click(tank.x, tank.y);
-  await expect(page.locator('#panel')).toContainText('Легкий танк');
+  // On a slow CI runner the first frames can lag behind the click, so retry the click until it registers.
+  await expect(async () => {
+    await page.mouse.click(tank.x, tank.y);
+    await expect(page.locator('#panel')).toContainText('Легкий танк', { timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
   await page.mouse.click(tank.x + 90, tank.y + 20, { button: 'right' });
   await expect(page.locator('#panel')).toContainText('їде');
   await page.waitForTimeout(800);

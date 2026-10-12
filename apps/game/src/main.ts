@@ -221,9 +221,9 @@ async function start(): Promise<void> {
     const mouse = mouseScreen ? toWorld(mouseScreen.x, mouseScreen.y) : null;
     renderer.draw(running ? tickAlpha(acc) : 1, t.deltaMS, mouse, drag);
     hud.update();
+    // Ready only once a frame has been drawn and the HUD filled in, so tests never click a blank page.
+    document.body.dataset.ready = 'true';
   });
-
-  document.body.dataset.ready = 'true';
 }
 
 void start();
