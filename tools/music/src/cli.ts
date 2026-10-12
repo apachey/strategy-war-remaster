@@ -1,18 +1,20 @@
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { master, mixInto, pingPong, reverb, wav } from './effects';
-import { bass, drums, lead, pad, reed, type Instrument } from './instruments';
+import { bass, drums, lead, pad, reed } from './instruments';
 import { parseMidi, type Note, type Song } from './midi';
 import { SAMPLE_RATE, Stereo } from './synth';
+import { battle, tension, type Arrangement, type Part } from './tracks';
 
 /**
- * pnpm music [--midi path/to/intro.mid] [--out dir]
+ * pnpm music [--midi path/to/intro.mid] [--out dir] [--only name]
  *
- * Re-arranges the original intro tune for the remaster and writes assets/music/main-theme.m4a (AAC plays everywhere,
- * including the macOS web view), loudness-normalised to -16 LUFS. The original MIDI is not in the repo (see CLAUDE.md); by default it is read from
- * the project files.
+ * Renders the remaster's music into assets/music: main-theme (a new arrangement of the original intro tune) and the
+ * looping in-game tracks battle and tension written in src/tracks.ts. Output is .m4a (AAC plays everywhere,
+ * including the macOS web view) at -16 LUFS. The original MIDI is not in the repo (see CLAUDE.md); by default it is
+ * read from the project files.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -23,14 +25,6 @@ const arg = (name: string) => {
 };
 const midiPath = arg('midi') ?? '/mnt/project-files/strategy-war/original/assets/G_8280/intro.mid';
 const outDir = resolve(repo, arg('out') ?? 'assets/music');
-
-interface Part {
-  instrument: Instrument;
-  notes: Note[];
-  reverb: number;
-  delay?: number;
-  gain?: number;
-}
 
 /** Picks our instrument for an original track by its General MIDI program (channel 10 is drums). */
 function partsFor(song: Song): Part[] {
@@ -51,7 +45,7 @@ function partsFor(song: Song): Part[] {
  * Main theme: the tune twice (second time with the lead doubled an octave up and a crash on the downbeat), then
  * a held D minor chord to close.
  */
-function arrange(song: Song): { parts: Part[]; beats: number; spb: number } {
+function mainTheme(song: Song): Arrangement {
   const spb = song.tempo / 1e6;
   const base = partsFor(song);
   const len = Math.ceil(Math.max(...song.tracks.flatMap((t) => t.notes.map((n) => n.start + n.length))) / 4) * 4;
@@ -64,12 +58,12 @@ function arrange(song: Song): { parts: Part[]; beats: number; spb: number } {
   parts.push({ instrument: drums({ seed: 3 }), notes: [{ start: len, length: 1, pitch: 49, velocity: v, channel: 9 }, { start: end, length: 1, pitch: 36, velocity: 1, channel: 9 }, { start: end, length: 1, pitch: 49, velocity: 1, channel: 9 }], reverb: 0.2 });
   parts.push({ instrument: pad({ gain: 0.09 }), notes: [50, 53, 57, 62, 69].map((pitch) => ({ start: end, length: 6, pitch, velocity: v, channel: 0 })), reverb: 0.6 });
   parts.push({ instrument: bass(), notes: [{ start: end, length: 3, pitch: 38, velocity: 1, channel: 0 }], reverb: 0.05 });
-  return { parts, beats: end + 6, spb };
+  return { parts, beats: end + 6, spb, loop: false };
 }
 
-function render(song: Song): Stereo {
-  const { parts, beats, spb } = arrange(song);
-  const length = Math.ceil((beats * spb + 3) * SAMPLE_RATE);
+function render({ parts, beats, spb, loop }: Arrangement): Stereo {
+  const body = Math.round(beats * spb * SAMPLE_RATE);
+  const length = body + 4 * SAMPLE_RATE;
   const dry = new Stereo(length);
   const verbSend = new Stereo(length);
   const delaySend = new Stereo(length);
@@ -84,24 +78,49 @@ function render(song: Song): Stereo {
   mixInto(dry, echoes, 1);
   mixInto(verbSend, echoes, 0.4);
   mixInto(dry, reverb(verbSend), 1);
-  return master(dry);
+  if (!loop) return master(dry);
+  // Fold everything that rings past the loop point back onto the start, so the loop has no gap or click.
+  const looped = new Stereo(body);
+  for (let i = 0; i < length; i++) {
+    looped.l[i % body]! += dry.l[i]!;
+    looped.r[i % body]! += dry.r[i]!;
+  }
+  return master(looped);
+}
+
+function encode(name: string, bus: Stereo, loop: boolean): void {
+  const wavPath = join(outDir, `${name}.wav`);
+  writeFileSync(wavPath, wav(bus));
+  const out = join(outDir, `${name}.m4a`);
+  // One fixed gain to -16 LUFS for the whole track (no dynamic levelling), so a loop sounds the same when it repeats.
+  const report = spawnSync('ffmpeg', ['-hide_banner', '-i', wavPath, '-af', 'ebur128=framelog=quiet', '-f', 'null', '-'], { encoding: 'utf8' }).stderr;
+  const lufs = Number(/I:\s+(-?[\d.]+) LUFS/.exec(report.slice(report.lastIndexOf('Summary')))?.[1]);
+  if (!Number.isFinite(lufs)) throw new Error(`could not measure loudness of ${name}`);
+  const gainDb = Math.min(-16 - lufs, 0);
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', wavPath, '-af', `volume=${gainDb.toFixed(2)}dB`, '-c:a', 'aac', '-b:a', '192k', '-map_metadata', '-1', '-fflags', '+bitexact', '-flags:a', '+bitexact', out]);
+  if (!process.argv.includes('--keep-wav')) unlinkSync(wavPath);
+  console.log(`${name}.m4a: ${(bus.length / SAMPLE_RATE).toFixed(1)} s${loop ? ', loops' : ''}`);
 }
 
 function main(): void {
-  if (!existsSync(midiPath)) {
-    console.error(`Original intro MIDI not found at ${midiPath}. Pass --midi <path>; it lives in the project files, not the repo.`);
-    process.exit(1);
-  }
-  const song = parseMidi(readFileSync(midiPath));
-  const started = Date.now();
-  const bus = render(song);
+  const only = arg('only');
+  const jobs: [string, () => Arrangement][] = [
+    ['main-theme', () => {
+      if (!existsSync(midiPath)) {
+        console.error(`Original intro MIDI not found at ${midiPath}. Pass --midi <path>; it lives in the project files, not the repo.`);
+        process.exit(1);
+      }
+      return mainTheme(parseMidi(readFileSync(midiPath)));
+    }],
+    ['battle', battle],
+    ['tension', tension],
+  ];
   mkdirSync(outDir, { recursive: true });
-  const wavPath = join(outDir, 'main-theme.wav');
-  writeFileSync(wavPath, wav(bus));
-  const m4a = join(outDir, 'main-theme.m4a');
-  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', wavPath, '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11', '-ar', '44100', '-c:a', 'aac', '-b:a', '192k', '-map_metadata', '-1', '-fflags', '+bitexact', '-flags:a', '+bitexact', m4a]);
-  if (!process.argv.includes('--keep-wav')) execFileSync('rm', [wavPath]);
-  console.log(`main-theme.m4a: ${(bus.length / SAMPLE_RATE).toFixed(1)} s, rendered in ${((Date.now() - started) / 1000).toFixed(1)} s`);
+  for (const [name, make] of jobs) {
+    if (only && only !== name) continue;
+    const a = make();
+    encode(name, render(a), a.loop);
+  }
 }
 
 main();
