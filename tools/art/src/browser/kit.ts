@@ -96,3 +96,19 @@ export function paintAll(root: THREE.Object3D, mat: MaterialName, except: Materi
     if (o.userData.mat && !except.includes(o.userData.mat)) o.userData.mat = mat;
   });
 }
+
+/** Solid of revolution around the y axis from a profile of [radius, y] points, bottom to top; a slice if phiLength < 2π. */
+export function lathe(profile: [number, number][], mat: MaterialName, pos: Vec3 = [0, 0, 0], segments = 8, phiStart = 0, phiLength = Math.PI * 2): THREE.Mesh {
+  const geo = new THREE.LatheGeometry(
+    profile.map(([r, y]) => new THREE.Vector2(r, y)),
+    segments,
+    phiStart,
+    phiLength,
+  );
+  return mesh(geo, mat, pos);
+}
+
+/** Low-poly ball centred on pos. */
+export function ball(r: number, mat: MaterialName, pos: Vec3 = [0, 0, 0], segments = 8): THREE.Mesh {
+  return mesh(new THREE.SphereGeometry(r, segments, Math.max(3, segments >> 1)), mat, pos);
+}

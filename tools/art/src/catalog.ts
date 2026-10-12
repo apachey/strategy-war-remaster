@@ -7,8 +7,11 @@
 export const PX_PER_CELL = 32;
 /** Each sprite is rendered this many times larger, then reduced to the pixel grid. */
 export const SUPERSAMPLE = 8;
-/** Camera tilt above the horizon. 90 would be straight down; the original looks from slightly south of overhead. */
-export const CAMERA_ELEVATION_DEG = 60;
+/**
+ * Camera tilt above the horizon. 90 would be straight down. The original draws its units and buildings from a low
+ * angle, so walls and sides show nearly as much as roofs.
+ */
+export const CAMERA_ELEVATION_DEG = 40;
 /** Orthographic camera placement; near..far is what the 16 bit depth pass spans. */
 export const CAMERA_DISTANCE = 10;
 export const CAMERA_NEAR = 6;
@@ -37,15 +40,18 @@ export const SPRITES: readonly SpriteDef[] = [
   { name: 'hq', cells: 2, views: 1, frames: ['idle0', 'idle1', 'idle2', 'idle3'], teamed: true },
   { name: 'enemy_hq', cells: 2, views: 1, frames: ['idle0', 'idle1'], teamed: true },
   { name: 'silo', cells: 2, views: 1, frames: ['idle'], teamed: true },
-  { name: 'factory', cells: 2, views: 1, frames: ['idle'], teamed: true },
+  { name: 'factory', cells: 2, views: 1, frames: ['idle', 'work'], teamed: true },
+  { name: 'construction', cells: 2, views: 1, frames: ['idle'], teamed: false },
   { name: 'resource', cells: 2, views: 1, frames: ['idle'], teamed: false },
   { name: 'wall', cells: 1, views: 16, frames: ['idle'], teamed: false },
 ];
 
 /** Frame size in art pixels and where the footprint centre lands inside it. */
 export function frameLayout(cells: 1 | 2): { w: number; h: number; ax: number; ay: number } {
-  const size = cells * PX_PER_CELL + 16 * cells;
-  return { w: size, h: size, ax: size / 2, ay: Math.round(size * 0.58) };
+  // Room for half a cell around the footprint, and above it for tall buildings and the oblique view.
+  const w = cells * (PX_PER_CELL + 16);
+  const h = cells * (PX_PER_CELL + 32);
+  return { w, h, ax: w / 2, ay: h - cells * 20 };
 }
 
 export const DIRECTION_NAMES = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] as const;

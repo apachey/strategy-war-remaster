@@ -26,6 +26,8 @@ export const COVERAGE = 0.4;
 export const SHADOW_LIGHT = 140;
 /** A pixel this much farther than a neighbour gets an inner line (depth units; 650 is about 0.08 cell). */
 export const INNER_LINE_DEPTH = 650;
+/** How many ramp steps darker an inner line is; the original draws them nearly black. */
+export const INNER_LINE_STEPS = 2;
 
 export function reduce(mat: Uint8Array, light: Uint8Array, depth: Uint16Array, bigW: number, bigH: number, scale: number): Reduced {
   const w = Math.floor(bigW / scale);
@@ -82,16 +84,17 @@ export function reduce(mat: Uint8Array, light: Uint8Array, depth: Uint16Array, b
 
 /** Picks a ramp step for a light level; `shift` nudges it, the ends clamp. */
 export function rampStep(light: number, length: number, shift = 0): number {
-  // Light from the renderer sits in about 0.35 (shade) .. 0.75 (sunlit top); stretch 0.2..0.95 across the ramp.
-  const t = Math.min(1, Math.max(0, (light / 255 - 0.2) / 0.75));
+  // Light from the renderer sits in about 0.35 (shade) .. 0.75 (sunlit top); stretch 0.25..1.05 across the ramp, so
+  // sunlit tops land mid-ramp and the brightest steps stay for highlights, as in the original's darker sprites.
+  const t = Math.min(1, Math.max(0, (light / 255 - 0.25) / 0.8));
   return Math.min(length - 1, Math.max(0, Math.floor(t * length) + shift));
 }
 
 const OUTLINE: Rgb = ramp('outline')[0]!;
 
 /**
- * Turns a reduced frame into RGBA for one team: palette shading, a 1 px outline around the object, inner lines one
- * step darker where a surface disappears behind a nearer one, and a soft floor shadow.
+ * Turns a reduced frame into RGBA for one team: palette shading, a 1 px outline around the object, inner lines two
+ * steps darker where a surface disappears behind a nearer one, and a soft floor shadow.
  */
 export function colorize(frame: Reduced, team: Team): Uint8ClampedArray {
   const { w, h, mat, light, depth } = frame;
@@ -111,7 +114,7 @@ export function colorize(frame: Reduced, team: Team): Uint8ClampedArray {
         const colors = def.ramp === 'team' ? teamRamp : ramp(def.ramp);
         const behind = (j: number) => j >= 0 && j < w * h && isObjectAt(j) && depth[j]! + INNER_LINE_DEPTH < depth[i]!;
         const edge = behind(i - w) || behind(i + w) || (x > 0 && behind(i - 1)) || (x < w - 1 && behind(i + 1));
-        const step = def.emissive ? colors.length - 1 : rampStep(light[i]!, colors.length, (def.shift ?? 0) - (edge ? 1 : 0));
+        const step = def.emissive ? colors.length - 1 : rampStep(light[i]!, colors.length, (def.shift ?? 0) - (edge ? INNER_LINE_STEPS : 0));
         rgb = colors[step]!;
       } else if (isObject(x - 1, y) || isObject(x + 1, y) || isObject(x, y - 1) || isObject(x, y + 1)) {
         rgb = OUTLINE;
