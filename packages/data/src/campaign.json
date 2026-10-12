@@ -1,0 +1,6484 @@
+{
+ "source": "Strategy War v1.3.5 MIDP-2 (identical maps in v1.6.3)",
+ "maps": [
+  {
+   "name": "Beginning",
+   "w": 10,
+   "h": 6,
+   "tiles": [
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     6
+    ],
+    [
+     1,
+     2,
+     3,
+     3,
+     4,
+     1,
+     8,
+     6,
+     6,
+     6
+    ],
+    [
+     1,
+     5,
+     6,
+     6,
+     10,
+     1,
+     1,
+     8,
+     9,
+     9
+    ],
+    [
+     1,
+     8,
+     9,
+     10,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ]
+   ],
+   "missions": [
+    {
+     "money": 1000,
+     "objects": [
+      {
+       "type": 4,
+       "x": 255,
+       "y": 135,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 0,
+       "x": 165,
+       "y": 0,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 180,
+       "y": 75,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 165,
+       "y": 75,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 75,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 1,
+       "x": 195,
+       "y": 120,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 165,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 165,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 165,
+       "y": 165,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 1,
+       "x": 120,
+       "y": 0,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 15,
+       "y": 15,
+       "hp": 2200,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 150,
+       "y": 45,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 101,
+       "x": 105,
+       "y": 45,
+       "hp": 50,
+       "enemy": false
+      }
+     ],
+     "title": "Beginning",
+     "brief": "Welcome to Strategy War - try to build a building, drive around and destroy some enemy buildings with no attacking enemy around. The goal is to destroy the enemy building"
+    },
+    {
+     "money": 500,
+     "objects": [
+      {
+       "type": 0,
+       "x": 45,
+       "y": 15,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 120,
+       "y": 15,
+       "hp": 2250,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 195,
+       "y": 90,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 195,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 180,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 180,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 165,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 120,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 30,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 15,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 0,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 4,
+       "x": 255,
+       "y": 135,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 210,
+       "y": 150,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 0,
+       "y": 60,
+       "hp": 50,
+       "enemy": false
+      }
+     ],
+     "title": "Harvest",
+     "brief": "Build a silo, start harvesting and build some tanks and shoot down the enemy!"
+    },
+    {
+     "money": 450,
+     "objects": [
+      {
+       "type": 0,
+       "x": 270,
+       "y": 120,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 255,
+       "y": 150,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 150,
+       "y": 75,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 0,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 30,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 15,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 165,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 15,
+       "y": 45,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 4,
+       "x": 0,
+       "y": 0,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 45,
+       "y": 30,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 60,
+       "y": 15,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 1,
+       "x": 90,
+       "y": 15,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 5,
+       "x": 165,
+       "y": 120,
+       "hp": 400,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 0,
+       "y": 150,
+       "hp": 2000,
+       "enemy": false
+      },
+      {
+       "type": 102,
+       "x": 240,
+       "y": 120,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 101,
+       "x": 225,
+       "y": 165,
+       "hp": 50,
+       "enemy": false
+      }
+     ],
+     "title": "Attack",
+     "brief": "Be careful about the enemy - he has a lot of resources now!"
+    },
+    {
+     "money": 400,
+     "objects": [
+      {
+       "type": 6,
+       "x": 165,
+       "y": 60,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 60,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 60,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 90,
+       "y": 0,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 90,
+       "y": 15,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 90,
+       "y": 30,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 4,
+       "x": 270,
+       "y": 150,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 1,
+       "x": 225,
+       "y": 120,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 225,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 225,
+       "y": 165,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 255,
+       "y": 135,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 120,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 120,
+       "y": 165,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 120,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 5,
+       "x": 15,
+       "y": 15,
+       "hp": 3000,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 15,
+       "y": 150,
+       "hp": 1500,
+       "enemy": false
+      },
+      {
+       "type": 0,
+       "x": 180,
+       "y": 0,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 1,
+       "x": 135,
+       "y": 15,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 102,
+       "x": 120,
+       "y": 0,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 180,
+       "y": 150,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 75,
+       "y": 165,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 0,
+       "y": 120,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 0,
+       "y": 15,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 60,
+       "y": 15,
+       "hp": 75,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 105,
+       "y": 0,
+       "hp": 100,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 120,
+       "y": 30,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 165,
+       "y": 0,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 150,
+       "y": 165,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 120,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 120,
+       "hp": 200,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 165,
+       "y": 120,
+       "hp": 200,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 180,
+       "y": 120,
+       "hp": 200,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 195,
+       "y": 105,
+       "hp": 200,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 195,
+       "y": 90,
+       "hp": 200,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 180,
+       "y": 105,
+       "hp": 200,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 120,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 210,
+       "y": 135,
+       "hp": 50,
+       "enemy": false
+      }
+     ],
+     "title": "Escape",
+     "brief": "Warning, enemy units everywhere, we must destroy their last and change position!"
+    }
+   ]
+  },
+  {
+   "name": "Base finder",
+   "w": 15,
+   "h": 15,
+   "tiles": [
+    [
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     8,
+     9,
+     9,
+     9,
+     10,
+     1,
+     2,
+     4,
+     1,
+     2,
+     3,
+     4,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     7,
+     1,
+     5,
+     6,
+     7,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     2,
+     3,
+     3,
+     3,
+     6,
+     6,
+     7,
+     1,
+     5,
+     6,
+     7,
+     1
+    ],
+    [
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     6,
+     6,
+     6,
+     7,
+     1,
+     5,
+     6,
+     7,
+     1
+    ],
+    [
+     1,
+     1,
+     8,
+     6,
+     6,
+     6,
+     6,
+     6,
+     6,
+     10,
+     1,
+     5,
+     6,
+     7,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     8,
+     9,
+     9,
+     9,
+     9,
+     10,
+     1,
+     2,
+     6,
+     6,
+     7,
+     1
+    ],
+    [
+     4,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     10,
+     1
+    ],
+    [
+     6,
+     4,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     10,
+     1,
+     2
+    ],
+    [
+     6,
+     6,
+     4,
+     1,
+     1,
+     1,
+     1,
+     1,
+     5,
+     6,
+     6,
+     10,
+     1,
+     2,
+     6
+    ],
+    [
+     8,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1,
+     5,
+     6,
+     7,
+     1,
+     2,
+     6,
+     6
+    ],
+    [
+     1,
+     8,
+     10,
+     1,
+     2,
+     4,
+     1,
+     1,
+     5,
+     6,
+     7,
+     1,
+     8,
+     6,
+     6
+    ],
+    [
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     4,
+     1,
+     8,
+     9,
+     10,
+     1,
+     1,
+     8,
+     6
+    ],
+    [
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     6,
+     4,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     8
+    ]
+   ],
+   "missions": [
+    {
+     "money": 1000,
+     "objects": [
+      {
+       "type": 0,
+       "x": 240,
+       "y": 15,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 4,
+       "x": 0,
+       "y": 360,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 5,
+       "x": 300,
+       "y": 15,
+       "hp": 5000,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 270,
+       "y": 0,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 360,
+       "y": 420,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 435,
+       "y": 240,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 180,
+       "y": 255,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 30,
+       "y": 0,
+       "hp": 50,
+       "enemy": false
+      }
+     ],
+     "title": "Find it",
+     "brief": "Now you will learn to find the enemy base in heavy terrain and destroy it."
+    },
+    {
+     "money": 5000,
+     "objects": [
+      {
+       "type": 0,
+       "x": 150,
+       "y": 285,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 300,
+       "y": 195,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 45,
+       "y": 210,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 120,
+       "y": 270,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 4,
+       "x": 405,
+       "y": 15,
+       "hp": 150,
+       "enemy": true
+      }
+     ],
+     "title": "Get me",
+     "brief": "The enemy forces are gaining on us, build as fast as you can!!"
+    },
+    {
+     "money": 3000,
+     "objects": [
+      {
+       "type": 4,
+       "x": 345,
+       "y": 420,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 2,
+       "x": 195,
+       "y": 360,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 225,
+       "y": 420,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 240,
+       "y": 420,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 240,
+       "y": 405,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 330,
+       "y": 345,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 345,
+       "y": 345,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 345,
+       "y": 360,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 180,
+       "y": 360,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 0,
+       "x": 300,
+       "y": 15,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 420,
+       "y": 75,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 435,
+       "y": 75,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 315,
+       "y": 75,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 300,
+       "y": 75,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 210,
+       "y": 60,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 225,
+       "y": 60,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 240,
+       "y": 60,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 255,
+       "y": 30,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 375,
+       "y": 30,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 405,
+       "y": 15,
+       "hp": 5000,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 345,
+       "y": 15,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 120,
+       "y": 105,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 300,
+       "y": 165,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 420,
+       "y": 150,
+       "hp": 50,
+       "enemy": false
+      }
+     ],
+     "title": "Battle",
+     "brief": "The final battle for this area wont be easy."
+    }
+   ]
+  },
+  {
+   "name": "Edges",
+   "w": 18,
+   "h": 7,
+   "tiles": [
+    [
+     1,
+     1,
+     1,
+     2,
+     6,
+     10,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     2,
+     6,
+     10,
+     1,
+     1,
+     1,
+     2,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     4,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     8,
+     10,
+     1,
+     2,
+     4,
+     1,
+     8,
+     9,
+     9,
+     9,
+     9,
+     9,
+     9,
+     10,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     10,
+     1,
+     2,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     4,
+     1,
+     1
+    ],
+    [
+     1,
+     2,
+     3,
+     6,
+     6,
+     7,
+     1,
+     1,
+     8,
+     9,
+     9,
+     9,
+     9,
+     9,
+     9,
+     10,
+     1,
+     1
+    ],
+    [
+     2,
+     6,
+     6,
+     6,
+     6,
+     10,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ]
+   ],
+   "missions": [
+    {
+     "money": 1000,
+     "objects": [
+      {
+       "type": 0,
+       "x": 30,
+       "y": 0,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 4,
+       "x": 510,
+       "y": 105,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 255,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 435,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 435,
+       "y": 90,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 255,
+       "y": 15,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 255,
+       "y": 0,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 5,
+       "x": 15,
+       "y": 120,
+       "hp": 3000,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 450,
+       "y": 90,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 270,
+       "y": 0,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 270,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 1,
+       "x": 0,
+       "y": 45,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 45,
+       "y": 60,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 90,
+       "y": 105,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 120,
+       "y": 90,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 135,
+       "y": 60,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 165,
+       "y": 45,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 210,
+       "y": 45,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 210,
+       "y": 0,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 240,
+       "y": 15,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 240,
+       "y": 30,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 225,
+       "y": 60,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 60,
+       "y": 120,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 60,
+       "y": 90,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 2,
+       "x": 480,
+       "y": 180,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 480,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 510,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 525,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 315,
+       "y": 90,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 375,
+       "y": 90,
+       "hp": 70,
+       "enemy": true
+      }
+     ],
+     "title": "Search",
+     "brief": "Now let us see which way to go."
+    },
+    {
+     "money": 3500,
+     "objects": [
+      {
+       "type": 0,
+       "x": 180,
+       "y": 180,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 255,
+       "y": 180,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 255,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 225,
+       "y": 60,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 195,
+       "y": 60,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 450,
+       "y": 90,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 450,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 240,
+       "y": 90,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 255,
+       "y": 90,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 255,
+       "y": 105,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 210,
+       "y": 60,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 480,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 525,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 510,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 375,
+       "y": 90,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 195,
+       "y": 15,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 210,
+       "y": 90,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 225,
+       "y": 120,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 1,
+       "x": 180,
+       "y": 150,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 300,
+       "y": 180,
+       "hp": 1200,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 480,
+       "y": 180,
+       "hp": 3500,
+       "enemy": false
+      },
+      {
+       "type": 4,
+       "x": 15,
+       "y": 15,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 2,
+       "x": 15,
+       "y": 105,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 45,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 30,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 15,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 0,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 0,
+       "y": 45,
+       "hp": 70,
+       "enemy": true
+      }
+     ],
+     "title": "Operation X",
+     "brief": "What do we do now? Escape?"
+    },
+    {
+     "money": 6000,
+     "objects": [
+      {
+       "type": 0,
+       "x": 510,
+       "y": 90,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 465,
+       "y": 105,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 495,
+       "y": 60,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 495,
+       "y": 135,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 102,
+       "x": 480,
+       "y": 90,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 102,
+       "x": 525,
+       "y": 45,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 101,
+       "x": 525,
+       "y": 135,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 101,
+       "x": 480,
+       "y": 120,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 405,
+       "y": 90,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 465,
+       "y": 15,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 510,
+       "y": 0,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 420,
+       "y": 195,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 495,
+       "y": 195,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 240,
+       "y": 105,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 195,
+       "y": 180,
+       "hp": 5000,
+       "enemy": false
+      },
+      {
+       "type": 4,
+       "x": 195,
+       "y": 15,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 495,
+       "y": 15,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 525,
+       "y": 180,
+       "hp": 50,
+       "enemy": false
+      }
+     ],
+     "title": "Finder",
+     "brief": "Enemy: \"Prepare to by smashed! You have no cover!\""
+    }
+   ]
+  },
+  {
+   "name": "Arena",
+   "w": 16,
+   "h": 16,
+   "tiles": [
+    [
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     4,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     4,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     8,
+     6,
+     6,
+     6,
+     7,
+     1,
+     1,
+     1,
+     2,
+     4,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     2,
+     4,
+     1,
+     8,
+     6,
+     6,
+     7,
+     1,
+     1,
+     2,
+     6,
+     6,
+     4,
+     1,
+     1
+    ],
+    [
+     2,
+     6,
+     6,
+     4,
+     1,
+     8,
+     6,
+     7,
+     1,
+     2,
+     6,
+     6,
+     6,
+     7,
+     1,
+     1
+    ],
+    [
+     6,
+     6,
+     6,
+     6,
+     4,
+     1,
+     8,
+     10,
+     1,
+     8,
+     9,
+     6,
+     6,
+     7,
+     1,
+     1
+    ],
+    [
+     6,
+     6,
+     6,
+     6,
+     6,
+     4,
+     1,
+     1,
+     1,
+     1,
+     1,
+     8,
+     9,
+     10,
+     1,
+     1
+    ],
+    [
+     6,
+     6,
+     6,
+     6,
+     6,
+     6,
+     4,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2
+    ],
+    [
+     6,
+     6,
+     6,
+     6,
+     6,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     5
+    ],
+    [
+     6,
+     6,
+     9,
+     9,
+     9,
+     9,
+     10,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     5
+    ],
+    [
+     6,
+     10,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     6
+    ],
+    [
+     10,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     4,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     7,
+     1,
+     1,
+     2,
+     6,
+     6,
+     6
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     8,
+     6,
+     6,
+     10,
+     1,
+     2,
+     6,
+     6,
+     6,
+     6
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     8,
+     10,
+     1,
+     1,
+     8,
+     9,
+     9,
+     9,
+     9
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ]
+   ],
+   "missions": [
+    {
+     "money": 3000,
+     "objects": [
+      {
+       "type": 0,
+       "x": 30,
+       "y": 420,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 180,
+       "y": 180,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 150,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 120,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 90,
+       "y": 90,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 1,
+       "x": 90,
+       "y": 435,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 4,
+       "x": 0,
+       "y": 75,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 2,
+       "x": 255,
+       "y": 195,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 240,
+       "y": 270,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 300,
+       "y": 300,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 270,
+       "y": 450,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 180,
+       "y": 315,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 300,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 315,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 120,
+       "y": 315,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 120,
+       "y": 330,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 330,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 345,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 345,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 360,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 165,
+       "y": 360,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 165,
+       "y": 375,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 240,
+       "y": 450,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 240,
+       "y": 465,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 105,
+       "y": 360,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 60,
+       "y": 330,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 165,
+       "y": 405,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 195,
+       "y": 450,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 150,
+       "y": 465,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 2,
+       "x": 15,
+       "y": 375,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 90,
+       "y": 390,
+       "hp": 5000,
+       "enemy": true
+      }
+     ],
+     "title": "Middle",
+     "brief": "Welcome to the arena, let us see how you battle!"
+    },
+    {
+     "money": 2000,
+     "objects": [
+      {
+       "type": 0,
+       "x": 420,
+       "y": 30,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 1,
+       "x": 375,
+       "y": 15,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 270,
+       "y": 15,
+       "hp": 5000,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 435,
+       "y": 90,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 405,
+       "y": 60,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 315,
+       "y": 60,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 270,
+       "y": 60,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 240,
+       "y": 30,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 465,
+       "y": 75,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 101,
+       "x": 270,
+       "y": 90,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 102,
+       "x": 450,
+       "y": 120,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 102,
+       "x": 435,
+       "y": 150,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 330,
+       "y": 15,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 255,
+       "y": 210,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 315,
+       "y": 255,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 435,
+       "y": 195,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 315,
+       "y": 210,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 240,
+       "y": 270,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 2,
+       "x": 360,
+       "y": 300,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 300,
+       "y": 300,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 300,
+       "y": 330,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 300,
+       "y": 360,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 4,
+       "x": 450,
+       "y": 450,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 180,
+       "y": 465,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 180,
+       "y": 435,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 1,
+       "x": 30,
+       "y": 435,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 1,
+       "x": 105,
+       "y": 390,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 5,
+       "x": 30,
+       "y": 375,
+       "hp": 1200,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 105,
+       "y": 330,
+       "hp": 1200,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 225,
+       "y": 315,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 210,
+       "y": 315,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 210,
+       "y": 300,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 195,
+       "y": 300,
+       "hp": 70,
+       "enemy": true
+      }
+     ],
+     "title": "Crossing",
+     "brief": "You now had to change your position, be aware, the enemy has sent everything they got now, but we will see, if they use it this time."
+    }
+   ]
+  },
+  {
+   "name": "Open field",
+   "w": 15,
+   "h": 15,
+   "tiles": [
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     4,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     2,
+     4,
+     1,
+     1,
+     8,
+     9,
+     10,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     2,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     4,
+     1,
+     1,
+     2,
+     3,
+     4,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     8,
+     9,
+     9,
+     9,
+     10,
+     1,
+     2,
+     6,
+     6,
+     7,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     10,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     10,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     3,
+     3,
+     4,
+     1,
+     1,
+     8,
+     6,
+     6,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     9,
+     9,
+     10,
+     1,
+     1,
+     1,
+     8,
+     6,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     8,
+     6,
+     6,
+     4,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     8,
+     6,
+     6,
+     3,
+     3,
+     4,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     8,
+     9,
+     9,
+     9,
+     10,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ]
+   ],
+   "missions": [
+    {
+     "money": 3000,
+     "objects": [
+      {
+       "type": 0,
+       "x": 30,
+       "y": 30,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 1,
+       "x": 90,
+       "y": 15,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 210,
+       "y": 75,
+       "hp": 2000,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 135,
+       "y": 30,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 4,
+       "x": 330,
+       "y": 240,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 360,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 375,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 390,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 405,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 420,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 435,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 375,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 405,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 435,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 300,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 300,
+       "y": 90,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 300,
+       "y": 15,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 300,
+       "y": 0,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 375,
+       "y": 45,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 420,
+       "y": 75,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 360,
+       "y": 90,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 255,
+       "y": 15,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 2,
+       "x": 120,
+       "y": 405,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 90,
+       "y": 285,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 285,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 285,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 285,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 90,
+       "y": 300,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 90,
+       "y": 315,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 90,
+       "y": 330,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 150,
+       "y": 300,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 150,
+       "y": 315,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 150,
+       "y": 330,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 150,
+       "y": 345,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 90,
+       "y": 345,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 300,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 315,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 330,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 300,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 315,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 345,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 330,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 345,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 360,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 360,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 45,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 30,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 15,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 0,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 45,
+       "y": 135,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 30,
+       "y": 135,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 15,
+       "y": 135,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 0,
+       "y": 135,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 60,
+       "y": 75,
+       "hp": 5000,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 0,
+       "y": 120,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 135,
+       "y": 0,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 15,
+       "y": 75,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 90,
+       "y": 60,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 102,
+       "x": 30,
+       "y": 105,
+       "hp": 50,
+       "enemy": false
+      }
+     ],
+     "title": "Open battle",
+     "brief": "Now let us see how you can do in open battle field."
+    },
+    {
+     "money": 1000,
+     "objects": [
+      {
+       "type": 6,
+       "x": 60,
+       "y": 330,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 75,
+       "y": 330,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 75,
+       "y": 345,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 90,
+       "y": 345,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 90,
+       "y": 360,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 360,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 120,
+       "y": 360,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 120,
+       "y": 375,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 120,
+       "y": 390,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 390,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 405,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 420,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 435,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 120,
+       "y": 405,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 105,
+       "y": 375,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 75,
+       "y": 360,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 60,
+       "y": 345,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 120,
+       "y": 435,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 90,
+       "y": 420,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 75,
+       "y": 390,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 30,
+       "y": 345,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 0,
+       "x": 30,
+       "y": 420,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 60,
+       "y": 420,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 0,
+       "y": 345,
+       "hp": 1200,
+       "enemy": false
+      },
+      {
+       "type": 1,
+       "x": 0,
+       "y": 390,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 135,
+       "y": 300,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 150,
+       "y": 345,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 210,
+       "y": 375,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 195,
+       "y": 420,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 240,
+       "y": 420,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 105,
+       "y": 270,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 4,
+       "x": 195,
+       "y": 90,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 210,
+       "y": 165,
+       "hp": 140,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 195,
+       "y": 45,
+       "hp": 140,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 165,
+       "y": 15,
+       "hp": 140,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 345,
+       "y": 90,
+       "hp": 210,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 45,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 30,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 15,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 135,
+       "y": 0,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 15,
+       "y": 30,
+       "hp": 50,
+       "enemy": false
+      }
+     ],
+     "title": "Another war",
+     "brief": "Enemy units have come very close this time. Destroy them!"
+    },
+    {
+     "money": 5000,
+     "objects": [
+      {
+       "type": 6,
+       "x": 420,
+       "y": 390,
+       "hp": 5000,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 435,
+       "y": 390,
+       "hp": 5000,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 435,
+       "y": 375,
+       "hp": 200,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 360,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 375,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 375,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 375,
+       "y": 165,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 375,
+       "y": 180,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 405,
+       "y": 180,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 405,
+       "y": 165,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 405,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 405,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 435,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 420,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 4,
+       "x": 315,
+       "y": 285,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 1,
+       "x": 375,
+       "y": 270,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 0,
+       "x": 30,
+       "y": 30,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 105,
+       "y": 15,
+       "hp": 1200,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 150,
+       "y": 405,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 390,
+       "y": 30,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 240,
+       "y": 420,
+       "hp": 50,
+       "enemy": false
+      }
+     ],
+     "title": "Can you?",
+     "brief": "Commander: \"Are you able build everything yourself? Let us see. Build fast!\""
+    }
+   ]
+  },
+  {
+   "name": "Finder",
+   "w": 20,
+   "h": 10,
+   "tiles": [
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     8,
+     6,
+     6,
+     6,
+     6,
+     9,
+     6,
+     6,
+     6,
+     6,
+     6,
+     10,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     5,
+     6,
+     6,
+     10,
+     1,
+     8,
+     9,
+     9,
+     9,
+     10,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     2,
+     3,
+     4,
+     1,
+     2,
+     6,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     5,
+     6,
+     7,
+     1,
+     8,
+     9,
+     6,
+     6,
+     4,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     8,
+     6,
+     6,
+     4,
+     1,
+     1,
+     5,
+     6,
+     6,
+     3,
+     3,
+     3,
+     3,
+     3,
+     4,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     8,
+     6,
+     7,
+     1,
+     2,
+     6,
+     6,
+     6,
+     6,
+     6,
+     6,
+     6,
+     6,
+     6,
+     4,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     8,
+     10,
+     1,
+     5,
+     6,
+     6,
+     6,
+     10,
+     8,
+     6,
+     6,
+     10,
+     8,
+     6,
+     4,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     8,
+     6,
+     6,
+     10,
+     1,
+     1,
+     8,
+     10,
+     1,
+     1,
+     8,
+     10,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     4,
+     1,
+     8,
+     10,
+     1,
+     2,
+     4,
+     1,
+     1,
+     2,
+     4,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     4,
+     1,
+     1,
+     2,
+     6,
+     6,
+     3,
+     3,
+     6,
+     6,
+     4,
+     1,
+     1
+    ]
+   ],
+   "missions": [
+    {
+     "money": 1600,
+     "objects": [
+      {
+       "type": 4,
+       "x": 330,
+       "y": 45,
+       "hp": 45,
+       "enemy": true
+      },
+      {
+       "type": 0,
+       "x": 150,
+       "y": 15,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 15,
+       "y": 15,
+       "hp": 2500,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 210,
+       "y": 120,
+       "hp": 2500,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 30,
+       "y": 255,
+       "hp": 5000,
+       "enemy": false
+      },
+      {
+       "type": 101,
+       "x": 120,
+       "y": 15,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 60,
+       "y": 15,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 1,
+       "x": 90,
+       "y": 30,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 240,
+       "y": 270,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 405,
+       "y": 240,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 405,
+       "y": 255,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 570,
+       "y": 210,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 585,
+       "y": 210,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 1,
+       "x": 555,
+       "y": 30,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 525,
+       "y": 45,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 45,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 510,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 510,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 525,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 525,
+       "y": 75,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 465,
+       "y": 60,
+       "hp": 100,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 195,
+       "y": 135,
+       "hp": 75,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 150,
+       "y": 75,
+       "hp": 75,
+       "enemy": false
+      },
+      {
+       "type": 102,
+       "x": 135,
+       "y": 45,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 180,
+       "y": 225,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 375,
+       "y": 90,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 555,
+       "y": 120,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 540,
+       "y": 255,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 360,
+       "y": 210,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 420,
+       "y": 90,
+       "hp": 50,
+       "enemy": false
+      }
+     ],
+     "title": "New map",
+     "brief": "You have just entered a new enemy territory - be aware that the enemy has called for reinforcements."
+    },
+    {
+     "money": 3000,
+     "objects": [
+      {
+       "type": 0,
+       "x": 300,
+       "y": 60,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 390,
+       "y": 60,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 390,
+       "y": 75,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 390,
+       "y": 90,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 330,
+       "y": 30,
+       "hp": 3000,
+       "enemy": false
+      },
+      {
+       "type": 1,
+       "x": 330,
+       "y": 90,
+       "hp": 250,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 375,
+       "y": 105,
+       "hp": 125,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 360,
+       "y": 90,
+       "hp": 125,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 330,
+       "y": 60,
+       "hp": 100,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 450,
+       "y": 75,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 495,
+       "y": 75,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 540,
+       "y": 75,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 510,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 525,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 540,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 555,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 570,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 585,
+       "y": 120,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 525,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 570,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 4,
+       "x": 150,
+       "y": 15,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 0,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 15,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 30,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 45,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 75,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 165,
+       "y": 75,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 195,
+       "y": 210,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 180,
+       "y": 210,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 165,
+       "y": 210,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 150,
+       "y": 210,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 45,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 30,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 0,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 15,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 150,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 120,
+       "y": 15,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 15,
+       "y": 90,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 210,
+       "y": 135,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 1,
+       "x": 15,
+       "y": 30,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 5,
+       "x": 555,
+       "y": 255,
+       "hp": 2500,
+       "enemy": false
+      },
+      {
+       "type": 2,
+       "x": 15,
+       "y": 225,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 0,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 15,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 30,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 45,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 45,
+       "y": 210,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 60,
+       "y": 210,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 60,
+       "y": 255,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 60,
+       "y": 270,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 60,
+       "y": 285,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 375,
+       "y": 60,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 240,
+       "y": 270,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 375,
+       "y": 225,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 465,
+       "y": 225,
+       "hp": 50,
+       "enemy": false
+      }
+     ],
+     "title": "Overload",
+     "brief": "The enemies sent their strongest units and are ready to destroy you. Attack them before they destroy you!"
+    },
+    {
+     "money": 6000,
+     "objects": [
+      {
+       "type": 0,
+       "x": 570,
+       "y": 270,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 570,
+       "y": 240,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 540,
+       "y": 270,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 510,
+       "y": 240,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 585,
+       "y": 210,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 570,
+       "y": 180,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 525,
+       "y": 75,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 330,
+       "y": 75,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 435,
+       "y": 90,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 570,
+       "y": 30,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 30,
+       "y": 255,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 135,
+       "y": 225,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 15,
+       "y": 150,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 195,
+       "y": 135,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 480,
+       "y": 210,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 435,
+       "y": 240,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 555,
+       "y": 150,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 555,
+       "y": 105,
+       "hp": 6000,
+       "enemy": false
+      },
+      {
+       "type": 4,
+       "x": 30,
+       "y": 15,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 15,
+       "y": 45,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 2,
+       "x": 75,
+       "y": 0,
+       "hp": 150,
+       "enemy": true
+      }
+     ],
+     "title": "Seek them",
+     "brief": ""
+    }
+   ]
+  },
+  {
+   "name": "Totaller",
+   "w": 20,
+   "h": 20,
+   "tiles": [
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     3,
+     3,
+     3,
+     4,
+     1,
+     2,
+     3,
+     3,
+     3,
+     3,
+     3,
+     4,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     6,
+     6,
+     10,
+     1,
+     5,
+     6,
+     9,
+     9,
+     9,
+     9,
+     10,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     8,
+     6,
+     6,
+     6,
+     6,
+     10,
+     1,
+     2,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     10,
+     1,
+     2,
+     6,
+     6,
+     10,
+     1,
+     2,
+     3,
+     3,
+     3,
+     3
+    ],
+    [
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     10,
+     1,
+     2,
+     6,
+     6,
+     7,
+     1,
+     1,
+     8,
+     9,
+     9,
+     9,
+     9
+    ],
+    [
+     1,
+     1,
+     1,
+     5,
+     6,
+     6,
+     10,
+     1,
+     2,
+     6,
+     6,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     1,
+     8,
+     6,
+     7,
+     1,
+     1,
+     8,
+     6,
+     6,
+     6,
+     6,
+     3,
+     3,
+     3,
+     3,
+     3,
+     4,
+     1
+    ],
+    [
+     3,
+     3,
+     4,
+     1,
+     5,
+     7,
+     1,
+     1,
+     1,
+     8,
+     6,
+     6,
+     6,
+     9,
+     9,
+     9,
+     9,
+     9,
+     10,
+     1
+    ],
+    [
+     6,
+     6,
+     7,
+     1,
+     5,
+     7,
+     1,
+     1,
+     1,
+     1,
+     8,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2
+    ],
+    [
+     6,
+     6,
+     10,
+     1,
+     5,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1,
+     8,
+     6,
+     4,
+     1,
+     2,
+     3,
+     3,
+     3,
+     6
+    ],
+    [
+     6,
+     10,
+     1,
+     2,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     8,
+     7,
+     1,
+     8,
+     9,
+     9,
+     9,
+     9
+    ],
+    [
+     10,
+     1,
+     2,
+     6,
+     6,
+     10,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     5,
+     4,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     5,
+     6,
+     7,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     5,
+     6,
+     4,
+     1,
+     1,
+     1,
+     1
+    ],
+    [
+     1,
+     1,
+     5,
+     6,
+     6,
+     3,
+     3,
+     3,
+     4,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     7,
+     1,
+     1,
+     1,
+     2
+    ],
+    [
+     1,
+     1,
+     5,
+     6,
+     6,
+     6,
+     6,
+     6,
+     7,
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     7,
+     1,
+     1,
+     2,
+     6
+    ],
+    [
+     1,
+     1,
+     8,
+     6,
+     6,
+     6,
+     6,
+     6,
+     10,
+     1,
+     1,
+     8,
+     9,
+     9,
+     9,
+     10,
+     1,
+     1,
+     5,
+     6
+    ],
+    [
+     1,
+     1,
+     1,
+     8,
+     9,
+     9,
+     9,
+     10,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     4,
+     1,
+     1,
+     1,
+     1,
+     1,
+     8,
+     6,
+     6
+    ],
+    [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     6,
+     6,
+     6,
+     4,
+     1,
+     1,
+     1,
+     1,
+     1,
+     8,
+     6
+    ]
+   ],
+   "missions": [
+    {
+     "money": 1000,
+     "objects": [
+      {
+       "type": 0,
+       "x": 240,
+       "y": 315,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 180,
+       "y": 240,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 195,
+       "y": 240,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 210,
+       "y": 240,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 225,
+       "y": 240,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 240,
+       "y": 240,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 255,
+       "y": 240,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 270,
+       "y": 435,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 285,
+       "y": 435,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 300,
+       "y": 435,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 315,
+       "y": 435,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 330,
+       "y": 435,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 345,
+       "y": 435,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 330,
+       "y": 375,
+       "hp": 200,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 195,
+       "y": 360,
+       "hp": 225,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 330,
+       "y": 420,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 240,
+       "y": 255,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 1,
+       "x": 255,
+       "y": 375,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 2,
+       "x": 300,
+       "y": 330,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 195,
+       "y": 270,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 101,
+       "x": 210,
+       "y": 315,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 240,
+       "y": 360,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 102,
+       "x": 255,
+       "y": 285,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 101,
+       "x": 300,
+       "y": 390,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 360,
+       "y": 510,
+       "hp": 115,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 360,
+       "y": 525,
+       "hp": 115,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 360,
+       "y": 540,
+       "hp": 115,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 360,
+       "y": 555,
+       "hp": 115,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 270,
+       "y": 135,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 255,
+       "y": 510,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 225,
+       "y": 15,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 225,
+       "y": 0,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 1,
+       "x": 120,
+       "y": 15,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 195,
+       "y": 540,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 195,
+       "y": 555,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 195,
+       "y": 570,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 195,
+       "y": 585,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 75,
+       "y": 45,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 45,
+       "y": 90,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 45,
+       "y": 150,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 180,
+       "y": 540,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 180,
+       "y": 570,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 375,
+       "y": 510,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 540,
+       "y": 375,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 420,
+       "y": 180,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 390,
+       "y": 0,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 390,
+       "y": 15,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 405,
+       "y": 0,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 435,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 570,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 405,
+       "y": 270,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 450,
+       "y": 285,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 4,
+       "x": 495,
+       "y": 570,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 375,
+       "y": 540,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 375,
+       "y": 570,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 495,
+       "y": 540,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 450,
+       "y": 570,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 525,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 480,
+       "y": 525,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 480,
+       "y": 540,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 465,
+       "y": 540,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 465,
+       "y": 555,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 450,
+       "y": 555,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 435,
+       "y": 555,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 435,
+       "y": 570,
+       "hp": 150,
+       "enemy": true
+      }
+     ],
+     "title": "Holdup",
+     "brief": "The enemy units are gaining on you from all sides. Make your walls stronger and build more tanks."
+    },
+    {
+     "money": 2000,
+     "objects": [
+      {
+       "type": 4,
+       "x": 390,
+       "y": 180,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 0,
+       "x": 15,
+       "y": 555,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 1,
+       "x": 75,
+       "y": 570,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 104,
+       "x": 120,
+       "y": 570,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 0,
+       "y": 510,
+       "hp": 180,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 285,
+       "y": 360,
+       "hp": 185,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 210,
+       "y": 285,
+       "hp": 185,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 60,
+       "y": 525,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 102,
+       "x": 30,
+       "y": 465,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 101,
+       "x": 165,
+       "y": 570,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 101,
+       "x": 195,
+       "y": 555,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 210,
+       "y": 540,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 210,
+       "y": 555,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 210,
+       "y": 570,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 210,
+       "y": 585,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 45,
+       "y": 435,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 30,
+       "y": 435,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 15,
+       "y": 435,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 0,
+       "y": 435,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 75,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 60,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 45,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 30,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 15,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 0,
+       "y": 195,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 390,
+       "y": 510,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 390,
+       "y": 525,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 390,
+       "y": 540,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 390,
+       "y": 555,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 390,
+       "y": 570,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 390,
+       "y": 585,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 420,
+       "y": 525,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 495,
+       "y": 480,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 480,
+       "y": 480,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 480,
+       "y": 495,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 495,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 510,
+       "y": 495,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 510,
+       "y": 480,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 525,
+       "y": 480,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 480,
+       "y": 405,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 405,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 390,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 510,
+       "y": 390,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 510,
+       "y": 375,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 525,
+       "y": 375,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 525,
+       "y": 360,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 480,
+       "y": 390,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 495,
+       "y": 375,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 510,
+       "y": 360,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 60,
+       "y": 180,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 15,
+       "y": 180,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 390,
+       "y": 15,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 390,
+       "y": 0,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 375,
+       "y": 0,
+       "hp": 250,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 375,
+       "y": 15,
+       "hp": 250,
+       "enemy": true
+      },
+      {
+       "type": 100,
+       "x": 255,
+       "y": 150,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 435,
+       "y": 120,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 540,
+       "y": 180,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 465,
+       "y": 270,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 570,
+       "y": 15,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 60,
+       "y": 60,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 45,
+       "y": 360,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 100,
+       "x": 270,
+       "y": 510,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 45,
+       "y": 15,
+       "hp": 155,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 30,
+       "y": 105,
+       "hp": 215,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 255,
+       "y": 330,
+       "hp": 150,
+       "enemy": true
+      }
+     ],
+     "title": "The last",
+     "brief": "The enemy has called all last forces, that he has - he cannot stand it - destroy him!"
+    },
+    {
+     "money": 1000,
+     "objects": [
+      {
+       "type": 0,
+       "x": 555,
+       "y": 375,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 465,
+       "y": 360,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 465,
+       "y": 375,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 465,
+       "y": 390,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 495,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 480,
+       "y": 480,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 480,
+       "y": 495,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 510,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 6,
+       "x": 495,
+       "y": 525,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 495,
+       "y": 480,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 7,
+       "x": 480,
+       "y": 360,
+       "hp": 70,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 495,
+       "y": 405,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 103,
+       "x": 525,
+       "y": 435,
+       "hp": 50,
+       "enemy": false
+      },
+      {
+       "type": 1,
+       "x": 510,
+       "y": 360,
+       "hp": 150,
+       "enemy": false
+      },
+      {
+       "type": 5,
+       "x": 480,
+       "y": 435,
+       "hp": 3000,
+       "enemy": false
+      },
+      {
+       "type": 1,
+       "x": 210,
+       "y": 240,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 1,
+       "x": 30,
+       "y": 555,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 1,
+       "x": 30,
+       "y": 150,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 90,
+       "y": 255,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 6,
+       "x": 105,
+       "y": 255,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 4,
+       "x": 75,
+       "y": 105,
+       "hp": 150,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 15,
+       "y": 105,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 45,
+       "y": 90,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 75,
+       "y": 75,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 105,
+       "y": 60,
+       "hp": 70,
+       "enemy": true
+      },
+      {
+       "type": 7,
+       "x": 90,
+       "y": 240,
+       "hp": 200,
+       "enemy": true
+      }
+     ],
+     "title": "Now where?",
+     "brief": "Enemy: \"Did you think that was the last? Well you were mistaken...\""
+    }
+   ]
+  }
+ ]
+}

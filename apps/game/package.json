@@ -1,0 +1,25 @@
+{
+  "name": "@sw/game",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc -p .",
+    "test": "echo \"@sw/game: see e2e\"",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@sw/data": "workspace:*",
+    "@sw/sim": "workspace:*",
+    "pixi.js": "^8.13.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@types/node": "^22.20.5",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.7"
+  }
+}

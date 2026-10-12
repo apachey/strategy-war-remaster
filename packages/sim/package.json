@@ -1,0 +1,14 @@
+{
+  "name": "@sw/sim",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run",
+    "build": "echo \"@sw/sim: consumed as source\""
+  },
+  "dependencies": { "@sw/data": "workspace:*" },
+  "devDependencies": { "typescript": "~5.9.3", "vitest": "^3.2.7" }
+}

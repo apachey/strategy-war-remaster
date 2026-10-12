@@ -1,0 +1,12 @@
+{
+  "name": "@sw/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri",
+    "typecheck": "echo \"@sw/desktop: Rust shell, checked by cargo\"",
+    "test": "echo \"@sw/desktop: no tests\"",
+    "build": "echo \"@sw/desktop: use pnpm desktop:build\""
+  },
+  "devDependencies": { "@tauri-apps/cli": "^2.8.4" }
+}
