@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+.DS_Store
+*.log
+# Original game files stay out of the repo (copyright); see docs/original.md
+original/
+*.jar
+*.jad
