@@ -12,6 +12,9 @@ commit messages are in English.
   or wall-clock time inside the sim, so replays, AI tests and later online play stay in lockstep.
 - `packages/data` — `campaign.json` (7 maps, 21 missions decoded from the original), types, original balance.
 - `tools/extract` — decoder for the original `.tae` map format (see its README).
+- `tools/art` — style B pipeline: low-poly three.js models rendered in headless Chromium to 8-direction palette
+  sprites (see its README). Output: `assets/sprites/sprites.png` + `sprites.json` (PixiJS spritesheet), never edit
+  them by hand.
 
 ## Commands
 
@@ -21,6 +24,7 @@ pnpm dev            # game in the browser at http://localhost:5173
 pnpm typecheck && pnpm test
 pnpm e2e            # Playwright smoke tests + screenshots in apps/game/test-results
 pnpm desktop:build  # macOS .app/.dmg (needs macOS + Rust)
+pnpm sprites        # regenerate sprites from the 3D models; CI runs pnpm sprites:check
 ```
 
 ## Rules

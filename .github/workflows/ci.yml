@@ -25,6 +25,8 @@ jobs:
       - run: pnpm test
       - run: pnpm --filter @sw/game exec playwright install --with-deps chromium
       - run: pnpm e2e
+      - name: Sprites match their 3D models
+        run: pnpm sprites:check
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
