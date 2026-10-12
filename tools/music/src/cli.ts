@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from '
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { master, mixInto, pingPong, reverb, wav } from './effects';
-import { bass, drums, lead, pad, reed } from './instruments';
+import { braam, darkPad, drone, lowStrings, throat, wail, warDrums, wind } from './instruments';
 import { parseMidi, type Note, type Song } from './midi';
 import { SAMPLE_RATE, Stereo } from './synth';
 import { battle, tension, type Arrangement, type Part } from './tracks';
@@ -26,39 +26,54 @@ const arg = (name: string) => {
 const midiPath = arg('midi') ?? '/mnt/project-files/strategy-war/original/assets/G_8280/intro.mid';
 const outDir = resolve(repo, arg('out') ?? 'assets/music');
 
-/** Picks our instrument for an original track by its General MIDI program (channel 10 is drums). */
+/** The original plays at 150 bpm; the dark arrangement takes it this much slower (about 100 bpm). */
+const SLOWER = 1.5;
+/** Beats of desert before the tune starts. */
+const INTRO = 16;
+
+const later = (notes: Note[], by: number) => notes.map((n) => ({ ...n, start: n.start + by }));
+
+/** Maps the original's General MIDI tracks onto the dark palette (channel 10 is drums). */
 function partsFor(song: Song): Part[] {
   const parts: Part[] = [];
   for (const t of song.tracks) {
     if (!t.notes.length) continue;
     const prog = t.program ?? 0;
-    if (t.notes[0]!.channel === 9) parts.push({ instrument: drums(), notes: t.notes, reverb: 0.12 });
-    else if (prog >= 32 && prog < 40) parts.push({ instrument: bass(), notes: t.notes, reverb: 0.03 });
-    else if (prog >= 40 && prog < 56) parts.push({ instrument: pad(), notes: t.notes, reverb: 0.5 });
-    else if (prog === 68 || prog === 69) parts.push({ instrument: reed(), notes: t.notes, reverb: 0.3, delay: 0.12 });
-    else parts.push({ instrument: lead(), notes: t.notes, reverb: 0.25, delay: 0.22 });
+    // The original doubles some notes with zero-length copies; they only click.
+    const notes = later(
+      t.notes.filter((n) => n.length > 0.01),
+      INTRO,
+    );
+    if (notes[0]!.channel === 9) parts.push({ instrument: warDrums({ seed: 3 }), notes, reverb: 0.25 });
+    else if (prog >= 32 && prog < 40) parts.push({ instrument: lowStrings({ gain: 0.24 }), notes, reverb: 0.1 });
+    else if (prog >= 40 && prog < 56) parts.push({ instrument: darkPad({ gain: 0.06 }), notes: notes.map((n) => ({ ...n, pitch: n.pitch - 12 })), reverb: 0.5 });
+    // The oboe's counter-line becomes a second, lower voice.
+    else if (prog === 68 || prog === 69) parts.push({ instrument: wail({ gain: 0.13, pan: 0.35, octave: -1 }), notes, reverb: 0.5, delay: 0.15 });
+    else parts.push({ instrument: wail({ gain: 0.32, pan: -0.1 }), notes, reverb: 0.45, delay: 0.2 });
   }
   return parts;
 }
 
 /**
- * Main theme: the tune twice (second time with the lead doubled an octave up and a crash on the downbeat), then
- * a held D minor chord to close.
+ * Main theme: the wind and a drone on D with the throat singer and a slow brass swell, taiko calling in the dark;
+ * then the original tune sung by the wailing voice over war drums and low strings, about two thirds of its old
+ * speed; it closes with an Eb to D brass cadence (Phrygian, the sound of the desert) and a last boom.
  */
 function mainTheme(song: Song): Arrangement {
-  const spb = song.tempo / 1e6;
-  const base = partsFor(song);
+  const spb = (song.tempo / 1e6) * SLOWER;
   const len = Math.ceil(Math.max(...song.tracks.flatMap((t) => t.notes.map((n) => n.start + n.length))) / 4) * 4;
-  const shift = (notes: Note[], by: number) => notes.map((n) => ({ ...n, start: n.start + by }));
-  const parts: Part[] = base.map((p) => ({ ...p, notes: [...p.notes, ...shift(p.notes, len)] }));
-  const leadPart = base.find((p) => p.delay === 0.22);
-  if (leadPart) parts.push({ instrument: lead({ octave: 1, gain: 0.07, pan: -0.25 }), notes: shift(leadPart.notes, len), reverb: 0.35, delay: 0.2 });
-  const end = len * 2;
-  const v = 0.9;
-  parts.push({ instrument: drums({ seed: 3 }), notes: [{ start: len, length: 1, pitch: 49, velocity: v, channel: 9 }, { start: end, length: 1, pitch: 36, velocity: 1, channel: 9 }, { start: end, length: 1, pitch: 49, velocity: 1, channel: 9 }], reverb: 0.2 });
-  parts.push({ instrument: pad({ gain: 0.09 }), notes: [50, 53, 57, 62, 69].map((pitch) => ({ start: end, length: 6, pitch, velocity: v, channel: 0 })), reverb: 0.6 });
-  parts.push({ instrument: bass(), notes: [{ start: end, length: 3, pitch: 38, velocity: 1, channel: 0 }], reverb: 0.05 });
-  return { parts, beats: end + 6, spb, loop: false };
+  const end = INTRO + len;
+  const hit = (start: number, pitch: number, velocity = 0.9): Note => ({ start, length: 1, pitch, velocity, channel: 9 });
+  const note = (start: number, length: number, pitch: number, velocity = 0.9): Note => ({ start, length, pitch, velocity, channel: 0 });
+  const parts: Part[] = [
+    { instrument: wind({ gain: 0.16, seed: 6 }), notes: [note(0, end + 12, 0, 1)], reverb: 0.3 },
+    { instrument: drone({ gain: 0.18 }), notes: [note(0, INTRO + 2, 26), note(end, 12, 26)], reverb: 0.2 },
+    { instrument: throat({ gain: 0.2 }), notes: [note(2, 6, 38), note(8, 4, 39, 0.8), note(12, 5, 38), note(end + 2, 8, 38, 0.8)], reverb: 0.5 },
+    { instrument: braam({ gain: 0.17 }), notes: [note(8, 7, 38), note(8, 7, 45), note(end, 4, 39), note(end, 4, 46), note(end + 4, 8, 38), note(end + 4, 8, 45)], reverb: 0.45 },
+    { instrument: warDrums({ seed: 8 }), notes: [hit(0, 49, 0.7), hit(6, 36, 0.8), hit(8, 49), hit(12, 36, 0.8), hit(13.5, 36, 0.7), hit(14, 43, 0.7), hit(14.5, 43, 0.8), hit(15, 45, 0.9), hit(15.5, 45, 1), hit(end + 4, 49, 1), hit(end + 4, 36, 1)], reverb: 0.3 },
+    ...partsFor(song),
+  ];
+  return { parts, beats: end + 12, spb, loop: false };
 }
 
 function render({ parts, beats, spb, loop }: Arrangement): Stereo {

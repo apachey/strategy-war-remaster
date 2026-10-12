@@ -48,6 +48,20 @@ export class Lowpass {
   }
 }
 
+/** Chamberlin state-variable filter, bandpass output normalised to 1 at the centre; q sets how narrow it is. */
+export class Bandpass {
+  private low = 0;
+  private band = 0;
+  constructor(private q = 4) {}
+  run(x: number, centre: number): number {
+    const f = 2 * Math.sin((Math.PI * Math.min(centre, SAMPLE_RATE / 6)) / SAMPLE_RATE);
+    this.low += f * this.band;
+    const high = x - this.low - this.band / this.q;
+    this.band += f * high;
+    return this.band / this.q;
+  }
+}
+
 /** One-pole highpass for hats and clicks. */
 export class Highpass {
   private prevIn = 0;
