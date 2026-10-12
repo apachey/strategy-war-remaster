@@ -15,7 +15,8 @@
     "desktop:build": "pnpm --filter @sw/desktop tauri build",
     "extract": "node tools/extract/extract-campaign.mjs",
     "sprites": "pnpm --filter @sw/art sprites",
-    "sprites:check": "pnpm --filter @sw/art sprites --check"
+    "sprites:check": "pnpm --filter @sw/art sprites --check",
+    "music": "pnpm --filter @sw/music music"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

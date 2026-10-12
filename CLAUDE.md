@@ -15,6 +15,7 @@ commit messages are in English.
 - `tools/art` — style B pipeline: low-poly three.js models rendered in headless Chromium to 8-direction palette
   sprites (see its README). Output: `assets/sprites/sprites.png` + `sprites.json` (PixiJS spritesheet), never edit
   them by hand.
+- `tools/music` — renders the music (`assets/music`) from the original intro tune with our own synthesisers.
 
 ## Commands
 
@@ -25,6 +26,7 @@ pnpm typecheck && pnpm test
 pnpm e2e            # Playwright smoke tests + screenshots in apps/game/test-results
 pnpm desktop:build  # macOS .app/.dmg (needs macOS + Rust)
 pnpm sprites        # regenerate sprites from the 3D models; CI runs pnpm sprites:check
+pnpm music          # re-render the music (needs the original intro.mid from the project files)
 ```
 
 ## Rules
