@@ -54,7 +54,7 @@ describe('determinism', () => {
       step(b);
     }
     expect(hashWorld(a)).toBe(hashWorld(b));
-    expect(a.rng()).toBe(b.rng());
+    expect(a.rngState).toBe(b.rngState);
   });
 });
 

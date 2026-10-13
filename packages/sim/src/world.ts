@@ -1,17 +1,22 @@
-import { CELL, ObjectType, TILE_FOREST, type CampaignMap, type MapObject } from '@sw/data';
+import { campaign, CELL, ObjectType, TILE_FOREST, type CampaignMap, type MapObject } from '@sw/data';
+import { aiStep, createAi, type AiState } from './ai';
 import { findPath, type Cell } from './path';
-import { createRng } from './rng';
+import { nextRandom } from './rng';
 import {
   BUILDING_RULES,
+  ENEMY_BONUS,
   ENEMY_FACTORY_PAUSE_MS,
   ENEMY_MAX_TANKS,
   HARVESTER,
   OUTCOME_DELAY_MS,
   RAIDER_WANDER_CELLS,
   TICK_MS,
+  TRAINING_MAPS,
   UNIT_RULES,
   UNIT_SIGHT_CELLS,
+  type AiBrainName,
   type BuildingType,
+  type Difficulty,
   type UnitType,
   type Weapon,
 } from './rules';
@@ -25,6 +30,8 @@ export type Order =
   | { kind: 'idle' }
   /** Walk to a point (pixel coordinates of the unit's centre). */
   | { kind: 'move'; x: number; y: number }
+  /** Drive to a point but stop to fight whatever enemy comes into range on the way. */
+  | { kind: 'attackMove'; x: number; y: number }
   | { kind: 'attack'; targetId: number }
   | { kind: 'harvest'; fieldId: number }
   | { kind: 'defend'; targetId: number };
@@ -116,7 +123,13 @@ export interface World {
   projectiles: Projectile[];
   sides: Record<Side, SideState>;
   tick: number;
-  rng: () => number;
+  /** State of the seeded PRNG; read it only through random(). */
+  rngState: number;
+  difficulty: Difficulty;
+  /** Computer players by side. Without one for the enemy, the enemy behaves exactly like the original. */
+  ai: Partial<Record<Side, AiState>>;
+  /** The training map: a computer enemy there commands its units but never builds. */
+  training: boolean;
   nextId: number;
   outcome: Outcome;
   /** Tick at which a decided mission reports its outcome, after the original's short pause. */
@@ -189,7 +202,15 @@ function newEntity(id: number, type: ObjectType, team: Team, x: number, y: numbe
   };
 }
 
-export function createWorld(map: CampaignMap, missionIndex: number, seed = 1): World {
+export interface WorldOptions {
+  /** Default 'classic', the original enemy. */
+  difficulty?: Difficulty;
+  /** Hand the player side to a computer brain too (tests and demos). */
+  playerAi?: AiBrainName;
+}
+
+export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, options: WorldOptions = {}): World {
+  const difficulty = options.difficulty ?? 'classic';
   const mission = map.missions[missionIndex];
   if (!mission) throw new Error(`Map "${map.name}" has no mission ${missionIndex + 1}`);
   const grid = buildBlockedGrid(map);
@@ -205,7 +226,10 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1): W
       enemy: { money: 0, explored: new Uint8Array(cells) },
     },
     tick: 0,
-    rng: createRng(seed),
+    rngState: seed >>> 0,
+    difficulty,
+    ai: {},
+    training: campaign.maps.indexOf(map) >= 0 && campaign.maps.indexOf(map) < TRAINING_MAPS,
     nextId: 1,
     outcome: 'playing',
     pendingOutcome: null,
@@ -215,7 +239,19 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1): W
     // Hit points come from the mission file: placed units are often weaker than freshly built ones.
     addEntity(world, newEntity(world.nextId++, o.type, teamOf(o), o.x, o.y, o.hp));
   }
+  if (difficulty !== 'classic') {
+    world.ai.enemy = createAi(world, 'enemy', difficulty);
+    world.sides.enemy.money = ENEMY_BONUS[difficulty].money;
+  }
+  if (options.playerAi) world.ai.player = createAi(world, 'player', options.playerAi);
   return world;
+}
+
+/** Next number in [0, 1) from the world's seeded PRNG. */
+export function random(world: World): number {
+  const r = nextRandom(world.rngState);
+  world.rngState = r.state;
+  return r.value;
 }
 
 function addEntity(world: World, e: Entity): void {
@@ -350,6 +386,7 @@ function stopMoving(e: Entity): void {
 
 export type Command =
   | { kind: 'move'; ids: number[]; x: number; y: number }
+  | { kind: 'attackMove'; ids: number[]; x: number; y: number }
   | { kind: 'attack'; ids: number[]; targetId: number }
   | { kind: 'harvest'; ids: number[]; fieldId: number }
   | { kind: 'defend'; ids: number[]; targetId: number }
@@ -357,7 +394,9 @@ export type Command =
   | { kind: 'build'; hqId: number; building: BuildingType; cx: number; cy: number }
   | { kind: 'produce'; factoryId: number; unit: UnitType }
   | { kind: 'cancel'; id: number }
-  | { kind: 'destruct'; id: number };
+  | { kind: 'destruct'; id: number }
+  /** The original's cheat codes: 1298* reveals the map, 12986 adds 1000, 12989 repairs an object. */
+  | { kind: 'cheat'; cheat: 'reveal' | 'money' | 'repair'; id?: number };
 
 export type CommandResult = { ok: true } | { ok: false; reason: 'no-money' | 'blocked' | 'busy' | 'invalid' };
 
@@ -420,6 +459,17 @@ export function issue(world: World, side: Side, cmd: Command): CommandResult {
       });
       return OK;
     }
+    case 'attackMove': {
+      const units = ownUnits(world, side, cmd.ids).filter((u) => UNIT_RULES[u.type as UnitType].weapon);
+      if (units.length === 0) return fail('invalid');
+      const slots = formationCells(world, units, { cx: Math.floor(cmd.x / CELL), cy: Math.floor(cmd.y / CELL) });
+      units.forEach((u, i) => {
+        giveOrder(world, u, { kind: 'attackMove', x: cmd.x, y: cmd.y });
+        const slot = slots[i];
+        if (!slot || !setPathTo(world, u, slot)) u.order = { kind: 'idle' };
+      });
+      return OK;
+    }
     case 'attack': {
       const target = world.byId.get(cmd.targetId);
       if (!target || target.team === side || target.team === 'neutral' || !isVisibleTo(world, side, target)) return fail('invalid');
@@ -470,6 +520,8 @@ export function issue(world: World, side: Side, cmd: Command): CommandResult {
       removeDead(world);
       return OK;
     }
+    case 'cheat':
+      return cheat(world, side, cmd.cheat, cmd.id);
   }
 }
 
@@ -525,7 +577,9 @@ export function canPlace(world: World, side: Side, type: BuildingType, cx: numbe
 
 function build(world: World, side: Side, hqId: number, type: BuildingType, cx: number, cy: number): CommandResult {
   const hq = world.byId.get(hqId);
-  if (!hq || hq.team !== side || hq.type !== ObjectType.PlayerHQ || !hq.complete) return fail('invalid');
+  // The computer enemy builds from its own HQ; the original enemy never builds.
+  const hqType = side === 'player' ? ObjectType.PlayerHQ : ObjectType.EnemyHQ;
+  if (!hq || hq.team !== side || hq.type !== hqType || !hq.complete) return fail('invalid');
   if (![ObjectType.Silo, ObjectType.TankFactory, ObjectType.Defender, ObjectType.Wall].includes(type as never)) return fail('invalid');
   const rules = BUILDING_RULES[type];
   // Walls go up instantly, so only real construction keeps the HQ busy.
@@ -544,10 +598,23 @@ function build(world: World, side: Side, hqId: number, type: BuildingType, cx: n
   return OK;
 }
 
+function cheat(world: World, side: Side, kind: 'reveal' | 'money' | 'repair', id?: number): CommandResult {
+  if (kind === 'reveal') world.sides[side].explored.fill(1);
+  else if (kind === 'money') world.sides[side].money += 1000;
+  else {
+    const e = id === undefined ? undefined : world.byId.get(id);
+    if (!e || e.team !== side) return fail('invalid');
+    e.hp = e.maxHp;
+  }
+  return OK;
+}
+
 function produce(world: World, side: Side, factoryId: number, unit: UnitType): CommandResult {
   const factory = world.byId.get(factoryId);
   if (!factory || factory.team !== side || factory.type !== ObjectType.TankFactory || !factory.complete) return fail('invalid');
-  if (![ObjectType.Harvester, ObjectType.LightTank, ObjectType.MiddleTank, ObjectType.HeavyTank].includes(unit as never)) return fail('invalid');
+  const allowed: number[] = [ObjectType.Harvester, ObjectType.LightTank, ObjectType.MiddleTank, ObjectType.HeavyTank];
+  if (side === 'enemy') allowed.push(ObjectType.EnemyTank);
+  if (!allowed.includes(unit)) return fail('invalid');
   if (factory.job) return fail('busy');
   const rules = UNIT_RULES[unit];
   const money = world.sides[side];
@@ -584,6 +651,7 @@ export function step(world: World): void {
     world.tick++;
     return;
   }
+  aiStep(world);
   for (const e of [...world.entities]) {
     if (e.hp <= 0) continue;
     if (isUnit(e.type)) updateUnit(world, e);
@@ -599,7 +667,7 @@ function updateUnit(world: World, e: Entity): void {
   if (e.reloadMs > 0) e.reloadMs -= TICK_MS;
   if (e.repathMs > 0) e.repathMs -= TICK_MS;
   const rules = UNIT_RULES[e.type as UnitType];
-  if (e.type === ObjectType.EnemyTank) raiderThink(world, e);
+  if (e.type === ObjectType.EnemyTank && !world.ai.enemy) raiderThink(world, e);
   else if (e.type === ObjectType.Harvester) harvesterThink(world, e);
   else tankThink(world, e);
   moveUnit(world, e, rules.stepMs);
@@ -677,6 +745,10 @@ function tankThink(world: World, e: Entity): void {
       e.targetId = 0;
       if (e.path.length === 0) e.order = { kind: 'idle' };
       return;
+    case 'attackMove': {
+      attackMove(world, e, order.x, order.y, range);
+      return;
+    }
     case 'attack': {
       const t = liveTarget(world, order.targetId);
       if (!t) {
@@ -725,6 +797,85 @@ function tankThink(world: World, e: Entity): void {
   }
 }
 
+/**
+ * Attack-move: shoot armed enemies in range first, then anything else in range except walls, and keep driving.
+ * A tank that cannot get any closer (a walled base) shoots the nearest wall or building instead of giving up.
+ */
+function attackMove(world: World, e: Entity, x: number, y: number, range: number): void {
+  const current = liveTarget(world, e.targetId);
+  if (current && gapBetween(e, current) < range) {
+    stopMoving(e);
+    return;
+  }
+  // Still closing in on a wall we decided to break through.
+  if (current && e.path.length > 0) return;
+  let t: Entity | null = null;
+  {
+    const foes = enemiesOf(world, e.team, () => true);
+    // Towers outrange every tank, so a tank on the move goes for one that can already hit it,
+    // even out of sight: the shells show where it stands.
+    const towerRange = BUILDING_RULES[ObjectType.Defender].weapon!.range;
+    t =
+      nearest(e, foes.filter((o) => (isUnit(o.type) && UNIT_RULES[o.type as UnitType].weapon) || o.type === ObjectType.Defender), range) ??
+      nearest(e, foes.filter((o) => o.type === ObjectType.Defender), towerRange) ??
+      nearest(e, foes.filter((o) => o.type !== ObjectType.Wall), range);
+    if (t && gapBetween(e, t) >= range) {
+      engage(world, e, t, range);
+      return;
+    }
+  }
+  if (t) {
+    e.targetId = t.id;
+    stopMoving(e);
+    return;
+  }
+  e.targetId = 0;
+  if (e.path.length > 0) return;
+  const goal = { cx: Math.floor(x / CELL), cy: Math.floor(y / CELL) };
+  const here = cellOf(e);
+  if (Math.max(Math.abs(goal.cx - here.cx), Math.abs(goal.cy - here.cy)) <= 2) {
+    e.order = { kind: 'idle' };
+    return;
+  }
+  if (e.repathMs > 0) return;
+  e.repathMs = 1000;
+  // Try the road again first: whatever stopped us may be gone.
+  if (setPathTo(world, e, goal)) {
+    const end = e.path[e.path.length - 1]!;
+    if (Math.max(Math.abs(goal.cx - end.cx), Math.abs(goal.cy - end.cy)) <= 2) return;
+  }
+  // Stuck short of the goal: shoot through the first enemy wall or building on the way.
+  const blocker = firstBlocker(world, e, goal);
+  if (blocker) {
+    e.targetId = blocker.id;
+    stopMoving(e);
+    if (gapBetween(e, blocker) >= range) pathToward(world, e, blocker);
+    return;
+  }
+  stopMoving(e);
+  e.order = { kind: 'idle' };
+}
+
+/** The first enemy building on the shortest route to `goal` that drives straight through enemy buildings. */
+function firstBlocker(world: World, e: Entity, goal: Cell): Entity | null {
+  const foeAt = (cx: number, cy: number) => {
+    const id = world.buildingAt[cy * world.cols + cx]!;
+    const b = id ? world.byId.get(id) : undefined;
+    return b && b.team !== e.team && b.team !== 'neutral' ? b : null;
+  };
+  const passable = (cx: number, cy: number) =>
+    cx >= 0 && cy >= 0 && cx < world.cols && cy < world.rows && (cellPassable(world, cx, cy) || (world.blocked[cy * world.cols + cx] === 0 && foeAt(cx, cy) !== null));
+  const path = findPath(world.cols, world.rows, passable, cellOf(e), goal, true, 20_000);
+  let prev = cellOf(e);
+  for (const c of path ?? []) {
+    // A diagonal step squeezes between two cells; a wall on either corner blocks it for real.
+    const b = foeAt(c.cx, c.cy) ?? (c.cx !== prev.cx && c.cy !== prev.cy ? (foeAt(c.cx, prev.cy) ?? foeAt(prev.cx, c.cy)) : null);
+    if (b) return b;
+    prev = c;
+  }
+  return null;
+}
+
 /** Shoot `t` if in range, otherwise drive toward it. */
 function engage(world: World, e: Entity, t: Entity, range: number): void {
   e.targetId = t.id;
@@ -767,8 +918,8 @@ function raiderThink(world: World, e: Entity): void {
   const here = cellOf(e);
   for (let tries = 0; tries < 10; tries++) {
     const span = RAIDER_WANDER_CELLS * 2 + 1;
-    const cx = here.cx + Math.floor(world.rng() * span) - RAIDER_WANDER_CELLS;
-    const cy = here.cy + Math.floor(world.rng() * span) - RAIDER_WANDER_CELLS;
+    const cx = here.cx + Math.floor(random(world) * span) - RAIDER_WANDER_CELLS;
+    const cy = here.cy + Math.floor(random(world) * span) - RAIDER_WANDER_CELLS;
     if (cellPassable(world, cx, cy) && setPathTo(world, e, { cx, cy })) return;
   }
 }
@@ -964,7 +1115,7 @@ function updateBuilding(world: World, e: Entity): void {
       }
     }
   }
-  if (e.type === ObjectType.TankFactory && e.team === 'enemy' && !e.job) {
+  if (e.type === ObjectType.TankFactory && e.team === 'enemy' && !e.job && !world.ai.enemy) {
     e.pauseMs += TICK_MS;
     const raiders = world.entities.filter((o) => o.type === ObjectType.EnemyTank && o.hp > 0).length;
     if (e.pauseMs >= ENEMY_FACTORY_PAUSE_MS && raiders < ENEMY_MAX_TANKS) {
