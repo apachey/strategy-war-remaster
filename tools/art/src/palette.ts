@@ -1,7 +1,8 @@
 /**
- * The shared 32-colour palette of style B. Every sprite is quantised to these colours, so units, buildings and
- * (later) tiles always sit together. Colours are grouped into ramps, dark to light; a 3D material picks a ramp and
- * the lighting picks the step inside it, which gives hand-pixelled shading instead of smooth gradients.
+ * The shared palette of style B: 32 colours for units and buildings plus 10 for the ground (fir trees and sand).
+ * Every sprite and tile is quantised to these colours, so units, buildings and terrain always sit together.
+ * Colours are grouped into ramps, dark to light; a 3D material picks a ramp and the lighting picks the step inside
+ * it, which gives hand-pixelled shading instead of smooth gradients.
  */
 
 export type Rgb = readonly [number, number, number];
@@ -19,6 +20,9 @@ export const RAMPS = {
   concrete: ['#4d4a3c', '#7a7660', '#a8a388', '#d4cfb2'],
   fire: ['#ff8a1c', '#ffffcc'],
   signal: ['#006633', '#33ff66'],
+  // Terrain: turquoise fir needles and desert sand (dark to light).
+  pine: ['#0e3a36', '#17564e', '#227368', '#349482', '#5cb8a2'],
+  sand: ['#8f7748', '#a88d58', '#bfa36b', '#d1b77f', '#e0c995'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type RampName = keyof typeof RAMPS;

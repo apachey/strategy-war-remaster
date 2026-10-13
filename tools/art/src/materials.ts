@@ -29,8 +29,12 @@ export const MATERIALS = {
   concrete: { ramp: 'concrete' },
   concreteDark: { ramp: 'concrete', shift: -1 },
   gold: { ramp: 'gold', shift: 1 },
+  crystal: { ramp: 'gold', shift: -1 },
   signal: { ramp: 'signal', emissive: true },
   flash: { ramp: 'fire', emissive: true },
+  pine: { ramp: 'pine', shift: 1 },
+  pineDark: { ramp: 'pine' },
+  bark: { ramp: 'concrete', shift: -1 },
   burnt: { ramp: 'steel', shift: -1 },
 } as const satisfies Record<string, MaterialDef>;
 

@@ -65,7 +65,7 @@ export function prism(profile: [number, number][], width: number, mat: MaterialN
 }
 
 /** Track run along z: alternating light and dark links; `phase` 0/1 shifts them to animate driving. */
-export function track(len: number, w: number, h: number, x: number, phase: number, y = 0): THREE.Group {
+export function track(len: number, w: number, h: number, x: number, phase: number, y = 0, mats: [MaterialName, MaterialName] = ['track', 'trackLight']): THREE.Group {
   const g = new THREE.Group();
   const n = Math.max(4, Math.round(len / 0.07));
   const link = len / n;
@@ -73,7 +73,7 @@ export function track(len: number, w: number, h: number, x: number, phase: numbe
     const z = -len / 2 + link * (i + 0.5);
     // Rounded ends: the first and last links sit lower.
     const end = i === 0 || i === n - 1;
-    g.add(box(w, end ? h * 0.75 : h, link, (i + phase) % 2 ? 'track' : 'trackLight', [x, y + (end ? h * 0.1 : 0), z]));
+    g.add(box(w, end ? h * 0.75 : h, link, (i + phase) % 2 ? mats[0] : mats[1], [x, y + (end ? h * 0.1 : 0), z]));
   }
   return g;
 }

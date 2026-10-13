@@ -9,12 +9,14 @@ import { CAMERA_ELEVATION_DEG, DIRECTION_NAMES, frameLayout, PX_PER_CELL, SPRITE
 import type { RawRender } from './browser/render';
 import { PALETTE, TEAMS, type Team } from './palette';
 import { colorize, flipRows, reduce, type Reduced } from './pixel';
+import { forestTiles, sand, SAND_CELLS } from './terrain';
 
 /**
  * pnpm sprites [--only name,name] [--out dir] [--preview file.png] [--check]
  *
  * Renders every model in the catalog in headless Chromium, turns the renders into palette pixel art for each team
- * and writes assets/sprites/sprites.png + sprites.json (a PixiJS spritesheet) and a preview sheet.
+ * and writes assets/sprites/sprites.png + sprites.json (a PixiJS spritesheet) and a preview sheet. It also paints
+ * the ground (src/terrain.ts) into assets/sprites/terrain.png + terrain.json.
  * --check writes nothing and fails if the committed sprites differ from what the models produce now.
  */
 
@@ -125,6 +127,16 @@ async function main(): Promise<void> {
     [join(outDir, 'sprites.png'), pngBytes(atlas.w, atlas.h, atlas.rgba)],
     [join(outDir, 'sprites.json'), Buffer.from(JSON.stringify(atlas.json, null, 1) + '\n')],
   ];
+  const ground = pack(
+    [sand(), ...forestTiles()].map((t) => ({ ...t, ax: 0, ay: 0 })),
+    512,
+    'terrain.png',
+    { terrain: { pxPerCell: PX_PER_CELL, sandCells: SAND_CELLS, forestMask: 'N1 E2 S4 W8 = that neighbour is forest' } },
+  );
+  files.push(
+    [join(outDir, 'terrain.png'), pngBytes(ground.w, ground.h, ground.rgba)],
+    [join(outDir, 'terrain.json'), Buffer.from(JSON.stringify(ground.json, null, 1) + '\n')],
+  );
   if (check) {
     const stale = files.filter(([path, bytes]) => !existsSync(path) || !readFileSync(path).equals(bytes)).map(([p]) => p);
     if (stale.length) {

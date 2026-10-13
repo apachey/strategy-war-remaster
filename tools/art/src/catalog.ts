@@ -21,7 +21,10 @@ export interface SpriteDef {
   name: string;
   /** Footprint in cells: units, walls and the defender take 1, other buildings 2x2. */
   cells: 1 | 2;
-  /** Number of views. 8 = compass directions, clockwise from north; walls use 16 = neighbour mask (N1 E2 S4 W8). */
+  /**
+   * Number of views. 8 = compass directions, clockwise from north; walls use 16 = neighbour mask (N1 E2 S4 W8);
+   * fir trees use the view as the variant.
+   */
   views: number;
   frames: readonly string[];
   /** Team-coloured sprites are exported once per team; neutral ones once. */
@@ -38,12 +41,14 @@ export const SPRITES: readonly SpriteDef[] = [
   { name: 'hover_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
   { name: 'defender', cells: 1, views: 8, frames: ['idle', 'fire'], teamed: true },
   { name: 'hq', cells: 2, views: 1, frames: ['idle0', 'idle1', 'idle2', 'idle3'], teamed: true },
-  { name: 'enemy_hq', cells: 2, views: 1, frames: ['idle0', 'idle1'], teamed: true },
+  { name: 'enemy_hq', cells: 2, views: 1, frames: ['idle0', 'idle1', 'idle2', 'idle3'], teamed: true },
   { name: 'silo', cells: 2, views: 1, frames: ['idle'], teamed: true },
   { name: 'factory', cells: 2, views: 1, frames: ['idle', 'work'], teamed: true },
   { name: 'construction', cells: 2, views: 1, frames: ['idle'], teamed: false },
   { name: 'resource', cells: 2, views: 1, frames: ['idle'], teamed: false },
   { name: 'wall', cells: 1, views: 16, frames: ['idle'], teamed: false },
+  // Four variants of fir tree for the forest, one per cell.
+  { name: 'fir', cells: 1, views: 4, frames: ['idle'], teamed: false },
 ];
 
 /** Frame size in art pixels and where the footprint centre lands inside it. */

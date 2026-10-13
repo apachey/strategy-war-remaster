@@ -21,9 +21,9 @@ function sample(mat = materialId('team'), light = 180) {
 }
 
 describe('palette', () => {
-  it('has the 32 colours the design doc promises', () => {
-    expect(PALETTE).toHaveLength(32);
-    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(32);
+  it('has 32 colours for objects and 10 for the ground, all different', () => {
+    expect(PALETTE).toHaveLength(42);
+    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(42);
   });
 });
 
