@@ -48,6 +48,9 @@ async function withGamepads(page: Page): Promise<void> {
   });
 }
 
+// These tests reload the page a few times and draw up to two views with software rendering on CI.
+test.describe.configure({ timeout: 90_000 });
+
 const PAD = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, Start: 9, Up: 12 } as const;
 
 /** Presses and releases a pad button, holding it for a few frames. */
