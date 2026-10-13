@@ -340,6 +340,143 @@ const hoverTank: Builder = (view, frame) => {
   return facing(g, view);
 };
 
+/** Thin limb from `a` to `b`, for the alien walkers' legs. */
+function limb(a: Vec3, b: Vec3, r: number, mat: MaterialName): THREE.Mesh {
+  const from = new THREE.Vector3(...a);
+  const to = new THREE.Vector3(...b);
+  const len = from.distanceTo(to);
+  const geo = new THREE.CylinderGeometry(r * 0.7, r, len, 4);
+  const m = mesh(geo, mat);
+  m.position.copy(from.clone().add(to).multiplyScalar(0.5));
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
+  return m;
+}
+
+/** Faceted plate (a squashed icosahedron), the alien craft's armour. */
+function plate(r: number, sx: number, sy: number, sz: number, mat: MaterialName, pos: Vec3, rot: Vec3 = [0, 0, 0]): THREE.Mesh {
+  const geo = new THREE.IcosahedronGeometry(r, 0);
+  geo.scale(sx, sy, sz);
+  return mesh(geo, mat, pos, rot);
+}
+
+/**
+ * Jointed legs on both sides of a body, knee raised above the hip. `pairs` hips run from z0 to z1; between the two
+ * move frames alternate legs swap forward and back, so the walker steps.
+ */
+function legs(pairs: number, z0: number, z1: number, hipX: number, hipY: number, reach: number, r: number, frame: string): THREE.Mesh[] {
+  const out: THREE.Mesh[] = [];
+  const step = frame === 'move1' ? 1 : 0;
+  for (let i = 0; i < pairs; i++) {
+    const z = pairs === 1 ? z0 : z0 + ((z1 - z0) * i) / (pairs - 1);
+    for (const sx of [-1, 1]) {
+      const swing = ((i + (sx > 0 ? 1 : 0) + step) % 2 ? 1 : -1) * 0.05;
+      const hip: Vec3 = [sx * hipX, hipY, z];
+      const knee: Vec3 = [sx * (hipX + reach * 0.55), hipY + 0.08, z + swing];
+      const foot: Vec3 = [sx * (hipX + reach), 0, z + swing * 1.6 + (z / Math.abs(z || 1)) * 0.03];
+      out.push(limb(hip, knee, r, 'teamDark'), limb(knee, foot, r * 0.8, 'teamDark'), ball(r * 1.3, 'teamLight', knee, 4));
+    }
+  }
+  return out;
+}
+
+/** Wreck of an alien walker: legs folded flat, everything burnt. */
+function alienWreck(g: THREE.Group): void {
+  g.position.y = -0.04;
+  g.rotation.z = 0.15;
+  paintAll(g, 'burnt');
+}
+
+/**
+ * Enemy light tank: a skittering tripod. A small arrowhead body on three thin legs, one big green eye in front and
+ * a single spike gun under the chin that spits a bolt.
+ */
+const alienLightTank: Builder = (view, frame) => {
+  const fire = frame === 'fire';
+  const step = frame === 'move1' ? 0.04 : 0;
+  const body = new THREE.ConeGeometry(0.21, 0.58, 3);
+  body.rotateX(-Math.PI / 2);
+  body.scale(1, 0.55, 1);
+  const g = group(
+    mesh(body, 'team', [0, 0.26, 0]),
+    plate(0.13, 1, 0.6, 1.4, 'teamLight', [0, 0.33, 0.06]),
+    ball(0.055, 'signal', [0, 0.31, -0.16], 6),
+    cyl(0, 0.035, 0.12, 'teamDark', [0, 0.36, 0.14], 4),
+    limb([0, 0.24, -0.12], [0, 0.0, -0.3 - step], 0.034, 'teamDark'),
+    limb([-0.08, 0.24, 0.12], [-0.3, 0.0, 0.26 + step], 0.034, 'teamDark'),
+    limb([0.08, 0.24, 0.12], [0.3, 0.0, 0.26 - step], 0.034, 'teamDark'),
+    ball(0.03, 'teamLight', [0, 0.0, -0.3 - step], 4),
+    ball(0.03, 'teamLight', [-0.3, 0.0, 0.26 + step], 4),
+    ball(0.03, 'teamLight', [0.3, 0.0, 0.26 - step], 4),
+  );
+  const spike = new THREE.ConeGeometry(0.03, 0.3, 4);
+  spike.rotateX(-Math.PI / 2);
+  g.add(mesh(spike, 'teamLight', [0, 0.2, -0.3 + (fire ? 0.04 : 0)]));
+  g.add(ball(0.03, 'lamp', [0, 0.2, -0.45], 4));
+  if (fire) g.add(muzzleFlash([0, 0.2, -0.56], 0.07));
+  if (frame === 'wreck') alienWreck(g);
+  return facing(g, view);
+};
+
+/**
+ * Enemy middle tank: a beetle. A segmented carapace on six legs, and on its back a coiled horn (the alien answer to
+ * the player's spiral turret) whose tip hurls an energy orb.
+ */
+const alienMiddleTank: Builder = (view, frame) => {
+  const fire = frame === 'fire';
+  const g = group(
+    plate(0.2, 1.05, 0.55, 1.5, 'teamDark', [0, 0.18, 0.05]),
+    plate(0.17, 1.05, 0.6, 0.9, 'team', [0, 0.24, 0.16]),
+    plate(0.15, 1.1, 0.6, 0.8, 'team', [0, 0.24, -0.06]),
+    plate(0.1, 1.2, 0.6, 0.8, 'teamLight', [0, 0.2, -0.25]),
+    ball(0.035, 'signal', [-0.06, 0.24, -0.33], 4),
+    ball(0.035, 'signal', [0.06, 0.24, -0.33], 4),
+    ...legs(3, -0.18, 0.22, 0.14, 0.17, 0.24, 0.022, frame),
+  );
+  // Horn: a ridge spiralling up and forward from the back, ending in a glowing tip.
+  const steps = 14;
+  for (let i = 0; i < steps; i++) {
+    const k = i / steps;
+    const a = k * Math.PI * 2 * 1.25;
+    const r = 0.1 - k * 0.07;
+    g.add(ball(0.05 - k * 0.025, i % 2 ? 'teamLight' : 'team', [Math.cos(a) * r * 0.6, 0.32 + k * 0.2, 0.12 - k * 0.32 + Math.sin(a) * r], 4));
+  }
+  g.add(ball(fire ? 0.07 : 0.045, 'lamp', [0, 0.53, -0.22], 6));
+  if (fire) g.add(muzzleFlash([0, 0.5, -0.4], 0.09));
+  if (frame === 'wreck') alienWreck(g);
+  return facing(g, view);
+};
+
+/**
+ * Enemy heavy tank: a crawling fortress. A broad faceted shell with glowing seams, carried low on eight stubby legs,
+ * a mouth of mandibles in front and two long prongs with a big charge of light between them.
+ */
+const alienHeavyTank: Builder = (view, frame) => {
+  const fire = frame === 'fire';
+  const prong = (x: number) => {
+    const geo = new THREE.ConeGeometry(0.05, 0.5, 4);
+    geo.rotateX(-Math.PI / 2);
+    return mesh(geo, 'teamLight', [x, 0.24, -0.38], [0.05, x > 0 ? 0.12 : -0.12, 0]);
+  };
+  const g = group(
+    plate(0.3, 1.0, 0.5, 1.25, 'teamDark', [0, 0.17, 0.05]),
+    plate(0.26, 1.0, 0.62, 1.15, 'team', [0, 0.25, 0.08]),
+    plate(0.14, 1.2, 0.7, 1.0, 'teamLight', [0, 0.38, 0.12]),
+    // Glowing seams across the shell.
+    ...[-0.08, 0.08, 0.24].map((z) => box(0.42, 0.02, 0.025, 'lamp', [0, 0.32 - Math.abs(z - 0.08) * 0.3, z])),
+    ...[-0.1, 0.1].map((x) => box(0.05, 0.12, 0.07, 'teamDark', [x, 0.12, -0.32])),
+    ball(0.04, 'signal', [-0.1, 0.28, -0.27], 4),
+    ball(0.04, 'signal', [0.1, 0.28, -0.27], 4),
+    ball(0.03, 'signal', [0, 0.32, -0.25], 4),
+    prong(-0.12),
+    prong(0.12),
+    ball(fire ? 0.1 : 0.06, 'lamp', [0, 0.24, -0.55], 6),
+    ...legs(4, -0.22, 0.3, 0.24, 0.13, 0.16, 0.03, frame),
+  );
+  if (fire) g.add(muzzleFlash([0, 0.24, -0.7], 0.11));
+  if (frame === 'wreck') alienWreck(g);
+  return facing(g, view);
+};
+
 /** Harvester: a tall olive box truck on pale tracks, cyan glass across the front of the roof, a seam between the hopper doors. */
 const harvester: Builder = (view, frame) => {
   const phase = frame === 'move1' ? 1 : 0;
@@ -788,6 +925,9 @@ export const MODELS: Record<string, Builder> = {
   middle_tank: middleTank,
   heavy_tank: heavyTank,
   hover_tank: hoverTank,
+  alien_light_tank: alienLightTank,
+  alien_middle_tank: alienMiddleTank,
+  alien_heavy_tank: alienHeavyTank,
   defender,
   hq,
   enemy_hq: enemyHq,

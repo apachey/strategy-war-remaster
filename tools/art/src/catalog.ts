@@ -39,6 +39,10 @@ export const SPRITES: readonly SpriteDef[] = [
   { name: 'middle_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
   { name: 'heavy_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
   { name: 'hover_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
+  // The enemy's own light, middle and heavy tanks: alien walkers in the hover tank's style.
+  { name: 'alien_light_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
+  { name: 'alien_middle_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
+  { name: 'alien_heavy_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
   { name: 'defender', cells: 1, views: 8, frames: ['idle', 'fire'], teamed: true },
   { name: 'hq', cells: 2, views: 1, frames: ['idle0', 'idle1', 'idle2', 'idle3'], teamed: true },
   { name: 'enemy_hq', cells: 2, views: 1, frames: ['idle0', 'idle1', 'idle2', 'idle3'], teamed: true },

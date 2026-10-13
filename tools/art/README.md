@@ -39,6 +39,10 @@ muzzle flash), `wreck`.
 Every frame carries an `anchor` at the centre of its footprint, so a sprite placed at a cell centre (units, walls,
 defender) or at the centre of its 2x2 cells (buildings) lines up with the map. Art scale is 32 px per cell.
 
+The enemy's own light, middle and heavy tanks are alien walkers: `alien_light_tank` (tripod), `alien_middle_tank`
+(six-legged beetle with a coiled horn) and `alien_heavy_tank` (eight-legged shell with prongs), with the same frames
+as the other tanks; draw them for the enemy instead of `light_tank`, `middle_tank` and `heavy_tank`.
+
 Fir trees are `fir/idle/0..3`, four variants (young, wide and dark, slim and light, old and tall) with no team or
 direction; the game scatters one or two per forest cell with a little jitter.
 
