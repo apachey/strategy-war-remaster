@@ -145,6 +145,10 @@ export interface AiBrain {
   builds: boolean;
   /** Defender towers it builds around its HQ. */
   defenders: number;
+  /** Factories it runs once money piles up (a second one only when it has spare money for it). */
+  factories: number;
+  /** It stops producing tanks at this many; easy stays beatable even with a big bank (skirmish). */
+  maxTanks: number;
   /** First attack wave leaves after this long, then one wave per cooldown. */
   firstWaveMs: number;
   waveCooldownMs: number;
@@ -166,6 +170,8 @@ export const AI_BRAINS = {
     tankMix: [ObjectType.EnemyTank, ObjectType.LightTank],
     builds: false,
     defenders: 0,
+    factories: 1,
+    maxTanks: 8,
     firstWaveMs: 240_000,
     waveCooldownMs: 120_000,
     waveSize: 3,
@@ -180,6 +186,8 @@ export const AI_BRAINS = {
     tankMix: [ObjectType.EnemyTank, ObjectType.LightTank, ObjectType.MiddleTank],
     builds: true,
     defenders: 1,
+    factories: 2,
+    maxTanks: 16,
     firstWaveMs: 150_000,
     waveCooldownMs: 80_000,
     waveSize: 4,
@@ -194,6 +202,8 @@ export const AI_BRAINS = {
     tankMix: [ObjectType.MiddleTank, ObjectType.LightTank, ObjectType.HeavyTank, ObjectType.MiddleTank],
     builds: true,
     defenders: 2,
+    factories: 3,
+    maxTanks: 30,
     firstWaveMs: 100_000,
     waveCooldownMs: 50_000,
     waveSize: 5,
@@ -209,6 +219,8 @@ export const AI_BRAINS = {
     tankMix: [ObjectType.MiddleTank, ObjectType.HeavyTank],
     builds: true,
     defenders: 0,
+    factories: 2,
+    maxTanks: 40,
     firstWaveMs: 60_000,
     waveCooldownMs: 30_000,
     waveSize: 8,
@@ -219,6 +231,14 @@ export const AI_BRAINS = {
   },
 } as const satisfies Record<string, AiBrain>;
 export type AiBrainName = keyof typeof AI_BRAINS;
+
+/**
+ * Skirmish changes to the brains. Both sides start from a bare HQ there, so an early small wave only feeds tanks
+ * to the other base; hard waits for a bigger first wave instead (it then beats normal on most maps and starts).
+ */
+export const SKIRMISH_BRAINS: Partial<Record<AiBrainName, Partial<AiBrain>>> = {
+  hard: { firstWaveMs: 180_000, waveSize: 8 },
+};
 
 /** What the computer enemy starts with and earns on top of harvesting, so it can build even far from a field. */
 export const ENEMY_BONUS: Record<Exclude<Difficulty, 'classic'>, { money: number; incomePerMinute: number }> = {

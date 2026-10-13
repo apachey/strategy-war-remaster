@@ -60,11 +60,38 @@ exactly like the player. It is deterministic (seeded RNG, fixed ticks), so the s
 - Waves gather at a staging point out of tower range, then move together; a wave also launches when the enemy's
   economy has stalled.
 
+## Skirmish and two players (stage 4)
+
+A skirmish is any of the 7 campaign maps without the mission script. Both sides start even: an HQ, one harvester,
+the same money ($1500, $3000 or $6000) and two crystal fields of 3000 next to the HQ. The starts are the two HQ spots
+from the map's missions that lie farthest apart, can reach each other and are not forest pockets; the missions' other
+crystal fields stay in between as contested fields. Each side sees 8 cells around its HQ from the start.
+`packages/sim/src/skirmish.ts` builds it; the win rule is the campaign's (lose your HQ, lose the game).
+
+- Skirmish sides are equal: both build the player's four vehicles. The alien enemy tank and the original enemy's free
+  raiders belong to the campaign.
+- The second side is the computer (easy, normal, hard) or a second person at the same Mac (`vs=human`). The computer
+  gets the same money and only its difficulty's income bonus on top.
+- The computer builds from a bare HQ on every difficulty in a skirmish (easy does not build in the campaign).
+- New for every computer player: a second or third factory once money piles up (normal 2, hard 3), an army cap
+  (easy 8, normal 16, hard 30 tanks), the whole map searched for a building spot (a corner base used to give up),
+  and a wave never smaller than the enemy's army, up to the wave maximum.
+- In a skirmish hard waits for a first wave of 8 at 3 minutes instead of 5 at 100 s: early small waves only fed
+  tanks to the other base. Tests check that normal beats easy on all 7 maps from both starts and hard beats normal
+  in at least 9 of those 14 games (10 now).
+
+Two players share one Mac on a split screen: player 1 on the left with mouse and keyboard, player 2 on the right with
+a gamepad (with two gamepads player 1 may use the first). Each half has its own camera, fog of war, selection,
+panel and money. Gamepad: left stick moves a cursor (pushing the camera at the edge), right stick scrolls, A selects
+(hold and move for a box), B orders or cancels placement, Y cycles HQ and factories, D-pad up takes the whole army,
+down stops, LB/RB move a highlight over the panel buttons and X presses it, LT/RT zoom, Back centres on the HQ,
+Start starts or pauses. Self-destruct stays mouse-only.
+
 ## Saves
 
 `saveWorld()` turns the whole world (RNG state and the computer players included) into plain JSON and `loadWorld()`
 restores it; the game continues tick for tick as if it had never stopped. Saves carry a version and older versions
-are refused. The game keeps a quick slot (F5 saves, F9 loads) and three slots in localStorage.
+are refused (version 2 added the skirmish mode). Skirmishes save like missions. The game keeps a quick slot (F5 saves, F9 loads) and three slots in localStorage.
 
 ## Cheats
 

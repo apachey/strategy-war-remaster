@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { campaign, ObjectType, type CampaignMap, type MapObject } from '@sw/data';
-import { createWorld, hashWorld, issue, loadWorld, saveWorld, step, TICKS_PER_SECOND, type World, type WorldOptions } from '../src';
+import { createWorld, hashWorld, issue, loadWorld, SAVE_VERSION, saveWorld, step, TICKS_PER_SECOND, type World, type WorldOptions } from '../src';
 
 /** A 20×10 tile sand map (40×20 cells) with the given objects. */
 function arena(objects: Array<Partial<MapObject> & { type: MapObject['type'] }>, money: number, options: WorldOptions): World {
@@ -163,6 +163,6 @@ describe('saves', () => {
 
   it('refuses saves from another version', () => {
     const save = saveWorld(createWorld(campaign.maps[0]!, 0, 1));
-    expect(() => loadWorld({ ...save, version: 99 as 1 })).toThrow(/version/);
+    expect(() => loadWorld({ ...save, version: 99 as typeof SAVE_VERSION })).toThrow(/version/);
   });
 });

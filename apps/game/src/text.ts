@@ -1,5 +1,5 @@
 import { MAP_NAMES, missionText, ObjectType, type Lang } from '@sw/data';
-import type { Difficulty } from '@sw/sim';
+import type { Difficulty, Opponent } from '@sw/sim';
 
 /** Interface strings in both languages. Mission titles and briefings live in @sw/data. */
 const UK = {
@@ -73,6 +73,29 @@ const UK = {
   loaded: 'Гру завантажено',
   saveFailed: 'Не вдалося зберегти',
   noSave: 'Немає збереження',
+  skirmish: 'Скірміш',
+  campaign: 'Кампанія',
+  helpDuo:
+    'Гравець 1: миша й клавіатура (або геймпад, якщо їх два). Гравець 2: геймпад. Геймпад: лівий стік курсор · A вибір (тримати: рамка) · B наказ · Y штаб/завод · ↑ уся армія · ↓ стоп · LB/RB вибір кнопки · X натиснути · LT/RT зум · правий стік камера · Start пауза',
+  padHint: 'A: вибір · B: наказ · Y: штаб · ↑: армія',
+  opponent: { easy: 'Легкий ШІ', normal: 'Нормальний ШІ', hard: 'Важкий ШІ', human: 'Удвох' } as Record<Opponent, string>,
+  opponentHint: {
+    easy: 'Компʼютер будує базу повільно й тримає невелике військо.',
+    normal: 'Компʼютер будує базу, збирає кристали й атакує хвилями.',
+    hard: 'Компʼютер швидкий: кілька заводів, великі хвилі, бʼє по економіці.',
+    human: 'Двоє гравців за одним Mac: екран ділиться навпіл. Гравець 1 з мишею, гравець 2 з геймпадом.',
+  } as Record<Opponent, string>,
+  mapLabel: 'Мапа',
+  opponentLabel: 'Суперник',
+  moneyLabel: 'Гроші',
+  skirmishGoal: 'Мета: знищити штаб компʼютера. Обидві сторони починають рівно: штаб, харвестер і гроші.',
+  duoGoal: 'Мета: знищити штаб суперника. Обидва починають рівно: штаб, харвестер і гроші.',
+  playerName: (n: number) => `Гравець ${n}`,
+  playerWins: (n: number) => `Переміг гравець ${n}!`,
+  duoWinText: 'Штаб суперника знищено.',
+  victory: 'Перемога',
+  newSkirmish: 'Інша мапа',
+  again: 'Ще раз',
   cheat: {
     reveal: 'Чит: уся мапа відкрита',
     money: 'Чит: +$1000',
@@ -154,6 +177,29 @@ const EN: Strings = {
   loaded: 'Game loaded',
   saveFailed: 'Could not save',
   noSave: 'No save there',
+  skirmish: 'Skirmish',
+  campaign: 'Campaign',
+  helpDuo:
+    'Player 1: mouse and keyboard (or a gamepad when there are two). Player 2: gamepad. Gamepad: left stick cursor · A select (hold: box) · B order · Y HQ/factory · ↑ whole army · ↓ stop · LB/RB pick a button · X press it · LT/RT zoom · right stick camera · Start pause',
+  padHint: 'A: select · B: order · Y: HQ · ↑: army',
+  opponent: { easy: 'Easy AI', normal: 'Normal AI', hard: 'Hard AI', human: 'Two players' },
+  opponentHint: {
+    easy: 'The computer builds slowly and keeps a small army.',
+    normal: 'The computer builds a base, harvests and attacks in waves.',
+    hard: 'A fast computer: several factories, big waves, hits your economy.',
+    human: 'Two players at one Mac on a split screen. Player 1 uses the mouse, player 2 a gamepad.',
+  },
+  mapLabel: 'Map',
+  opponentLabel: 'Opponent',
+  moneyLabel: 'Money',
+  skirmishGoal: "Goal: destroy the computer's HQ. Both sides start even: an HQ, a harvester and the same money.",
+  duoGoal: "Goal: destroy the other player's HQ. Both start even: an HQ, a harvester and the same money.",
+  playerName: (n: number) => `Player ${n}`,
+  playerWins: (n: number) => `Player ${n} wins!`,
+  duoWinText: "The other player's HQ is destroyed.",
+  victory: 'Victory',
+  newSkirmish: 'Another map',
+  again: 'Play again',
   cheat: {
     reveal: 'Cheat: map revealed',
     money: 'Cheat: +$1000',

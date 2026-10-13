@@ -1,7 +1,7 @@
 import { CELL, ObjectType } from '@sw/data';
-import { AI_BRAINS, BUILDING_RULES, ENEMY_BONUS, HARVESTER, TICK_MS, UNIT_RULES, type AiBrain, type AiBrainName, type BuildingType, type UnitType } from './rules';
+import { AI_BRAINS, BUILDING_RULES, SKIRMISH_BRAINS, ENEMY_BONUS, HARVESTER, TICK_MS, UNIT_RULES, type AiBrain, type AiBrainName, type BuildingType, type UnitType } from './rules';
 import { findPath } from './path';
-import { canPlace, cellOf, cellPassable, centerOf, gapBetween, isUnit, isVisibleTo, issue, SIDES, type Entity, type Side, type World } from './world';
+import { canPlace, canProduce, cellOf, cellPassable, centerOf, gapBetween, isUnit, isVisibleTo, issue, SIDES, type Entity, type Side, type World } from './world';
 
 /**
  * The computer player of the remaster. It plays through the same commands as a person (issue()), so it can run
@@ -36,8 +36,14 @@ export interface AiState {
   stageTick: number;
 }
 
+/** The brain as it plays in this world: skirmish adjusts a few numbers. */
+export function brainOf(world: World, name: AiBrainName): AiBrain {
+  const patch = world.mode === 'skirmish' ? SKIRMISH_BRAINS[name] : undefined;
+  return patch ? { ...AI_BRAINS[name], ...patch } : AI_BRAINS[name];
+}
+
 export function createAi(world: World, side: Side, brain: AiBrainName): AiState {
-  const b: AiBrain = AI_BRAINS[brain];
+  const b = brainOf(world, brain);
   const bonus = side === 'enemy' && brain in ENEMY_BONUS ? ENEMY_BONUS[brain as keyof typeof ENEMY_BONUS] : null;
   return {
     side,
@@ -71,7 +77,7 @@ export function aiStep(world: World): void {
       }
     }
     if (world.tick < ai.nextThinkTick) continue;
-    ai.nextThinkTick = world.tick + Math.round(AI_BRAINS[ai.brain].thinkMs / TICK_MS);
+    ai.nextThinkTick = world.tick + Math.round(brainOf(world, ai.brain).thinkMs / TICK_MS);
     think(world, ai);
   }
 }
@@ -125,7 +131,7 @@ function think(world: World, ai: AiState): void {
   const v: View = {
     world,
     ai,
-    brain: AI_BRAINS[ai.brain],
+    brain: brainOf(world, ai.brain),
     side,
     mine,
     foes: world.entities.filter((e) => e.team !== side && e.team !== 'neutral' && e.hp > 0),
@@ -161,7 +167,8 @@ function foeBase(v: View): { x: number; y: number } {
 function construct(v: View): boolean {
   const { world, side, hq, brain } = v;
   // On the training map the computer enemy only commands what the mission gave it.
-  if (!hq || hq.job || !brain.builds || (world.training && side === 'enemy')) return false;
+  // A skirmish starts with nothing but an HQ, so every brain builds there.
+  if (!hq || hq.job || !(brain.builds || world.mode === 'skirmish') || (world.training && side === 'enemy')) return false;
   const count = (type: number) => v.mine.filter((e) => e.type === type).length;
   const silos = count(ObjectType.Silo);
   const factories = count(ObjectType.TankFactory);
@@ -185,6 +192,8 @@ function construct(v: View): boolean {
   else if (factories === 0) want = ObjectType.TankFactory;
   else if (v.harvesters.length > silos * 2) want = ObjectType.Silo;
   else if (count(ObjectType.Defender) < brain.defenders && v.tanks.length >= 2) want = ObjectType.Defender;
+  // Money piling up faster than one factory can spend it: another factory.
+  else if (factories < brain.factories && world.sides[side].money >= 2 * BUILDING_RULES[ObjectType.TankFactory].price) want = ObjectType.TankFactory;
   if (want === null) return false;
   const price = BUILDING_RULES[want].price;
   if (world.sides[side].money < price) return want !== ObjectType.Defender;
@@ -227,9 +236,10 @@ function findSpot(v: View, type: BuildingType, facing: { x: number; y: number })
       }
   }
   spots.sort((a, b) => a.score - b.score);
-  // The first few candidates that do not cut the map in two (a silo in a narrow pass would strand the army).
+  // The best candidate that does not cut the map in two (a silo in a narrow pass would strand the army). A base in
+  // a map corner can have dozens of such pockets before the first good spot.
   const reach = reachableCount(world, -1, -1, 0);
-  for (const s of spots.slice(0, 40)) if (reachableCount(world, s.cx, s.cy, n) === reach - n * n) return s;
+  for (const s of spots) if (reachableCount(world, s.cx, s.cy, n) === reach - n * n) return s;
   return null;
 }
 
@@ -293,8 +303,8 @@ function produce(v: View, reserved: boolean): void {
       }
       continue;
     }
-    if (reserved) continue;
-    const mix = brain.tankMix.filter((t) => side === 'enemy' || t !== ObjectType.EnemyTank);
+    if (reserved || v.tanks.length + factories.filter((o) => o.job?.kind === 'produce' && o.job.unit !== ObjectType.Harvester).length >= brain.maxTanks) continue;
+    const mix = brain.tankMix.filter((t) => canProduce(world, side, t));
     const unit = mix[ai.produced % mix.length]!;
     if (world.sides[side].money >= UNIT_RULES[unit].price && issue(world, side, { kind: 'produce', factoryId: f.id, unit }).ok) ai.produced++;
   }
@@ -444,7 +454,9 @@ function attack(v: View): void {
   const { world, side, brain, ai } = v;
   if (world.tick >= ai.nextWaveTick) {
     const ready = v.tanks.filter((t) => !ai.attackers.includes(t.id) && t.order.kind !== 'attack' && t.targetId === 0);
-    const size = Math.min(brain.waveMax, brain.waveSize + ai.wave);
+    // Never fewer tanks than the enemy has (a player who has seen the map can count them), up to the brain's maximum.
+    const foeArmy = v.foes.filter(isArmed).length;
+    const size = Math.min(brain.waveMax, Math.max(brain.waveSize + ai.wave, foeArmy));
     // With no money coming in and nothing in production, waiting longer only lets the enemy grow.
     const building = v.mine.some((e) => e.job !== null);
     const cheapest = Math.min(...brain.tankMix.map((t) => UNIT_RULES[t].price));
