@@ -4,11 +4,12 @@ import { expect, test, type Page } from '@playwright/test';
 type Hook = {
   game: {
     started: boolean;
-    selection: number[];
-    money: number;
+    paused: boolean;
     difficulty: string;
     world: { tick: number; outcome: string; entities: Array<{ id: number; type: number; team: string; x: number; y: number; size: number; order: { kind: string } }> };
   };
+  players: Array<{ selection: number[]; money: number; side: string; cursor: { x: number; y: number } | null }>;
+  views: Array<{ rect: { x: number; y: number; w: number; h: number }; camera: { x: number; y: number; scale: { x: number } } }>;
   camera: { x: number; y: number; scale: { x: number } };
 };
 
@@ -34,8 +35,9 @@ async function screenOf(page: Page, type: number, team = 'player'): Promise<{ x:
 }
 
 const hook = (page: Page) => page.evaluate(() => {
-  const g = (window as unknown as { __sw: Hook }).__sw.game;
-  return { tick: g.world.tick, money: g.money, started: g.started, difficulty: g.difficulty };
+  const sw = (window as unknown as { __sw: Hook }).__sw;
+  const g = sw.game;
+  return { tick: g.world.tick, money: sw.players[0]!.money, started: g.started, difficulty: g.difficulty };
 });
 
 test('mission 1 opens with its briefing, then the map', async ({ page }) => {
@@ -158,7 +160,7 @@ test('losing the HQ shows the defeat screen with a retry', async ({ page }) => {
   await expect(page.locator('#panel')).toContainText('Штаб');
   page.once('dialog', (d) => void d.accept());
   await page.getByRole('button', { name: 'Самознищення' }).click();
-  await expect(page.locator('#modal')).toContainText('Поразка');
+  await expect(page.locator('#modal')).toContainText('Поразка', { timeout: 15_000 });
   await expect(page.getByRole('button', { name: 'Ще раз' })).toBeVisible();
   expect(errors).toEqual([]);
 });

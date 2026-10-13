@@ -1,7 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { CELL, ObjectType, TILE } from '@sw/data';
 import { isUnit, TICK_MS, UNIT_RULES, BUILDING_RULES, type Entity, type GameEvent, type UnitType, type BuildingType } from '@sw/sim';
-import type { Game } from './game';
+import type { Commander } from './game';
 import { SHORT } from './text';
 
 /** Grey-box palette: readable shapes only, the real art arrives in phase 2. */
@@ -61,7 +61,8 @@ export class Renderer {
   /** Positions at the previous tick, for smooth movement between 20 Hz sim steps. */
   private prev = new Map<number, { x: number; y: number }>();
 
-  constructor(private readonly game: Game) {
+  /** Draws the world as one person sees it: their fog, their selection, their cursor. */
+  constructor(private readonly game: Commander) {
     this.camera.addChild(this.ground, this.fields, this.bodies, this.labels, this.overlay, this.shroud, this.ui);
     this.drawGround();
   }
@@ -146,7 +147,9 @@ export class Renderer {
     }
 
     this.drawShroud();
-    this.drawPlacement(mouse);
+    const cursor = this.game.cursor;
+    this.drawPlacement(cursor ?? mouse);
+    if (cursor) this.drawCursor(cursor);
     if (drag) {
       this.ui
         .rect(Math.min(drag.x0, drag.x1), Math.min(drag.y0, drag.y1), Math.abs(drag.x1 - drag.x0), Math.abs(drag.y1 - drag.y0))
@@ -221,7 +224,8 @@ export class Renderer {
 
   private drawSelection(e: Entity, x: number, y: number): void {
     const w = 1 / this.camera.scale.x;
-    const color = e.team === 'player' ? C.select : e.team === 'enemy' ? C.hpBad : C.field;
+    const own = e.team === this.game.side;
+    const color = own ? C.select : e.team === 'neutral' ? C.field : C.hpBad;
     const len = Math.max(3, e.size / 4);
     const g = this.overlay;
     const s = e.size;
@@ -234,11 +238,11 @@ export class Renderer {
     ] as const) {
       g.moveTo(ox + sx * len, oy).lineTo(ox, oy).lineTo(ox, oy + sy * len).stroke({ width: w * 1.5, color });
     }
-    if (e.team === 'player' && isUnit(e.type)) {
+    if (own && isUnit(e.type)) {
       const weapon = UNIT_RULES[e.type as UnitType].weapon;
       if (weapon) g.rect(x - weapon.range, y - weapon.range, s + weapon.range * 2, s + weapon.range * 2).stroke({ width: w, color, alpha: 0.25 });
     }
-    if (e.team === 'player' && e.type === ObjectType.Defender) {
+    if (own && e.type === ObjectType.Defender) {
       const range = BUILDING_RULES[e.type as BuildingType].weapon!.range;
       g.rect(x - range, y - range, s + range * 2, s + range * 2).stroke({ width: w, color, alpha: 0.25 });
     }
@@ -262,7 +266,7 @@ export class Renderer {
 
   private drawShroud(): void {
     const world = this.game.world;
-    const explored = world.sides.player.explored;
+    const explored = world.sides[this.game.side].explored;
     let count = 0;
     for (let i = 0; i < explored.length; i++) count += explored[i]!;
     if (count === this.exploredCount) return;
@@ -274,6 +278,19 @@ export class Renderer {
         if (explored[cy * world.cols + cx]) continue;
         g.rect(cx * CELL - 0.5, cy * CELL - 0.5, CELL + 1, CELL + 1).fill(C.shroud);
       }
+  }
+
+  /** A gamepad player's crosshair. */
+  private drawCursor(c: { x: number; y: number }): void {
+    const w = 1.5 / this.camera.scale.x;
+    const r = 5;
+    const color = this.game.side === 'player' ? C.player : C.enemy;
+    for (const stroke of [{ width: w * 3, color: 0x000000, alpha: 0.6 }, { width: w, color: 0xffffff }]) {
+      this.ui.circle(c.x, c.y, r).stroke(stroke);
+      this.ui.moveTo(c.x - r * 1.8, c.y).lineTo(c.x - r * 0.6, c.y).moveTo(c.x + r * 0.6, c.y).lineTo(c.x + r * 1.8, c.y).stroke(stroke);
+      this.ui.moveTo(c.x, c.y - r * 1.8).lineTo(c.x, c.y - r * 0.6).moveTo(c.x, c.y + r * 0.6).lineTo(c.x, c.y + r * 1.8).stroke(stroke);
+    }
+    this.ui.circle(c.x, c.y, 1.2 * w).fill(color);
   }
 
   private drawPlacement(mouse: { x: number; y: number } | null): void {

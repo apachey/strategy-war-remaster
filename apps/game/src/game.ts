@@ -1,10 +1,14 @@
-import { campaign, CELL, ObjectType, type CampaignMap, type Mission } from '@sw/data';
+import { campaign, CELL, ObjectType, type CampaignMap } from '@sw/data';
 import {
   canPlace,
+  createSkirmish,
   createWorld,
+  DEFAULT_SKIRMISH_MONEY,
   isUnit,
   isVisibleTo,
   issue,
+  OPPONENTS,
+  SKIRMISH_MONEY,
   step,
   UNIT_RULES,
   type BuildingType,
@@ -12,62 +16,126 @@ import {
   type CommandResult,
   type Difficulty,
   type Entity,
+  type Opponent,
+  type Side,
   type UnitType,
   type World,
 } from '@sw/sim';
 import { t } from './text';
 
-export const SIDE = 'player' as const;
+/** What is being played: a campaign mission, or a skirmish against the computer or a second person. */
+export type Setup =
+  | { kind: 'campaign'; mapIndex: number; missionIndex: number; difficulty: Difficulty }
+  | { kind: 'skirmish'; mapIndex: number; opponent: Opponent; money: number };
 
-/** Everything the player interacts with: the world plus selection, control groups and build placement. */
+/** The match both players share: the world, pause, speed and whether it has started. */
 export class Game {
   world: World;
   readonly map: CampaignMap;
-  readonly mission: Mission;
-  selection: number[] = [];
-  readonly groups = new Map<number, number[]>();
-  /** Building waiting to be placed with the mouse, and the HQ that will build it. */
-  placing: { type: BuildingType; hqId: number } | null = null;
   paused = false;
   /** Game speed multiplier; `?speed=8` in the URL speeds things up for testing. */
   speed = 1;
   /** The briefing is shown first; the world only runs once the player starts. */
   started = false;
-  onToast: (text: string) => void = () => {};
-
   /** Set when the world came from a save: the game then continues without a briefing. */
   readonly loaded: boolean;
+  /** One per person at this Mac: the first side, plus the second in a two-player game. */
+  readonly commanders: Commander[];
 
   constructor(
-    readonly mapIndex: number,
-    readonly missionIndex: number,
-    difficulty: Difficulty,
+    public setup: Setup,
     saved?: World,
   ) {
-    this.map = campaign.maps[mapIndex]!;
-    this.mission = this.map.missions[missionIndex]!;
+    this.map = campaign.maps[setup.mapIndex]!;
     this.loaded = !!saved;
-    this.world = saved ?? createWorld(this.map, missionIndex, 1, { difficulty });
+    this.world = saved ?? newWorld(setup);
+    this.commanders = [new Commander(this, 'player')];
+    if (this.twoPlayers) this.commanders.push(new Commander(this, 'enemy'));
+  }
+
+  get mapIndex(): number {
+    return this.setup.mapIndex;
+  }
+
+  /** The campaign mission, or -1 in a skirmish. */
+  get missionIndex(): number {
+    return this.setup.kind === 'campaign' ? this.setup.missionIndex : -1;
+  }
+
+  get twoPlayers(): boolean {
+    return this.setup.kind === 'skirmish' && this.setup.opponent === 'human';
   }
 
   get difficulty(): Difficulty {
     return this.world.difficulty;
   }
 
-  /** Difficulty can change on the briefing screen, before the world has run a single tick. */
+  /** Campaign difficulty can change on the briefing screen, before the world has run a single tick. */
   setDifficulty(difficulty: Difficulty): void {
-    if (this.started || this.loaded || this.world.tick > 0) return;
-    this.world = createWorld(this.map, this.missionIndex, 1, { difficulty });
-  }
-
-  get money(): number {
-    return this.world.sides[SIDE].money;
+    if (this.setup.kind !== 'campaign' || this.started || this.loaded || this.world.tick > 0) return;
+    this.setup = { ...this.setup, difficulty };
+    this.world = newWorld(this.setup);
   }
 
   step(): void {
     step(this.world);
+    for (const c of this.commanders) c.afterStep();
+  }
+}
+
+function newWorld(setup: Setup): World {
+  if (setup.kind === 'campaign') return createWorld(campaign.maps[setup.mapIndex]!, setup.missionIndex, 1, { difficulty: setup.difficulty });
+  return createSkirmish(setup.mapIndex, { opponent: setup.opponent, money: setup.money });
+}
+
+/** HQ type of a side: the second side's HQ is the alien one, also when a person plays it. */
+export const hqType = (side: Side) => (side === 'player' ? ObjectType.PlayerHQ : ObjectType.EnemyHQ);
+
+/** One person's hold on the match: their side, selection, control groups, build placement and gamepad focus. */
+export class Commander {
+  selection: number[] = [];
+  readonly groups = new Map<number, number[]>();
+  /** Building waiting to be placed, and the HQ that will build it. */
+  placing: { type: BuildingType; hqId: number } | null = null;
+  /** Gamepad focus in the selection panel's buttons. */
+  focus = 0;
+  /** Where a gamepad player's cursor points, in map pixels; null for mouse players. */
+  cursor: { x: number; y: number } | null = null;
+  onToast: (text: string) => void = () => {};
+
+  constructor(
+    readonly game: Game,
+    readonly side: Side,
+  ) {}
+
+  get world(): World {
+    return this.game.world;
+  }
+
+  get money(): number {
+    return this.world.sides[this.side].money;
+  }
+
+  /** 1 or 2, as shown to the players. */
+  get number(): number {
+    return this.side === 'player' ? 1 : 2;
+  }
+
+  afterStep(): void {
     this.selection = this.selection.filter((id) => this.world.byId.has(id));
     if (this.placing && !this.world.byId.has(this.placing.hqId)) this.placing = null;
+  }
+
+  isOwn(e: Entity): boolean {
+    return e.team === this.side;
+  }
+
+  isFoe(e: Entity): boolean {
+    return e.team !== this.side && e.team !== 'neutral';
+  }
+
+  hq(): Entity | undefined {
+    return this.world.entities.find((e) => e.type === hqType(this.side) && e.team === this.side);
   }
 
   selected(): Entity[] {
@@ -75,54 +143,69 @@ export class Game {
   }
 
   visible(e: Entity): boolean {
-    return isVisibleTo(this.world, SIDE, e);
+    return isVisibleTo(this.world, this.side, e);
   }
 
   /** Topmost visible object under a map point: units first, then buildings, then fields. */
-  pick(x: number, y: number): Entity | null {
+  pick(x: number, y: number, slack = 0): Entity | null {
     const hits = this.world.entities.filter(
-      (e) => !e.hidden && this.visible(e) && x >= e.x && x < e.x + e.size && y >= e.y && y < e.y + e.size,
+      (e) => !e.hidden && this.visible(e) && x >= e.x - slack && x < e.x + e.size + slack && y >= e.y - slack && y < e.y + e.size + slack,
     );
     hits.sort((a, b) => rank(a) - rank(b) || b.id - a.id);
     return hits[0] ?? null;
   }
 
   select(ids: number[], add = false): void {
-    const own = ids.filter((id) => this.world.byId.get(id)?.team === SIDE);
+    const own = ids.filter((id) => this.world.byId.get(id)?.team === this.side);
     // Clicking an enemy or a field shows its info without making it controllable.
     const list = own.length > 0 ? own : ids.slice(0, 1);
-    this.selection = add ? [...new Set([...this.selection.filter((id) => this.world.byId.get(id)?.team === SIDE), ...own])] : list;
+    this.selection = add ? [...new Set([...this.selection.filter((id) => this.world.byId.get(id)?.team === this.side), ...own])] : list;
     this.placing = null;
+    this.focus = 0;
   }
 
   selectBox(x0: number, y0: number, x1: number, y1: number, add: boolean): void {
     const [ax, bx] = [Math.min(x0, x1), Math.max(x0, x1)];
     const [ay, by] = [Math.min(y0, y1), Math.max(y0, y1)];
     const ids = this.world.entities
-      .filter((e) => e.team === SIDE && isUnit(e.type) && !e.hidden && e.x + e.size > ax && e.x < bx && e.y + e.size > ay && e.y < by)
+      .filter((e) => e.team === this.side && isUnit(e.type) && !e.hidden && e.x + e.size > ax && e.x < bx && e.y + e.size > ay && e.y < by)
       .map((e) => e.id);
     if (ids.length > 0 || !add) this.select(ids, add);
   }
 
+  /** Every armed unit of this side: a quick way to grab the army with a gamepad. */
+  selectArmy(): void {
+    this.select(this.world.entities.filter((e) => e.team === this.side && isUnit(e.type) && UNIT_RULES[e.type as UnitType].weapon).map((e) => e.id));
+  }
+
+  /** HQ first; asked again, the factories in turn. */
+  selectNextBase(): void {
+    const own = (type: number) => this.world.entities.filter((e) => e.team === this.side && e.type === type);
+    const cycle = [...own(hqType(this.side)), ...own(ObjectType.TankFactory)];
+    if (cycle.length === 0) return;
+    const at = this.selection.length === 1 ? cycle.findIndex((e) => e.id === this.selection[0]) : -1;
+    this.select([cycle[(at + 1) % cycle.length]!.id]);
+  }
+
   ownUnits(): Entity[] {
-    return this.selected().filter((e) => e.team === SIDE && isUnit(e.type));
+    return this.selected().filter((e) => e.team === this.side && isUnit(e.type));
   }
 
   run(cmd: Command): CommandResult {
-    const result = issue(this.world, SIDE, cmd);
+    const result = issue(this.world, this.side, cmd);
     if (!result.ok) this.onToast(t().reason[result.reason]);
     return result;
   }
 
   /** Right click: attack enemies, harvest fields, guard own objects, otherwise drive there. */
-  order(x: number, y: number): string | null {
+  order(x: number, y: number, slack = 0): string | null {
     const units = this.ownUnits();
     if (units.length === 0) return null;
     const ids = units.map((u) => u.id);
-    const target = this.pick(x, y);
+    const target = this.pick(x, y, slack);
     const armed = units.filter((u) => UNIT_RULES[u.type as UnitType].weapon).map((u) => u.id);
     const harvesters = units.filter((u) => u.type === ObjectType.Harvester).map((u) => u.id);
-    if (target && target.team === 'enemy' && armed.length > 0) {
+    if (target && this.isFoe(target) && armed.length > 0) {
       this.run({ kind: 'attack', ids: armed, targetId: target.id });
       return 'attack';
     }
@@ -132,7 +215,7 @@ export class Game {
       if (rest.length) this.run({ kind: 'move', ids: rest, x, y });
       return 'harvest';
     }
-    if (target && target.team === SIDE && !ids.includes(target.id) && armed.length > 0 && !isUnit(target.type)) {
+    if (target && target.team === this.side && !ids.includes(target.id) && armed.length > 0 && !isUnit(target.type)) {
       this.run({ kind: 'defend', ids: armed, targetId: target.id });
       return 'defend';
     }
@@ -141,7 +224,7 @@ export class Game {
   }
 
   startPlacing(type: BuildingType): void {
-    const hq = this.selected().find((e) => e.type === ObjectType.PlayerHQ && e.team === SIDE);
+    const hq = this.selected().find((e) => e.type === hqType(this.side) && e.team === this.side);
     if (hq) this.placing = { type, hqId: hq.id };
   }
 
@@ -154,7 +237,7 @@ export class Game {
   canPlaceAt(x: number, y: number): boolean {
     if (!this.placing) return false;
     const { cx, cy } = this.placementCell(x, y, this.placing.type);
-    return canPlace(this.world, SIDE, this.placing.type, cx, cy);
+    return canPlace(this.world, this.side, this.placing.type, cx, cy);
   }
 
   /** Places the pending building. Walls stay in placement mode so a line can be drawn quickly. */
@@ -183,6 +266,30 @@ function rank(e: Entity): number {
   if (isUnit(e.type)) return 0;
   if (e.type === ObjectType.ResourceField) return 2;
   return 1;
+}
+
+/** The setup an URL asks for: `?m=6.2` a campaign mission, `?s=4&vs=hard&money=3000` a skirmish on map 4. */
+export function parseSetup(search: string, difficulty: Difficulty): Setup {
+  const params = new URLSearchParams(search);
+  const skirmish = params.get('s');
+  if (skirmish !== null) {
+    const mapIndex = Math.min(campaign.maps.length - 1, Math.max(0, (Number.parseInt(skirmish, 10) || 1) - 1));
+    const vs = params.get('vs') as Opponent | null;
+    const money = Number(params.get('money'));
+    return {
+      kind: 'skirmish',
+      mapIndex,
+      opponent: vs && OPPONENTS.includes(vs) ? vs : 'normal',
+      money: (SKIRMISH_MONEY as readonly number[]).includes(money) ? money : DEFAULT_SKIRMISH_MONEY,
+    };
+  }
+  return { kind: 'campaign', ...parseMission(search), difficulty };
+}
+
+/** The URL query for a setup. */
+export function setupQuery(setup: Setup): Record<string, string> {
+  if (setup.kind === 'campaign') return { m: `${setup.mapIndex + 1}.${setup.missionIndex + 1}` };
+  return { s: String(setup.mapIndex + 1), vs: setup.opponent, money: String(setup.money) };
 }
 
 export function parseMission(search: string): { mapIndex: number; missionIndex: number } {

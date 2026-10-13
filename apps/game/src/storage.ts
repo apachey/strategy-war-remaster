@@ -1,5 +1,7 @@
 import { LANGS, type Lang } from '@sw/data';
-import { DIFFICULTIES, SAVE_VERSION, type Difficulty, type WorldSave } from '@sw/sim';
+import { campaign } from '@sw/data';
+import { DEFAULT_SKIRMISH_MONEY, DIFFICULTIES, OPPONENTS, SAVE_VERSION, SKIRMISH_MONEY, type Difficulty, type WorldSave } from '@sw/sim';
+import type { Setup } from './game';
 
 /**
  * Settings, campaign progress and save slots in localStorage. Storage can be missing or full (private windows,
@@ -26,16 +28,27 @@ function write(key: string, value: unknown): boolean {
   }
 }
 
+export type SkirmishSetup = Extract<Setup, { kind: 'skirmish' }>;
+
 export interface Settings {
   lang: Lang;
   difficulty: Difficulty;
+  /** The last skirmish started, offered again by the Skirmish button. */
+  skirmish: SkirmishSetup;
 }
 
 export function loadSettings(): Settings {
   const s = read<Partial<Settings>>('settings') ?? {};
+  const k = s.skirmish;
   return {
     lang: s.lang && LANGS.includes(s.lang) ? s.lang : 'uk',
     difficulty: s.difficulty && DIFFICULTIES.includes(s.difficulty) ? s.difficulty : 'normal',
+    skirmish: {
+      kind: 'skirmish',
+      mapIndex: k && k.mapIndex >= 0 && k.mapIndex < campaign.maps.length ? k.mapIndex : 3,
+      opponent: k && OPPONENTS.includes(k.opponent) ? k.opponent : 'normal',
+      money: k && (SKIRMISH_MONEY as readonly number[]).includes(k.money) ? k.money : DEFAULT_SKIRMISH_MONEY,
+    },
   };
 }
 
@@ -59,8 +72,8 @@ export type Slot = (typeof SLOTS)[number];
 
 export interface SaveGame {
   version: typeof SAVE_VERSION;
-  mapIndex: number;
-  missionIndex: number;
+  /** The mission or skirmish the save belongs to. */
+  setup: Setup;
   savedAt: string;
   world: WorldSave;
 }
