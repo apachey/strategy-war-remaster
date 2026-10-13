@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "music": "tsx src/cli.ts",
+    "sfx": "tsx src/sfx-cli.ts",
     "typecheck": "tsc -p .",
     "test": "vitest run",
     "build": "echo \"@sw/music: run pnpm music to re-render assets/music\""

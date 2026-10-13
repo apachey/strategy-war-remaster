@@ -27,6 +27,7 @@ pnpm e2e            # Playwright smoke tests + screenshots in apps/game/test-res
 pnpm desktop:build  # macOS .app/.dmg (needs macOS + Rust)
 pnpm sprites        # regenerate sprites from the 3D models; CI runs pnpm sprites:check
 pnpm music          # re-render the music (needs the original intro.mid from the project files)
+pnpm sfx            # re-render the sound effects into assets/sfx (WAV + sfx.json)
 ```
 
 ## Rules

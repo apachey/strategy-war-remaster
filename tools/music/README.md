@@ -4,6 +4,8 @@
 pnpm music                          # re-render assets/music/main-theme.m4a
 pnpm music --midi path/to/intro.mid # if the project files are elsewhere
 pnpm music --only battle            # one track
+pnpm sfx                            # re-render the sound effects into assets/sfx
+pnpm sfx --only shot_heavy          # one effect
 ```
 
 The sound is dark and wide, in the spirit of Dune: drones, brass swells ("braam"), a throat singer whose
@@ -23,3 +25,18 @@ drum step patterns). Both loop seamlessly: whatever rings past the loop point is
 
 Everything is computed in TypeScript with seeded noise; ffmpeg only measures loudness and encodes AAC at
 -16 LUFS with one fixed gain per track. Rendering takes about 90 s.
+
+## Sound effects
+
+`src/sfx.ts` synthesises the game's 21 effects from the same parts as the music: pitch-dropping sine thumps,
+filtered seeded noise for cracks and roars, inharmonic plate partials for metal, a minor-third bell for chimes, and
+the music's own brass, drums, throat and wailing voice for the victory and defeat stingers (D minor / Phrygian).
+Player tanks fire powder cannons that get deeper from the light to the heavy tank; the alien hover vehicles fire a
+falling, ring-modulated energy bolt. UI sounds are short, low pulse blips.
+
+`pnpm sfx` (`src/sfx-cli.ts`) writes `assets/sfx/<name>.wav`, 16-bit 44.1 kHz, mono except the two stingers, peak
+at -1 dBFS with a 25 ms fade at the end: WAV rather than AAC because short effects need sample-accurate starts. It
+also writes `assets/sfx/sfx.json` with each effect's length, channel count, a suggested playback gain (every file
+peaks at the same level, so a click should play quieter than an explosion) and a one-line description. It prints
+peak, RMS and spectral centroid for each effect, which is how to check a change without listening. Rendering takes
+a few seconds and is byte-identical every time; `test/sfx.test.ts` checks determinism, length budgets and levels.

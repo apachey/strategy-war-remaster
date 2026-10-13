@@ -80,10 +80,16 @@ export function master(bus: Stereo, peakDb = -1): Stereo {
 
 /** 16-bit PCM stereo WAV. */
 export function wav(bus: Stereo): Buffer {
-  const data = Buffer.alloc(bus.length * 4);
-  for (let i = 0; i < bus.length; i++) {
-    data.writeInt16LE(Math.round(Math.max(-1, Math.min(1, bus.l[i]!)) * 32767), i * 4);
-    data.writeInt16LE(Math.round(Math.max(-1, Math.min(1, bus.r[i]!)) * 32767), i * 4 + 2);
+  return pcm16([bus.l, bus.r]);
+}
+
+/** 16-bit PCM WAV with any number of interleaved channels of equal length (one for mono). */
+export function pcm16(channels: Float32Array[]): Buffer {
+  const n = channels.length;
+  const length = channels[0]!.length;
+  const data = Buffer.alloc(length * n * 2);
+  for (let i = 0; i < length; i++) {
+    for (let c = 0; c < n; c++) data.writeInt16LE(Math.round(Math.max(-1, Math.min(1, channels[c]![i]!)) * 32767), (i * n + c) * 2);
   }
   const h = Buffer.alloc(44);
   h.write('RIFF', 0);
@@ -91,10 +97,10 @@ export function wav(bus: Stereo): Buffer {
   h.write('WAVEfmt ', 8);
   h.writeUInt32LE(16, 16);
   h.writeUInt16LE(1, 20);
-  h.writeUInt16LE(2, 22);
+  h.writeUInt16LE(n, 22);
   h.writeUInt32LE(SAMPLE_RATE, 24);
-  h.writeUInt32LE(SAMPLE_RATE * 4, 28);
-  h.writeUInt16LE(4, 32);
+  h.writeUInt32LE(SAMPLE_RATE * n * 2, 28);
+  h.writeUInt16LE(n * 2, 32);
   h.writeUInt16LE(16, 34);
   h.write('data', 36);
   h.writeUInt32LE(data.length, 40);

@@ -16,7 +16,8 @@
     "extract": "node tools/extract/extract-campaign.mjs",
     "sprites": "pnpm --filter @sw/art sprites",
     "sprites:check": "pnpm --filter @sw/art sprites --check",
-    "music": "pnpm --filter @sw/music music"
+    "music": "pnpm --filter @sw/music music",
+    "sfx": "pnpm --filter @sw/music sfx"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
