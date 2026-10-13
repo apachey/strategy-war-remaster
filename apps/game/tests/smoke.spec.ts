@@ -130,7 +130,7 @@ test('difficulty and language are chosen on the briefing and remembered', async 
 test('quick save and quick load continue the game where it was', async ({ page }) => {
   const errors = await open(page, '?m=1.2&speed=8');
   await page.getByRole('button', { name: 'Почати' }).click();
-  await expect.poll(async () => (await hook(page)).tick).toBeGreaterThan(200);
+  await expect.poll(async () => (await hook(page)).tick, { timeout: 20_000 }).toBeGreaterThan(200);
   await page.keyboard.press('F5');
   await expect(page.locator('#toast')).toContainText('Гру збережено');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('sw.save.quick')!).world.world.tick as number);

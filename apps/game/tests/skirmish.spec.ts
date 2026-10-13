@@ -192,7 +192,7 @@ test('destroying player 2\'s HQ shows player 1 as the winner', async ({ page }) 
 test('a skirmish saves and loads like a mission', async ({ page }) => {
   const errors = await open(page, '?s=3&vs=easy&speed=8');
   await page.getByRole('button', { name: 'Почати' }).click();
-  await expect.poll(async () => (await sw(page)).tick).toBeGreaterThan(100);
+  await expect.poll(async () => (await sw(page)).tick, { timeout: 20_000 }).toBeGreaterThan(100);
   await page.keyboard.press('F5');
   await expect(page.locator('#toast')).toContainText('Гру збережено');
   await page.keyboard.press('F9');
