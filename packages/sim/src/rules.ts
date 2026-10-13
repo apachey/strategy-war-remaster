@@ -122,3 +122,110 @@ export const UNIT_SIGHT_CELLS = 2;
 
 /** Delay between the HQ falling and the mission result, like the original's 2 s pause. */
 export const OUTCOME_DELAY_MS = 2000;
+
+// ---------------------------------------------------------------------------------------------------------------
+// Remaster: difficulty levels and the computer opponent. None of this exists in the original.
+
+/**
+ * `classic` is the original 2004 enemy: raiders that wander and a factory that sends one out every 55 s.
+ * The other three hand the enemy side to the computer player in ai.ts.
+ */
+export type Difficulty = 'classic' | 'easy' | 'normal' | 'hard';
+export const DIFFICULTIES: readonly Difficulty[] = ['classic', 'easy', 'normal', 'hard'];
+
+/** How a computer player thinks. The same brain can play either side (the tests let it play the player). */
+export interface AiBrain {
+  /** Time between decisions; slower brains react later. */
+  thinkMs: number;
+  /** Harvesters it keeps working when it has a silo and a field to mine. */
+  harvesters: number;
+  /** Production order of combat units, repeated. Enemy tanks are dropped when the brain plays the player. */
+  tankMix: UnitType[];
+  /** Whether it builds new buildings; without, it only uses the base the mission gave it. */
+  builds: boolean;
+  /** Defender towers it builds around its HQ. */
+  defenders: number;
+  /** First attack wave leaves after this long, then one wave per cooldown. */
+  firstWaveMs: number;
+  waveCooldownMs: number;
+  /** Tanks in the first wave; each later wave takes one more, up to waveMax. */
+  waveSize: number;
+  waveMax: number;
+  /** Which enemy building an attack wave heads for. */
+  targeting: 'hq' | 'nearest' | 'economy';
+  /** Tanks in range all shoot the weakest target instead of each picking its nearest. */
+  focusFire: boolean;
+  /** Home tanks answer an attack on any building within this many cells. */
+  guardCells: number;
+}
+
+export const AI_BRAINS = {
+  easy: {
+    thinkMs: 2000,
+    harvesters: 1,
+    tankMix: [ObjectType.EnemyTank, ObjectType.LightTank],
+    builds: false,
+    defenders: 0,
+    firstWaveMs: 240_000,
+    waveCooldownMs: 120_000,
+    waveSize: 3,
+    waveMax: 4,
+    targeting: 'hq',
+    focusFire: false,
+    guardCells: 3,
+  },
+  normal: {
+    thinkMs: 1000,
+    harvesters: 2,
+    tankMix: [ObjectType.EnemyTank, ObjectType.LightTank, ObjectType.MiddleTank],
+    builds: true,
+    defenders: 1,
+    firstWaveMs: 150_000,
+    waveCooldownMs: 80_000,
+    waveSize: 4,
+    waveMax: 7,
+    targeting: 'nearest',
+    focusFire: false,
+    guardCells: 8,
+  },
+  hard: {
+    thinkMs: 500,
+    harvesters: 3,
+    tankMix: [ObjectType.MiddleTank, ObjectType.LightTank, ObjectType.HeavyTank, ObjectType.MiddleTank],
+    builds: true,
+    defenders: 2,
+    firstWaveMs: 100_000,
+    waveCooldownMs: 50_000,
+    waveSize: 5,
+    waveMax: 10,
+    targeting: 'economy',
+    focusFire: true,
+    guardCells: 10,
+  },
+  /** Scripted player for tests: builds an economy and goes straight for the enemy HQ. */
+  autoplay: {
+    thinkMs: 500,
+    harvesters: 3,
+    tankMix: [ObjectType.MiddleTank, ObjectType.HeavyTank],
+    builds: true,
+    defenders: 0,
+    firstWaveMs: 60_000,
+    waveCooldownMs: 30_000,
+    waveSize: 8,
+    waveMax: 12,
+    targeting: 'hq',
+    focusFire: true,
+    guardCells: 8,
+  },
+} as const satisfies Record<string, AiBrain>;
+export type AiBrainName = keyof typeof AI_BRAINS;
+
+/** What the computer enemy starts with and earns on top of harvesting, so it can build even far from a field. */
+export const ENEMY_BONUS: Record<Exclude<Difficulty, 'classic'>, { money: number; incomePerMinute: number }> = {
+  easy: { money: 300, incomePerMinute: 60 },
+  normal: { money: 700, incomePerMinute: 120 },
+  hard: { money: 1500, incomePerMinute: 200 },
+};
+
+/** On the training map (map 1) the computer enemy commands what it has but never builds. */
+export const TRAINING_MAPS = 1;

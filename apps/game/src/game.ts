@@ -10,11 +10,12 @@ import {
   type BuildingType,
   type Command,
   type CommandResult,
+  type Difficulty,
   type Entity,
   type UnitType,
   type World,
 } from '@sw/sim';
-import { REASON_TEXT } from './text';
+import { t } from './text';
 
 export const SIDE = 'player' as const;
 
@@ -34,13 +35,29 @@ export class Game {
   started = false;
   onToast: (text: string) => void = () => {};
 
+  /** Set when the world came from a save: the game then continues without a briefing. */
+  readonly loaded: boolean;
+
   constructor(
     readonly mapIndex: number,
     readonly missionIndex: number,
+    difficulty: Difficulty,
+    saved?: World,
   ) {
     this.map = campaign.maps[mapIndex]!;
     this.mission = this.map.missions[missionIndex]!;
-    this.world = createWorld(this.map, missionIndex);
+    this.loaded = !!saved;
+    this.world = saved ?? createWorld(this.map, missionIndex, 1, { difficulty });
+  }
+
+  get difficulty(): Difficulty {
+    return this.world.difficulty;
+  }
+
+  /** Difficulty can change on the briefing screen, before the world has run a single tick. */
+  setDifficulty(difficulty: Difficulty): void {
+    if (this.started || this.loaded || this.world.tick > 0) return;
+    this.world = createWorld(this.map, this.missionIndex, 1, { difficulty });
   }
 
   get money(): number {
@@ -93,7 +110,7 @@ export class Game {
 
   run(cmd: Command): CommandResult {
     const result = issue(this.world, SIDE, cmd);
-    if (!result.ok) this.onToast(REASON_TEXT[result.reason]);
+    if (!result.ok) this.onToast(t().reason[result.reason]);
     return result;
   }
 

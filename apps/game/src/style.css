@@ -67,3 +67,12 @@ body.paused #topbar::after {
 #modal .missions { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 #modal .map { display: flex; flex-direction: column; gap: 4px; }
 #modal .map button { text-align: left; }
+#modal .options { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+#modal .option { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#modal .option span { min-width: 90px; color: var(--muted); }
+#modal .options .hint { margin: 6px 0 12px 96px; color: var(--muted); font-size: 12px; }
+#modal .slots { display: flex; flex-direction: column; gap: 8px; }
+#modal .slot { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 8px; align-items: center; }
+#modal .slot b { grid-column: 1; }
+#modal .slot span { grid-column: 1; grid-row: 2; color: var(--muted); font-size: 12px; }
+#modal .slot button { grid-row: 1 / span 2; }
