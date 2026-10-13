@@ -7,6 +7,7 @@ import {
   ENEMY_BONUS,
   ENEMY_FACTORY_PAUSE_MS,
   ENEMY_MAX_TANKS,
+  FACTORY_BUILDS,
   HARVESTER,
   OUTCOME_DELAY_MS,
   RAIDER_WANDER_CELLS,
@@ -110,6 +111,9 @@ export interface SideState {
 
 export type Outcome = 'playing' | 'won' | 'lost';
 
+/** A campaign mission from the original, or a skirmish on one of its maps (against the computer or a second person). */
+export type Mode = 'campaign' | 'skirmish';
+
 export interface World {
   /** Map size in 15 px cells. */
   cols: number;
@@ -126,6 +130,7 @@ export interface World {
   /** State of the seeded PRNG; read it only through random(). */
   rngState: number;
   difficulty: Difficulty;
+  mode: Mode;
   /** Computer players by side. Without one for the enemy, the enemy behaves exactly like the original. */
   ai: Partial<Record<Side, AiState>>;
   /** The training map: a computer enemy there commands its units but never builds. */
@@ -207,6 +212,8 @@ export interface WorldOptions {
   difficulty?: Difficulty;
   /** Hand the player side to a computer brain too (tests and demos). */
   playerAi?: AiBrainName;
+  /** Default 'campaign'. */
+  mode?: Mode;
 }
 
 export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, options: WorldOptions = {}): World {
@@ -228,6 +235,7 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, op
     tick: 0,
     rngState: seed >>> 0,
     difficulty,
+    mode: options.mode ?? 'campaign',
     ai: {},
     training: campaign.maps.indexOf(map) >= 0 && campaign.maps.indexOf(map) < TRAINING_MAPS,
     nextId: 1,
@@ -245,6 +253,13 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, op
   }
   if (options.playerAi) world.ai.player = createAi(world, 'player', options.playerAi);
   return world;
+}
+
+/** Puts a fresh unit of `team` on a cell, as if it had just left a factory. */
+export function spawnUnit(world: World, type: UnitType, team: Side, cx: number, cy: number): Entity {
+  const u = newEntity(world.nextId++, type, team, cx * CELL, cy * CELL, UNIT_RULES[type].hp);
+  addEntity(world, u);
+  return u;
 }
 
 /** Next number in [0, 1) from the world's seeded PRNG. */
@@ -609,12 +624,16 @@ function cheat(world: World, side: Side, kind: 'reveal' | 'money' | 'repair', id
   return OK;
 }
 
+/** Every side builds the player's four vehicles; the campaign enemy also has its own tank. Skirmish sides are equal. */
+export function canProduce(world: World, side: Side, unit: UnitType): boolean {
+  if (unit === ObjectType.EnemyTank) return side === 'enemy' && world.mode === 'campaign';
+  return (FACTORY_BUILDS as readonly number[]).includes(unit);
+}
+
 function produce(world: World, side: Side, factoryId: number, unit: UnitType): CommandResult {
   const factory = world.byId.get(factoryId);
   if (!factory || factory.team !== side || factory.type !== ObjectType.TankFactory || !factory.complete) return fail('invalid');
-  const allowed: number[] = [ObjectType.Harvester, ObjectType.LightTank, ObjectType.MiddleTank, ObjectType.HeavyTank];
-  if (side === 'enemy') allowed.push(ObjectType.EnemyTank);
-  if (!allowed.includes(unit)) return fail('invalid');
+  if (!canProduce(world, side, unit)) return fail('invalid');
   if (factory.job) return fail('busy');
   const rules = UNIT_RULES[unit];
   const money = world.sides[side];
@@ -1106,16 +1125,15 @@ function updateBuilding(world: World, e: Entity): void {
     if (job.elapsedMs >= job.totalMs) {
       const spot = spawnCell(world, e);
       if (spot && e.team !== 'neutral') {
-        const u = newEntity(world.nextId++, job.unit, e.team, spot.cx * CELL, spot.cy * CELL, UNIT_RULES[job.unit].hp);
-        u.dir = 4;
-        addEntity(world, u);
+        const u = spawnUnit(world, job.unit, e.team, spot.cx, spot.cy);
         e.job = null;
         e.pauseMs = 0;
         world.events.push({ kind: 'completed', id: u.id, type: u.type });
       }
     }
   }
-  if (e.type === ObjectType.TankFactory && e.team === 'enemy' && !e.job && !world.ai.enemy) {
+  // The original enemy factory; a skirmish factory makes only what its owner orders.
+  if (e.type === ObjectType.TankFactory && e.team === 'enemy' && !e.job && !world.ai.enemy && world.mode === 'campaign') {
     e.pauseMs += TICK_MS;
     const raiders = world.entities.filter((o) => o.type === ObjectType.EnemyTank && o.hp > 0).length;
     if (e.pauseMs >= ENEMY_FACTORY_PAUSE_MS && raiders < ENEMY_MAX_TANKS) {
