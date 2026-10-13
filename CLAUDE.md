@@ -33,6 +33,10 @@ pnpm desktop:build  # macOS .app/.dmg (needs macOS + Rust)
 - Every gameplay change needs a sim test; every visible change needs an updated smoke screenshot.
 - The game exposes `window.__sw` (game, issue, camera) so Playwright can read state and give orders.
 - `packages/sim/test/autoplay.ts` is a scripted player; the "mission 1 can be won" test is the phase 1 gate.
+- `packages/sim/src/ai.ts` is the computer player (difficulty levels); `test/campaign.test.ts` plays all 21 missions on
+  every difficulty and is the stage 3 gate. Saves are `saveWorld`/`loadWorld` in `src/save.ts`; bump `SAVE_VERSION`
+  whenever the World shape changes.
+- Interface text lives in `apps/game/src/text.ts` (UA and EN); mission titles and briefings in `packages/data/src/text.ts`.
 - Art direction: style B (HD pixel art) via low-poly 3D models rendered to 8-direction sprites; style E
   (low-poly 3D, three.js) is the fallback decided at the end of phase 2.
 - Design doc and roadmap: https://claude.ai/code/artifact/11bd6ff4-4c06-45d8-87e0-f758ea577a8c

@@ -1,26 +1,54 @@
 import { Application } from 'pixi.js';
-import { CELL } from '@sw/data';
-import { issue, TICK_MS } from '@sw/sim';
+import { CELL, LANGS, type Lang } from '@sw/data';
+import { DIFFICULTIES, issue, loadWorld, SAVE_VERSION, saveWorld, TICK_MS, type Difficulty, type World } from '@sw/sim';
 import { Game, nextMission, parseMission } from './game';
 import { Hud } from './hud';
 import { Renderer, tickAlpha } from './render';
+import { loadSettings, markCompleted, readSave, saveSettings, SLOTS, writeSave, type Slot } from './storage';
+import { setLang, t } from './text';
 
 /**
- * Phase 1 grey-box prototype: the original campaign with mouse control.
- * LMB selects (drag for a box), RMB orders, arrows/WASD or the screen edge scroll, wheel zooms.
+ * The campaign with mouse control. LMB selects (drag for a box), RMB orders, arrows/WASD or the screen edge
+ * scroll, wheel zooms. URL options: `?m=6.2` mission, `?d=hard` difficulty, `?lang=en`, `?speed=8`,
+ * `?load=quick` continues a save.
  */
 
 const params = new URLSearchParams(location.search);
 
-function goTo(mapIndex: number, missionIndex: number): void {
+const settings = loadSettings();
+const urlLang = params.get('lang') as Lang | null;
+setLang(urlLang && LANGS.includes(urlLang) ? urlLang : settings.lang);
+const urlDifficulty = params.get('d') as Difficulty | null;
+const difficulty = urlDifficulty && DIFFICULTIES.includes(urlDifficulty) ? urlDifficulty : settings.difficulty;
+
+function goTo(mapIndex: number, missionIndex: number, load?: Slot): void {
   const p = new URLSearchParams(location.search);
   p.set('m', `${mapIndex + 1}.${missionIndex + 1}`);
+  p.delete('d');
+  if (load) p.set('load', load);
+  else p.delete('load');
   location.search = p.toString();
 }
 
+/** A save from `?load=slot`, or null to start the mission from its beginning. */
+function savedGame(): { mapIndex: number; missionIndex: number; world: World } | null {
+  const slot = params.get('load') as Slot | null;
+  const save = slot && SLOTS.includes(slot) ? readSave(slot) : null;
+  if (!save) return null;
+  try {
+    return { mapIndex: save.mapIndex, missionIndex: save.missionIndex, world: loadWorld(save.world) };
+  } catch {
+    return null;
+  }
+}
+
+/** The original's keypad cheats, typed as keys: 1298* reveals the map, 1298# skips the mission, 12986 money, 12989 repair. */
+const CHEATS = ['1298*', '1298#', '12986', '12989'] as const;
+
 async function start(): Promise<void> {
-  const { mapIndex, missionIndex } = parseMission(location.search);
-  const game = new Game(mapIndex, missionIndex);
+  const saved = savedGame();
+  const { mapIndex, missionIndex } = saved ?? parseMission(location.search);
+  const game = new Game(mapIndex, missionIndex, difficulty, saved?.world);
   game.speed = Math.max(0.25, Math.min(16, Number(params.get('speed')) || 1));
   const world = () => game.world;
 
@@ -40,7 +68,62 @@ async function start(): Promise<void> {
       const n = nextMission(mapIndex, missionIndex);
       if (n) goTo(n.mapIndex, n.missionIndex);
     },
+    save: (slot) => saveTo(slot),
+    load: (slot) => loadFrom(slot),
+    setLang: (lang) => {
+      setLang(lang);
+      settings.lang = lang;
+      saveSettings(settings);
+    },
+    setDifficulty: (d) => {
+      game.setDifficulty(d);
+      settings.difficulty = d;
+      saveSettings(settings);
+    },
   });
+  if (game.loaded) hud.toast(t().loaded);
+
+  function saveTo(slot: Slot): void {
+    if (!game.started || world().outcome !== 'playing') return;
+    const ok = writeSave(slot, {
+      version: SAVE_VERSION,
+      mapIndex,
+      missionIndex,
+      savedAt: new Date().toISOString(),
+      world: saveWorld(world()),
+    });
+    hud.toast(ok ? t().saved : t().saveFailed);
+  }
+
+  function loadFrom(slot: Slot): void {
+    const save = readSave(slot);
+    if (save) goTo(save.mapIndex, save.missionIndex, slot);
+    else hud.toast(t().noSave);
+  }
+
+  let typed = '';
+  function cheat(key: string): void {
+    typed = (typed + key).slice(-5);
+    const code = CHEATS.find((c) => typed.endsWith(c));
+    if (!code || !game.started || world().outcome !== 'playing') return;
+    typed = '';
+    const T = t().cheat;
+    if (code === '1298*') {
+      game.run({ kind: 'cheat', cheat: 'reveal' });
+      hud.toast(T.reveal);
+    } else if (code === '12986') {
+      game.run({ kind: 'cheat', cheat: 'money' });
+      hud.toast(T.money);
+    } else if (code === '12989') {
+      for (const e of game.selected()) if (e.team === 'player') game.run({ kind: 'cheat', cheat: 'repair', id: e.id });
+      hud.toast(T.repair);
+    } else {
+      markCompleted(mapIndex, missionIndex);
+      hud.toast(T.skip);
+      const n = nextMission(mapIndex, missionIndex);
+      if (n) goTo(n.mapIndex, n.missionIndex);
+    }
+  }
 
   // Camera ---------------------------------------------------------------------------------------------------
   const mapW = world().cols * CELL;
@@ -138,6 +221,14 @@ async function start(): Promise<void> {
 
   window.addEventListener('keydown', (ev) => {
     keys.add(ev.code);
+    if (ev.key.length === 1) cheat(ev.key);
+    if (ev.code === 'F5' || ev.code === 'F9') {
+      // F5 quick-saves, F9 quick-loads; the browser's own reload is not wanted mid-game.
+      ev.preventDefault();
+      if (ev.code === 'F5') saveTo('quick');
+      else loadFrom('quick');
+      return;
+    }
     const digit = /^Digit([1-9])$/.exec(ev.code);
     if (digit) {
       const n = Number(digit[1]);

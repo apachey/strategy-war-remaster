@@ -1,4 +1,4 @@
-# Game rules (phase 1)
+# Game rules
 
 The simulation follows the decompiled v1.3.5 code (v1.6.3 has the same balance). Map coordinates use the original
 30 px tiles split into 15 px cells; units, walls and defenders take one cell, other buildings 2×2 cells.
@@ -31,3 +31,48 @@ The simulation follows the decompiled v1.3.5 code (v1.6.3 has the same balance).
 - Pathfinding is A* over cells; a unit sent somewhere unreachable drives to the closest reachable point.
 - Group moves spread units over neighbouring cells instead of stacking them on one.
 - Only silos accept harvested resource, which matches mission 2's briefing ("Build a silo, start harvesting").
+- Attack-move (`attackMove`, used by the computer player): drive to a point, fighting armed units and towers met on
+  the way; when only enemy buildings block the route, shoot through the first one.
+
+## Computer enemy and difficulty (stage 3)
+
+The original enemy only waits at its base and trickles out tanks. That is kept as **Classic**; the other levels
+hand the enemy side to a computer player (`packages/sim/src/ai.ts`) that sends ordinary commands through `issue()`,
+exactly like the player. It is deterministic (seeded RNG, fixed ticks), so the same mission plays out the same way.
+
+| | Easy | Normal | Hard |
+|---|---|---|---|
+| Thinks every | 2 s | 1 s | 0.5 s |
+| Builds (silo, factory, towers) | no | yes | yes |
+| Harvesters | 1 | 2 | 3 |
+| Tanks | enemy, light | enemy, light, medium | medium, light, heavy |
+| First wave / then every | 4 min / 2 min | 2.5 min / 80 s | 100 s / 50 s |
+| Wave size (grows to) | 3 (4) | 4 (7) | 5 (10) |
+| Wave target | your HQ | the nearest building | your economy (harvesters, silos, factory) |
+| Focus fire, guard radius | no, 3 cells | no, 8 cells | yes, 10 cells |
+| Starting money, income on top of harvesting | $300, $60/min | $700, $120/min | $1500, $200/min |
+
+- The computer player builds tanks the player can build too (light, medium, heavy), as the design doc asks; the
+  enemy tank stays in its mix on easy and normal.
+- On map 1 (training) the computer enemy commands what it has but never builds or produces.
+- It defends: home tanks answer threats near its buildings and harvesters, and it puts up up to three emergency
+  towers when outnumbered. Harvesters avoid fields where harvesters died or that a player tower covers.
+- Waves gather at a staging point out of tower range, then move together; a wave also launches when the enemy's
+  economy has stalled.
+
+## Saves
+
+`saveWorld()` turns the whole world (RNG state and the computer players included) into plain JSON and `loadWorld()`
+restores it; the game continues tick for tick as if it had never stopped. Saves carry a version and older versions
+are refused. The game keeps a quick slot (F5 saves, F9 loads) and three slots in localStorage.
+
+## Cheats
+
+The original's keypad codes work as typed keys, as an easter egg: `1298*` reveals the map, `1298#` skips the
+mission, `12986` gives $1000, `12989` repairs the selected objects.
+
+## Campaign gate
+
+`packages/sim/test/campaign.test.ts` lets the scripted player (`autoplay` brain) play every mission against every
+difficulty. Classic and easy/normal must be won everywhere except the listed script limits (7.1 against a smart
+enemy is beyond the script, not the player); hard must be won at least 14 times out of 21.

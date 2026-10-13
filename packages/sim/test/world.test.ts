@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { campaign, ObjectType } from '@sw/data';
+import { campaign, LANGS, MAP_NAMES, missionText, ObjectType } from '@sw/data';
 import { createWorld, hashWorld, step } from '../src';
 
 describe('campaign data', () => {
   it('has the 7 maps and 21 missions of the full original', () => {
     expect(campaign.maps).toHaveLength(7);
     expect(campaign.maps.reduce((n, m) => n + m.missions.length, 0)).toBe(21);
+  });
+
+  it('has a Ukrainian and an English title and briefing for every mission', () => {
+    for (const lang of LANGS) {
+      expect(MAP_NAMES[lang]).toHaveLength(campaign.maps.length);
+      campaign.maps.forEach((map, mi) =>
+        map.missions.forEach((_, si) => {
+          const text = missionText(lang, mi, si);
+          expect(text.title, `${lang} ${mi + 1}.${si + 1}`).not.toBe('?');
+          expect(text.brief.length, `${lang} ${mi + 1}.${si + 1}`).toBeGreaterThan(10);
+        }),
+      );
+    }
   });
 });
 
