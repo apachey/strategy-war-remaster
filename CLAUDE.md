@@ -10,6 +10,8 @@ commit messages are in English.
 - `apps/desktop` — Tauri 2 shell that packages `apps/game/dist` as a macOS app and .dmg.
 - `packages/sim` — deterministic simulation with no rendering. Fixed 20 ticks/s, seeded RNG, never `Math.random`
   or wall-clock time inside the sim, so replays, AI tests and later online play stay in lockstep.
+  `src/rules.ts` holds the original's numbers (speeds, damage, build times) read from the decompiled code;
+  `docs/rules.md` lists them and every deliberate deviation.
 - `packages/data` — `campaign.json` (7 maps, 21 missions decoded from the original), types, original balance.
 - `tools/extract` — decoder for the original `.tae` map format (see its README).
 - `tools/art` — style B pipeline: low-poly three.js models rendered in headless Chromium to 8-direction palette
@@ -36,6 +38,8 @@ pnpm sfx            # re-render the sound effects into assets/sfx (WAV + sfx.jso
   Campaign layout data in `packages/data` is the only thing taken from the original.
 - Gameplay logic goes in `packages/sim`, never in `apps/game`. The game only reads world state and sends commands.
 - Every gameplay change needs a sim test; every visible change needs an updated smoke screenshot.
+- The game exposes `window.__sw` (game, issue, camera) so Playwright can read state and give orders.
+- `packages/sim/test/autoplay.ts` is a scripted player; the "mission 1 can be won" test is the phase 1 gate.
 - Art direction: style B (HD pixel art) via low-poly 3D models rendered to 8-direction sprites; style E
   (low-poly 3D, three.js) is the fallback decided at the end of phase 2.
 - Design doc and roadmap: https://claude.ai/code/artifact/11bd6ff4-4c06-45d8-87e0-f758ea577a8c

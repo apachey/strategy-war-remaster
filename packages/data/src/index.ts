@@ -57,11 +57,12 @@ export const CELL = 15;
 
 /**
  * Which 15 px quarter of each tile is forest (impassable), [row][col].
- * Derived by sampling the original tiles.png; approximate until checked against the original pathfinding.
+ * Taken from the original collision code (class c): edge tiles 2, 4, 8 and 10 leave one free quarter,
+ * tiles 3, 5, 6, 7 and 9 are solid forest.
  */
 export const TILE_FOREST: Record<number, [[number, number], [number, number]]> = {
   1: [[0, 0], [0, 0]],
-  2: [[0, 0], [1, 1]],
+  2: [[0, 1], [1, 1]],
   3: [[1, 1], [1, 1]],
   4: [[1, 0], [1, 1]],
   5: [[1, 1], [1, 1]],
