@@ -6,7 +6,8 @@ commit messages are in English.
 
 ## Layout
 
-- `apps/game` — the game: Vite + TypeScript + PixiJS 8. `?m=6.2` opens map 6, mission 2.
+- `apps/game` — the game: Vite + TypeScript + PixiJS 8. `?m=6.2` opens map 6, mission 2;
+  `?s=4&vs=hard` a skirmish on map 4 (`vs=human` splits the screen for two players, player 2 on a gamepad).
 - `apps/desktop` — Tauri 2 shell that packages `apps/game/dist` as a macOS app and .dmg.
 - `packages/sim` — deterministic simulation with no rendering. Fixed 20 ticks/s, seeded RNG, never `Math.random`
   or wall-clock time inside the sim, so replays, AI tests and later online play stay in lockstep.
