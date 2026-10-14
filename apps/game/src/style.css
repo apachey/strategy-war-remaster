@@ -34,26 +34,42 @@ body.paused #topbar::after {
   background: var(--panel); border: 1px solid var(--accent); border-radius: 6px; color: var(--accent); font-weight: 700;
 }
 
-#panel {
+.panel {
   position: fixed; left: 12px; bottom: 12px; min-width: 260px; max-width: 520px; padding: 10px 12px;
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
 }
-#panel .title { font-weight: 700; font-size: 14px; }
-#panel .title.player { color: var(--player); }
-#panel .title.enemy { color: var(--enemy); }
-#panel .info, #panel .hint { color: var(--muted); }
-#panel .buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-#panel .build { min-width: 104px; text-align: left; }
+.panel .title { font-weight: 700; font-size: 14px; }
+.panel .title.own { color: var(--player); }
+.panel .title.foe { color: var(--enemy); }
+.panel.side-2 .title.own { color: var(--enemy); }
+.panel.side-2 .title.foe { color: var(--player); }
+.panel .info, .panel .hint { color: var(--muted); }
+.panel .buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.panel .build { min-width: 104px; text-align: left; }
+.panel button.pad-focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Two players: each half of the screen has its own panel, money badge and toasts. */
+body.duo .panel { max-width: calc(50vw - 36px); }
+body.duo .panel.side-2 { left: calc(50% + 12px); }
+.badge {
+  position: fixed; top: 48px; left: 12px; padding: 4px 10px; border-radius: 6px; background: var(--panel);
+  border: 1px solid var(--player); color: var(--accent); font: 600 14px ui-monospace, Menlo, monospace;
+}
+.badge.side-2 { left: calc(50% + 12px); border-color: var(--enemy); }
+body.duo #help { display: none; }
+body.duo.paused #help { display: block; left: 50%; right: auto; transform: translateX(-50%); bottom: 50%; max-width: 560px; text-align: center; padding: 10px 14px; background: var(--panel); border-radius: 8px; color: var(--ink); font-size: 12px; }
 
 #help { position: fixed; right: 12px; bottom: 12px; max-width: 320px; color: var(--muted); font-size: 11px; text-align: right; }
 
-#toast {
+.toast {
   position: fixed; left: 50%; top: 52px; transform: translateX(-50%); padding: 6px 14px; border-radius: 6px;
   background: #5a1e16; color: #ffd9d0; opacity: 0; transition: opacity 0.2s; pointer-events: none;
 }
-#toast.show { opacity: 1; }
+.toast.show { opacity: 1; }
+body.duo .toast { top: 88px; left: 25%; }
+body.duo .toast.side-2 { left: 75%; }
 
-#modal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.55); }
+#modal { position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.55); }
 #modal.show { display: flex; }
 #modal .card {
   width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto; padding: 20px 22px;
@@ -67,3 +83,14 @@ body.paused #topbar::after {
 #modal .missions { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 #modal .map { display: flex; flex-direction: column; gap: 4px; }
 #modal .map button { text-align: left; }
+#modal .options { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+#modal .option { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#modal .option span { min-width: 90px; color: var(--muted); }
+#modal .options .hint { margin: 6px 0 12px 96px; color: var(--muted); font-size: 12px; }
+#modal .options .option + .option { margin-top: 6px; }
+#modal .preview { display: block; max-width: 100%; margin: 4px 0 8px; image-rendering: pixelated; border: 1px solid var(--line); border-radius: 4px; }
+#modal .slots { display: flex; flex-direction: column; gap: 8px; }
+#modal .slot { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 8px; align-items: center; }
+#modal .slot b { grid-column: 1; }
+#modal .slot span { grid-column: 1; grid-row: 2; color: var(--muted); font-size: 12px; }
+#modal .slot button { grid-row: 1 / span 2; }

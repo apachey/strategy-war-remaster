@@ -91,3 +91,4 @@ export const ORIGINAL_BALANCE = {
     [ObjectType.Wall]: { price: 50, hp: 50 },
   },
 } as const;
+export * from './text';
