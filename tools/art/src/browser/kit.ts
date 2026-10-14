@@ -112,3 +112,14 @@ export function lathe(profile: [number, number][], mat: MaterialName, pos: Vec3 
 export function ball(r: number, mat: MaterialName, pos: Vec3 = [0, 0, 0], segments = 8): THREE.Mesh {
   return mesh(new THREE.SphereGeometry(r, segments, Math.max(3, segments >> 1)), mat, pos);
 }
+
+/**
+ * Block with chamfered top edges: a square frustum stretched to w x d, its top `taper` times the size of its
+ * bottom, bottom face at pos[1]. The basic armour plate of the units and the stepped roofs of the buildings.
+ */
+export function slab(w: number, h: number, d: number, mat: MaterialName, pos: Vec3 = [0, 0, 0], taper = 0.8): THREE.Mesh {
+  const geo = new THREE.CylinderGeometry(Math.SQRT1_2 * taper, Math.SQRT1_2, 1, 4, 1);
+  geo.rotateY(Math.PI / 4);
+  geo.scale(w, h, d);
+  return mesh(geo, mat, [pos[0], pos[1] + h / 2, pos[2]]);
+}
