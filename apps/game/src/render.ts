@@ -526,7 +526,7 @@ export class Renderer {
             ? `${base}/idle0`
             : `${base}/idle`;
     this.ghost.texture = this.tex(side, frame);
-    this.ghost.anchor.copyFrom(this.ghost.texture.defaultAnchor);
+    this.ghost.anchor.copyFrom(this.ghost.texture.defaultAnchor ?? { x: 0.5, y: 0.5 });
     this.ghost.scale.set(ART);
     this.ghost.position.set(cx * CELL + size / 2, cy * CELL + size / 2);
     this.ghost.alpha = 0.6;
