@@ -200,3 +200,33 @@ test('the minimap shows the map and moves the camera', async ({ page }) => {
   await page.screenshot({ path: 'test-results/minimap.png' });
   expect(errors).toEqual([]);
 });
+
+test('the factory answers a click on its roof, queues tanks and sets a rally point', async ({ page }) => {
+  const errors = await open(page, '?m=7.1');
+  await page.getByRole('button', { name: 'Почати' }).click();
+  const f = await screenOf(page, 2);
+  const z = await page.evaluate(() => (window as unknown as { __sw: Hook }).__sw.camera.scale.x);
+  // The crane on the roof is drawn above the factory's cells.
+  await expect(async () => {
+    await page.mouse.click(f.x, f.y - 18 * z);
+    await expect(page.locator('#panel')).toContainText('Танковий завод', { timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  // The panel redraws while the factory works; a slow press must still count.
+  for (let i = 0; i < 2; i++) {
+    const buggy = await page.evaluate(() => {
+      const r = document.querySelector('#panel button[data-type="101"]')!.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    await page.mouse.click(buggy.x, buggy.y, { delay: 150 });
+  }
+  await expect(page.locator('#panel')).toContainText('(+1)');
+  await expect(page.locator('#money')).toHaveText('$900');
+  await page.mouse.click(f.x + 60 * z, f.y + 20 * z, { button: 'right' });
+  const rally = await page.evaluate(() => {
+    const sw = (window as unknown as { __sw: { game: { world: { entities: Array<{ type: number; team: string; rally: unknown }> } } } }).__sw;
+    return sw.game.world.entities.find((e) => e.type === 2 && e.team === 'player')!.rally;
+  });
+  expect(rally).not.toBeNull();
+  await page.screenshot({ path: 'test-results/factory-queue.png' });
+  expect(errors).toEqual([]);
+});

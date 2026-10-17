@@ -20,7 +20,7 @@ The simulation follows the decompiled v1.3.5 code (v1.6.3 has the same balance).
 | Harvesting | 1 unit per 50 ms onto the harvester, 1 unit of money per 50 ms while docked in a silo |
 | Enemy factory | a new enemy tank after 45 s of quiet plus 10 s of building, while the enemy has fewer than 10 |
 | Enemy tank AI | shoots player buildings in range first, then units; otherwise wanders up to 10 cells |
-| Fog | classic shroud: units uncover 2 cells around them, buildings twice their size; seen stays seen |
+| Fog | classic shroud: units uncover 2 cells around them (4 in 1.1), buildings twice their size; seen stays seen |
 | Mission end | enemy HQ destroyed: won; own HQ destroyed: lost; 2 s pause before the result |
 | Hit points of placed objects | taken from the mission file, so starting units are often weaker than new ones |
 
@@ -33,6 +33,41 @@ The simulation follows the decompiled v1.3.5 code (v1.6.3 has the same balance).
 - Only silos accept harvested resource, which matches mission 2's briefing ("Build a silo, start harvesting").
 - Attack-move (`attackMove`, used by the computer player): drive to a point, fighting armed units and towers met on
   the way; when only enemy buildings block the route, shoot through the first one.
+
+## Version 1.1 changes
+
+Asked for by Pavlo after playing 1.0 (the 46-point review). Tests: `packages/sim/test/v11.test.ts`, one per change.
+
+- **Sight and range.** Units see 4 cells (2 in the original); every weapon reaches one cell less: light tank and
+  enemy tank 2, middle and heavy tank 3, defender 4. Nothing fires from beyond its own sight any more. A defender
+  sees as far as it shoots. Firing gives the shooter away: the victim's side uncovers the cells around it.
+- **Shell speeds.** Light gun 340 px/s (400), cannon 65 px/s (50). Shells aim where a driving target will be when
+  they arrive, so slow cannons hit moving tanks.
+- **Line of fire.** Forest between shooter and target forbids the shot; a tank ordered to attack drives until it
+  has a clear line. Walls and buildings never block the line (they stop the shell itself, as before).
+- **Auto-attack.** An idle tank shoots what comes into range, goes after enemy units or towers it sees (or that
+  shot at it), but no further than 6 cells from where it stood (`CHASE_CELLS`); then it drives back, firing only at
+  what is in range on the way. A plain move order is still just a move.
+- **Attack-move** goes after armed enemies it sees on the way, not only those already in range.
+- **Turrets.** Tanks and defenders have a gun direction (`turretDir`) apart from the hull (`dir`): the gun turns one
+  45° step per tick to its target and fires once it faces it; the hull keeps facing where the tank drives.
+- **Factory** costs $500 everywhere (700), so mission 2 (start $500) can build one at once. It takes orders for up
+  to 5 units (`QUEUE_MAX`, the one in production included) and charges each when it starts on it; cancelling the
+  unit in production refunds it, queued ones cost nothing yet. A rally point sends new units there; a harvester
+  rallied onto a crystal field starts mining it.
+- **Shift-click routes.** A move or attack-move with `queue` adds a route point to units already on the move.
+- **Mission 1.1.** The three walls in the middle are forest (`MISSION_FOREST`), so the enemy base can only be reached
+  through its own wall.
+- **No stacking.** A unit that stops on top of another moves to the nearest free cell.
+- **No backward jerk.** A new route starts from the cell nearest the goal among those the unit overlaps, not from
+  the cell it was leaving.
+- **Harvester notice.** A full harvester that has no silo, or cannot reach any, says so (`notice`, and a
+  `harvesterNotice` event once each time it gets stuck).
+- **Under attack.** A hit on a building or a harvester sends an `underAttack` event (at most every 8 s for the same
+  part of the map), which the minimap shows; Space jumps the camera there.
+- **The computer defends its base.** When something shoots its buildings or walls, every free home tank goes after
+  the shooter, after the brain's reaction time (`defendDelayMs`: easy 6 s, normal 2 s, hard at once), even when the
+  shooter stands outside a walled base. The classic enemy stays the original's.
 
 ## Computer enemy and difficulty (stage 3)
 
@@ -103,7 +138,7 @@ original's raider (type 100) is drawn as the hover race's middle tank.
 
 `saveWorld()` turns the whole world (RNG state and the computer players included) into plain JSON and `loadWorld()`
 restores it; the game continues tick for tick as if it had never stopped. Saves carry a version and older versions
-are refused (version 2 added the skirmish mode, version 3 each side's race and colour, version 4 the secondary colour). Skirmishes save like missions. The game keeps a quick slot (F5 saves, F9 loads) and three slots in localStorage.
+are refused (version 2 added the skirmish mode, version 3 each side's race and colour, version 4 the secondary colour, version 5 the 1.1 gameplay: turrets, factory queues, rally points, routes, alerts). Skirmishes save like missions. The game keeps a quick slot (F5 saves, F9 loads) and three slots in localStorage.
 
 ## Cheats
 
@@ -113,5 +148,5 @@ mission, `12986` gives $1000, `12989` repairs the selected objects.
 ## Campaign gate
 
 `packages/sim/test/campaign.test.ts` lets the scripted player (`autoplay` brain) play every mission against every
-difficulty. Classic and easy/normal must be won everywhere except the listed script limits (7.1 against a smart
+difficulty. Classic and easy/normal must be won everywhere except the listed script limits (7.1 against the normal
 enemy is beyond the script, not the player); hard must be won at least 14 times out of 21.

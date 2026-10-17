@@ -34,6 +34,8 @@ export interface AiState {
   /** Where the current wave gathers out of reach of enemy towers before the assault, and when it set out. */
   stage: { x: number; y: number } | null;
   stageTick: number;
+  /** Tick at which its buildings started taking fire, -1 while none is. */
+  alarmTick: number;
 }
 
 /** The brain as it plays in this world: skirmish adjusts a few numbers. */
@@ -61,6 +63,7 @@ export function createAi(world: World, side: Side, brain: AiBrainName): AiState 
     emergencies: 0,
     stage: null,
     stageTick: 0,
+    alarmTick: -1,
   };
 }
 
@@ -100,6 +103,9 @@ const STAGE_TIMEOUT_MS = 90_000;
 
 /** Towers it may build in a hurry over a whole mission. */
 const MAX_EMERGENCY_TOWERS = 3;
+
+/** Money in the bank before it builds another factory. */
+const MORE_FACTORIES_MONEY = 1400;
 
 /** Harvesters only mine fields this close to a silo. */
 const HARVEST_RADIUS_CELLS = 16;
@@ -192,8 +198,9 @@ function construct(v: View): boolean {
   else if (factories === 0) want = ObjectType.TankFactory;
   else if (v.harvesters.length > silos * 2) want = ObjectType.Silo;
   else if (count(ObjectType.Defender) < brain.defenders && v.tanks.length >= 2) want = ObjectType.Defender;
-  // Money piling up faster than one factory can spend it: another factory.
-  else if (factories < brain.factories && world.sides[side].money >= 2 * BUILDING_RULES[ObjectType.TankFactory].price) want = ObjectType.TankFactory;
+  // Money piling up faster than one factory can spend it: another factory. The bar stays where it was when a
+  // factory cost 700, so a cheaper factory does not eat the starting money of a poor mission.
+  else if (factories < brain.factories && world.sides[side].money >= MORE_FACTORIES_MONEY) want = ObjectType.TankFactory;
   if (want === null) return false;
   const price = BUILDING_RULES[want].price;
   if (world.sides[side].money < price) return want !== ObjectType.Defender;
@@ -379,11 +386,43 @@ function threatsTo(v: View): Entity[] {
   });
 }
 
+/** A building counts as under fire this long after the last hit. */
+const UNDER_FIRE_TICKS = Math.round(3000 / TICK_MS);
+
+/**
+ * Whoever is shooting at its buildings or walls, wherever they stand. Unlike threatsTo() this also finds tanks
+ * breaking into a walled base, which the path check there hides.
+ */
+function shootersAtBase(v: View): Entity[] {
+  const { world } = v;
+  const ids = new Set<number>();
+  for (const b of v.mine) {
+    if (isUnit(b.type) || !b.hitBy || world.tick - b.hitTick >= UNDER_FIRE_TICKS) continue;
+    const s = world.byId.get(b.hitBy);
+    if (s && s.hp > 0 && !s.hidden && s.team !== v.side && isArmed(s)) ids.add(s.id);
+  }
+  return v.foes.filter((f) => ids.has(f.id));
+}
+
 /** Home tanks drive at armed enemies that come near any own building, then return to the HQ. */
 function guard(v: View): void {
   const { world, side, brain, ai } = v;
   const threats = threatsTo(v);
   const homeTanks = v.tanks.filter((t) => !ai.attackers.includes(t.id));
+  // Buildings under fire: after the brain's reaction time, every free home tank goes for the shooters.
+  const shooters = shootersAtBase(v);
+  if (shooters.length === 0) ai.alarmTick = -1;
+  else if (ai.alarmTick < 0) ai.alarmTick = world.tick;
+  if (shooters.length > 0 && (world.tick - ai.alarmTick) * TICK_MS >= brain.defendDelayMs) {
+    for (const t of homeTanks) {
+      if (t.order.kind === 'attack' || t.targetId !== 0) continue;
+      const s = closest(shooters, centerOf(t))!;
+      if (!issue(world, side, { kind: 'attack', ids: [t.id], targetId: s.id }).ok) {
+        const c = centerOf(s);
+        issue(world, side, { kind: 'attackMove', ids: [t.id], x: c.x, y: c.y });
+      }
+    }
+  }
   const towers = v.foes.filter((f) => f.type === ObjectType.Defender);
   const towerReach = BUILDING_RULES[ObjectType.Defender].weapon!.range + CELL;
   const underFire = (e: Entity) => towers.some((f) => gapBetween(f, e) <= towerReach);
@@ -459,9 +498,11 @@ function attack(v: View): void {
     const size = Math.min(brain.waveMax, Math.max(brain.waveSize + ai.wave, foeArmy));
     // With no money coming in and nothing in production, waiting longer only lets the enemy grow.
     const building = v.mine.some((e) => e.job !== null);
-    const cheapest = Math.min(...brain.tankMix.map((t) => UNIT_RULES[t].price));
+    // produce() sticks to its mix, so what counts is the price of the next tank in it.
+    const mix = brain.tankMix.filter((t) => canProduce(world, side, t));
+    const next = mix[ai.produced % mix.length];
     const mining = v.harvesters.some((h) => h.order.kind === 'harvest');
-    const stalled = !building && !mining && world.sides[side].money < cheapest;
+    const stalled = !building && !mining && (!next || world.sides[side].money < UNIT_RULES[next].price);
     if (ready.length >= size || (stalled && ready.length > 0)) {
       ai.attackers.push(...ready.map((t) => t.id));
       ai.wave++;

@@ -173,6 +173,8 @@ async function start(): Promise<void> {
   let mouseScreen: { x: number; y: number } | null = null;
   let drag: { x0: number; y0: number; x1: number; y1: number; sx: number; sy: number; shift: boolean } | null = null;
   let panDrag: { x: number; y: number } | null = null;
+  /** Where player 1 was last attacked, for Space. */
+  let lastAlert: { x: number; y: number } | null = null;
 
   app.canvas.addEventListener('pointerdown', (ev) => {
     if (!game.started || !v1.contains(ev.offsetX, ev.offsetY)) return;
@@ -183,7 +185,7 @@ async function start(): Promise<void> {
     }
     if (ev.button === 2) {
       if (p1.placing) p1.placing = null;
-      else p1.order(p.x, p.y);
+      else p1.order(p.x, p.y, 0, { queue: ev.shiftKey, attack: ev.altKey });
       return;
     }
     if (ev.button !== 0) return;
@@ -253,6 +255,10 @@ async function start(): Promise<void> {
         else p1.select([]);
         break;
       case 'Space':
+        // Space jumps to the last place under attack; pause moved to P.
+        if (lastAlert) v1.centerOn(lastAlert.x, lastAlert.y);
+        ev.preventDefault();
+        break;
       case 'KeyP':
         hud.togglePause();
         ev.preventDefault();
@@ -326,6 +332,11 @@ async function start(): Promise<void> {
         for (const v of views) v.renderer.beforeStep();
         game.step();
         for (const v of views) v.renderer.afterStep(world().events);
+        for (const ev of world().events) {
+          if (ev.kind !== 'underAttack') continue;
+          for (const m of minimaps) m.ping(ev.team, ev.x, ev.y);
+          if (ev.team === p1.side) lastAlert = { x: ev.x, y: ev.y };
+        }
         soundscape.afterStep(world().events);
         acc -= TICK_MS;
         steps++;
