@@ -69,7 +69,7 @@ const lightTank: Builder = (view, frame) => {
     fang(0.03, 0.3, [0, 0.2, -0.3 + (fire ? 0.04 : 0)]),
     ball(0.02, 'bileGlow', [0, 0.2, -0.17], 4),
   );
-  if (fire) g.add(thornShot([0, 0.2, -0.6], 0.08, true));
+  if (fire) g.add(thornShot([0, 0.2, -0.47], 'gun', true));
   if (frame === 'wreck') slump(g, -0.04, 0.15);
   return facing(g, view);
 };
@@ -98,7 +98,7 @@ const middleTank: Builder = (view, frame) => {
     g.add(ball(0.05 - k * 0.025, i % 2 ? 'team2Light' : 'team', [Math.cos(a) * r * 0.6, 0.32 + k * 0.2, 0.12 - k * 0.32 + Math.sin(a) * r], 4));
   }
   g.add(ball(fire ? 0.06 : 0.045, fire ? 'bileGlow' : 'bileLight', [0, 0.53, -0.22], 6));
-  if (fire) g.add(thornShot([0, 0.5, -0.46], 0.09, true));
+  if (fire) g.add(thornShot([0, 0.5, -0.28], 'gun', true));
   if (frame === 'wreck') slump(g, -0.04, 0.15);
   return facing(g, view);
 };
@@ -129,7 +129,7 @@ const heavyTank: Builder = (view, frame) => {
     ball(0.04, 'bileGlow', [0, 0.22, -0.36], 5),
     ...legs(4, -0.22, 0.3, 0.24, 0.13, 0.16, 0.03, frame),
   );
-  if (fire) g.add(thornShot([0, 0.24, -0.76], 0.1, true));
+  if (fire) g.add(thornShot([0, 0.24, -0.42], 'cannon', true));
   if (frame === 'wreck') slump(g, -0.04, 0.15);
   return facing(g, view);
 };
@@ -176,7 +176,7 @@ const defender: Builder = (view, frame) => {
     eye(0.045, [0, 0.03, -0.15]),
     fang(0.035, 0.24, [0, -0.04, -0.2 + (fire ? 0.03 : 0)]),
   );
-  if (fire) head.add(thornShot([0, -0.04, -0.46], 0.08, true));
+  if (fire) head.add(thornShot([0, -0.04, -0.34], 'gun', true));
   head.rotation.y = (-view * Math.PI) / 4;
   head.position.y = 0.66;
   const g = group(stalk(0.58), head);
@@ -224,9 +224,9 @@ function spine(a: number, r0: number, r1: number, h: number, r: number): THREE.M
   return out;
 }
 
-/** Thorn in flight with its trail of acid, bigger for the cannon. */
+/** Thorn in flight with its drops of acid: a sharp bullet for the gun, a thicker shell for the cannon. */
 const shot: Builder = (view, frame) => {
-  const g = group(thornShot([0, 0.32, 0.1], frame === 'cannon' ? 0.12 : 0.09));
+  const g = group(thornShot([0, 0.32, 0.12], frame === 'cannon' ? 'cannon' : 'gun'));
   g.traverse((o) => (o.castShadow = true));
   return facing(g, view);
 };

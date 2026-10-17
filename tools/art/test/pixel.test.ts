@@ -96,6 +96,18 @@ describe('colorize', () => {
     expect([...out.subarray(20, 23)]).toEqual(hex(TEAM_COLORS.black[k]!));
   });
 
+  it('gives thin materials a one-pixel outline', () => {
+    const rgba = colorize(sample(materialId('thorn')));
+    expect(rgba[4 * 4 + 3]).toBe(255);
+    expect(rgba[3]).toBe(0);
+  });
+
+  it('leaves bare materials without an outline', () => {
+    const rgba = colorize(sample(materialId('drop')));
+    expect(rgba[5 * 4 + 3]).toBe(255);
+    expect(rgba[4 * 4 + 3]).toBe(0);
+  });
+
   it('lights emissive materials fully whatever the light', () => {
     const rgba = colorize(sample(materialId('lamp'), 0));
     expect([...rgba.subarray(20, 23)]).toEqual([...ramp('cyan').at(-1)!]);

@@ -102,7 +102,8 @@ const luma = (c: Rgb) => c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
 /**
  * Turns a reduced frame into RGBA with team surfaces in TEAM_RAMP: palette shading, inner lines two steps darker where a surface
  * disappears behind a nearer one, an outline `outline` pixels wide in a darker shade of the body it surrounds
- * (black around the darkest colours), and a soft floor shadow.
+ * (black around the darkest colours; one pixel round `thin` materials, none round `bare` ones), and a soft floor
+ * shadow.
  */
 export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedArray {
   const { w, h, mat, light, depth } = frame;
@@ -114,6 +115,8 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
   // Colour of every pixel: body colours first, then outline rings around them.
   const color: (Rgb | null)[] = new Array(w * h).fill(null);
   const ink: (Rgb | null)[] = new Array(w * h).fill(null);
+  const bare = new Uint8Array(w * h);
+  const thin = new Uint8Array(w * h);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
@@ -127,6 +130,8 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
       const step = def.emissive ? colors.length - 1 : rampStep(light[i]!, colors.length, (def.shift ?? 0) - (edge ? INNER_LINE_STEPS : 0));
       color[i] = colors[step]!;
       ink[i] = step === 0 ? OUTLINE : colors[Math.max(0, step - OUTLINE_STEPS)]!;
+      if (def.bare) bare[i] = 1;
+      if (def.thin) thin[i] = 1;
     }
   }
   const at = (x: number, y: number) => (x >= 0 && y >= 0 && x < w && y < h ? y * w + x : -1);
@@ -166,11 +171,20 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
     return added;
   };
   if (outline > 0) {
-    const body = color.map((c) => c !== null);
+    const body = color.map((c, j) => c !== null && !bare[j]);
     const first = ring((j) => body[j]!, (j) => ink[j]!, false);
     for (const [i, c] of first) color[i] = c;
     if (outline > 1) {
-      const isFirst = new Set(first.map(([i]) => i));
+      // The second ring grows only from first-ring pixels that touch a body that is not `thin`.
+      const thick = (j: number) => body[j]! && !thin[j];
+      const isFirst = new Set(
+        first
+          .map(([i]) => i)
+          .filter((i) => {
+            const x = i % w;
+            return thick(i - w) || thick(i + w) || (x > 0 && thick(i - 1)) || (x < w - 1 && thick(i + 1));
+          }),
+      );
       for (const [i, c] of ring((j) => isFirst.has(j), (j) => color[j]!, true)) color[i] = c;
     }
   }

@@ -585,14 +585,23 @@ const wall: Builder = (mask) => {
   return g;
 };
 
-/** Gauss slug in flight: a yellow-hot dart in an orange ring, longer with a second ring for the cannon. */
+/**
+ * Gauss slug in flight: a grey steel dart with a yellow-hot tail of fire through an orange ring, longer with a
+ * second ring for the cannon.
+ */
 const shot: Builder = (view, frame) => {
   const big = frame === 'cannon';
-  const r = big ? 0.035 : 0.022;
+  const r = big ? 0.035 : 0.025;
   const slug = new THREE.OctahedronGeometry(r, 0);
-  slug.scale(1, 1, big ? 5 : 4);
-  const g = group(mesh(slug, 'flash', [0, 0.32, 0]), mesh(new THREE.TorusGeometry(r * 2.2, r * 0.4, 4, 8), 'ember', [0, 0.32, r * 2.5]));
-  if (big) g.add(mesh(new THREE.TorusGeometry(r * 1.6, r * 0.35, 4, 8), 'ember', [0, 0.32, r * 5]));
+  slug.scale(1, 1, 4);
+  const tail = new THREE.ConeGeometry(r * 0.9, r * (big ? 8 : 6.5), 5);
+  tail.rotateX(Math.PI / 2);
+  const g = group(
+    mesh(slug, 'steelLight', [0, 0.32, -r * 2.5]),
+    mesh(tail, 'flash', [0, 0.32, r * (big ? 5.2 : 4.4)]),
+    mesh(new THREE.TorusGeometry(r * 1.5, r * 0.3, 4, 8), 'flash', [0, 0.32, r * 2]),
+  );
+  if (big) g.add(mesh(new THREE.TorusGeometry(r * 1.2, r * 0.25, 4, 8), 'flash', [0, 0.32, r * 4.4]));
   return facing(g, view);
 };
 

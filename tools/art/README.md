@@ -35,7 +35,7 @@ pnpm sprites:check                 # CI: fail if assets/sprites is stale
    - walkers: carapace and their thorn shots in the main colour, sacs and plates in the secondary, eyes glowing
      neon in the secondary round a white-hot core; muzzles, the thorns' trails and all acid stay toxic green
      (`acid` ramp) whatever the colours.
-   Human and hover shots keep their race's own colours (yellow-orange gauss, cyan plasma).
+   Human and hover shots keep their race's own colours (grey slugs in yellow-orange fire, cyan plasma).
 5. **Atlas** (`src/atlas.ts`): frames are trimmed and shelf-packed into `assets/sprites/sprites.png` with a
    PixiJS spritesheet `sprites.json`.
 
@@ -56,15 +56,17 @@ defender) or at the centre of its 2x2 cells (buildings) lines up with the map. A
 Each race (`human`, `hover`, `walker`) has the same roster, `<race>_<kind>`: `harvester`, `light_tank`,
 `middle_tank`, `heavy_tank`, `defender`, `hq`, `silo`, `factory`, `construction`, `wall`, and `shot`
 (frames `gun` and `cannon`, 8 directions: the projectile in flight).
-- humans: tracks and wheels, mushroom-tower buildings with panoramic glass; gauss guns fire yellow-hot slugs through
-  orange rings;
+- humans: tracks and wheels, mushroom-tower buildings with panoramic glass; gauss guns fire grey steel slugs with a
+  yellow-hot tail of fire;
 - hovers (the original's enemy): floating oval shells, monolithic pale vaults on four legs with team crystals
   inside, round domed rotundas for the silo and a smooth capsule hangar for the factory; cyan plasma;
-- walkers: jointed many-legged creatures, hive mounds, sacs and a clawed womb; they shoot thorns trailing green
-  acid, drawn over the unit as they leave the muzzle (`onTop`).
+- walkers: jointed many-legged creatures, hive mounds, sacs and a clawed womb; they shoot sharp thorns (`THORNS`:
+  a bullet for the gun, a thicker shell for the cannon) trailing two or three drops of acid, drawn over the unit as
+  they leave the muzzle (`onTop`).
 
 Every object gets a 2 px outline two ramp steps darker than the body next to it (black around the darkest colours);
-`pnpm sprites --outline 0 --out <dir>` renders without it, as the sprite studio wants.
+`pnpm sprites --outline 0 --out <dir>` renders without it, as the sprite studio wants. Materials marked `thin`
+(the thorns) get a 1 px outline so their points stay sharp, and `bare` ones (the drops of acid) none at all.
 
 Neutral: `resource` (low crystals breaking through the ground, flat enough for a harvester to stand on: frame `idle`
 on sand, `forest` through forest soil, `plates` through the hovers' cracked plates; pick by the ground under the

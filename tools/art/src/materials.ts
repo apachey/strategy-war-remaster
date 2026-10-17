@@ -9,8 +9,12 @@ export interface MaterialDef {
   ramp: RampName | 'team' | 'team2' | 'team3';
   /** Moves the light level up or down the ramp (in steps), to tell apart surfaces that share a ramp. */
   shift?: number;
-  /** Ignores lighting and always uses the brightest step (lamps, muzzle flash), or one `shift` below it. */
+  /** Ignores lighting and always uses the brightest step (lamps, muzzle flash). */
   emissive?: boolean;
+  /** Gets no outline of its own, for specks too small to survive one (the drops trailing a walker's thorn). */
+  bare?: boolean;
+  /** Gets a one-pixel outline only, so a fine point stays sharp (the walkers' thorns). */
+  thin?: boolean;
 }
 
 export const MATERIALS = {
@@ -43,6 +47,12 @@ export const MATERIALS = {
   bile: { ramp: 'acid' },
   bileLight: { ramp: 'acid', shift: 1 },
   bileGlow: { ramp: 'acid', emissive: true },
+  // The walkers' thorn: chitin in the main colour with a fine outline.
+  thorn: { ramp: 'team', shift: 1, thin: true },
+  // Drops of acid trailing a thorn, hot to cool.
+  dropHot: { ramp: 'acid', emissive: true, bare: true },
+  drop: { ramp: 'acid', shift: 1, bare: true },
+  dropCool: { ramp: 'acid', bare: true },
   // The walkers' eyes, glowing neon in the secondary colour, and their white-hot core.
   eye: { ramp: 'team3', emissive: true },
   glowCore: { ramp: 'steel', emissive: true },

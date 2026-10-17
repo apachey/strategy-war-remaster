@@ -43,7 +43,7 @@ const roster = (race: (typeof RACE_NAMES)[number]): SpriteDef[] => [
   { name: `${race}_middle_tank`, cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
   { name: `${race}_heavy_tank`, cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
   { name: `${race}_defender`, cells: 1, views: 8, frames: ['idle', 'fire'], teamed: true },
-  // In flight: a gauss slug, a plasma ball or a gob of acid, small for the light gun and big for the cannon.
+  // In flight: a gauss slug, a plasma ball or a thorn, small for the light gun and big for the cannon.
   { name: `${race}_shot`, cells: 1, views: 8, frames: ['gun', 'cannon'], teamed: false },
   { name: `${race}_hq`, cells: 2, views: 1, frames: ['idle0', 'idle1', 'idle2', 'idle3'], teamed: true },
   { name: `${race}_silo`, cells: 2, views: 1, frames: ['idle'], teamed: true },
