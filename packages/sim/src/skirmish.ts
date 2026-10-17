@@ -34,9 +34,9 @@ export interface SkirmishOptions {
   playerAi?: AiBrainName;
   /** Races of the two sides, [first, second]. Default humans against hovers. Races only change looks. */
   races?: readonly [Race, Race];
-  /** Team colours of the two sides; they must differ. Default olive and cyan. */
+  /** Team colours of the two sides; they must differ (other shades of one hue may meet). Default white and cyan. */
   colors?: readonly [TeamColor, TeamColor];
-  /** Secondary colours of the two sides; any pair, also the same. Default white and white. */
+  /** Secondary colours of the two sides; any pair, also the same. Default olive and white. */
   colors2?: readonly [TeamColor, TeamColor];
 }
 

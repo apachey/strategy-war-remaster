@@ -54,7 +54,8 @@ const roster = (race: (typeof RACE_NAMES)[number]): SpriteDef[] => [
 
 export const SPRITES: readonly SpriteDef[] = [
   ...RACE_NAMES.flatMap(roster),
-  { name: 'resource', cells: 2, views: 1, frames: ['idle'], teamed: false },
+  // The field on the ground it grew through: sand (idle), forest soil and the hovers' plates.
+  { name: 'resource', cells: 2, views: 1, frames: ['idle', 'forest', 'plates'], teamed: false },
   // Four variants of fir tree for the forest, one per cell.
   { name: 'fir', cells: 1, views: 4, frames: ['idle'], teamed: false },
 ];

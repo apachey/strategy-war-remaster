@@ -4,7 +4,7 @@ import { facing, limb, plate, slump, spitFlash, WALL_ARMS, type Builder } from '
 
 /**
  * The walkers: jointed many-legged creatures of the open sand. Faceted carapace plates in the team colour on thin
- * dark legs, green eyes, and green muzzles that spit gobs of organic acid. Their buildings are grown, not built:
+ * dark legs, eyes glowing in the main colour, and muzzles glowing in the secondary that spit gobs of organic acid. Their buildings are grown, not built:
  * hive mounds held in arching spines, sacs on roots, a brood shell.
  */
 
@@ -48,7 +48,7 @@ const lightTank: Builder = (view, frame) => {
   const g = group(
     mesh(body, 'team', [0, 0.26, 0]),
     plate(0.13, 1, 0.6, 1.4, 'team2Light', [0, 0.33, 0.06]),
-    ball(0.055, 'signal', [0, 0.31, -0.16], 6),
+    ball(0.055, 'eye', [0, 0.31, -0.16], 6),
     cyl(0, 0.035, 0.12, 'teamDark', [0, 0.36, 0.14], 4),
     limb([0, 0.24, -0.12], [0, 0.0, -0.3 - step], 0.034, 'teamDark'),
     limb([-0.08, 0.24, 0.12], [-0.3, 0.0, 0.26 + step], 0.034, 'teamDark'),
@@ -75,8 +75,8 @@ const middleTank: Builder = (view, frame) => {
     plate(0.17, 1.05, 0.6, 0.9, 'team', [0, 0.24, 0.16]),
     plate(0.15, 1.1, 0.6, 0.8, 'team', [0, 0.24, -0.06]),
     plate(0.1, 1.2, 0.6, 0.8, 'team2Light', [0, 0.2, -0.25]),
-    ball(0.035, 'signal', [-0.06, 0.24, -0.33], 4),
-    ball(0.035, 'signal', [0.06, 0.24, -0.33], 4),
+    ball(0.035, 'eye', [-0.06, 0.24, -0.33], 4),
+    ball(0.035, 'eye', [0.06, 0.24, -0.33], 4),
     ...legs(3, -0.18, 0.22, 0.14, 0.17, 0.24, 0.022, frame),
   );
   // Horn: a ridge spiralling up and forward from the back, ending in a green tip.
@@ -110,9 +110,9 @@ const heavyTank: Builder = (view, frame) => {
       return seam;
     }),
     ...[-0.1, 0.1].map((x) => plate(0.06, 1, 1.4, 1, 'teamDark', [x, 0.16, -0.3])),
-    ball(0.04, 'signal', [-0.1, 0.28, -0.27], 4),
-    ball(0.04, 'signal', [0.1, 0.28, -0.27], 4),
-    ball(0.03, 'signal', [0, 0.32, -0.25], 4),
+    ball(0.04, 'eye', [-0.1, 0.28, -0.27], 4),
+    ball(0.04, 'eye', [0.1, 0.28, -0.27], 4),
+    ball(0.03, 'eye', [0, 0.32, -0.25], 4),
     fang(0.05, 0.5, [-0.12, 0.24, -0.38], [0.05, -0.12, 0]),
     fang(0.05, 0.5, [0.12, 0.24, -0.38], [0.05, 0.12, 0]),
     ball(fire ? 0.09 : 0.06, fire ? 'bileGlow' : 'bileLight', [0, 0.24, -0.55], 6),
@@ -132,8 +132,8 @@ const harvester: Builder = (view, frame) => {
   const k = frame === 'harvest1' ? 1 : 0;
   const head = group(
     plate(0.14, 1.1, 0.6, 0.9, 'team', [0, 0, 0]),
-    ball(0.03, 'signal', [-0.06, 0.02, -0.12], 4),
-    ball(0.03, 'signal', [0.06, 0.02, -0.12], 4),
+    ball(0.03, 'eye', [-0.06, 0.02, -0.12], 4),
+    ball(0.03, 'eye', [0.06, 0.02, -0.12], 4),
     ...[-1, 1].map((sx) => {
       const open = harvest ? (k ? 0.15 : 0.75) : 0.45;
       const geo = new THREE.ConeGeometry(0.04, 0.22, 4);
@@ -162,7 +162,7 @@ const defender: Builder = (view, frame) => {
   const head = group(
     plate(0.16, 1, 0.8, 1.15, 'team', [0, 0, 0]),
     plate(0.09, 1.1, 0.6, 1, 'team2Light', [0, 0.06, 0.05]),
-    ball(0.045, 'signal', [0, 0.03, -0.15], 6),
+    ball(0.045, 'eye', [0, 0.03, -0.15], 6),
     fang(0.035, 0.24, [0, -0.04, -0.2 + (fire ? 0.03 : 0)]),
   );
   if (fire) head.add(spitFlash([0, -0.04, -0.38], 0.08));
@@ -234,7 +234,7 @@ const hq: Builder = (_view, frame) => {
     // Maw.
     plate(0.2, 1.4, 1, 0.6, 'teamDark', [0, 0.3, 0.6]),
     plate(k % 2 ? 0.12 : 0.15, 1.4, 0.9, 0.5, 'bileGlow', [0, 0.3, 0.66]),
-    ...[-0.12, 0, 0.12].map((x, i) => ball(0.04, k === i + 1 ? 'teamDark' : 'signal', [x, 0.52 + (x ? 0 : 0.04), 0.6], 4)),
+    ...[-0.12, 0, 0.12].map((x, i) => ball(0.04, k === i + 1 ? 'teamDark' : 'eye', [x, 0.52 + (x ? 0 : 0.04), 0.6], 4)),
   );
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
@@ -264,7 +264,7 @@ const silo: Builder = () => {
   ] as const) {
     g.add(plate(r, 1, 1.15, 1, 'team2Light', [x, r * 1.05, z]), plate(r * 0.8, 1.05, 0.6, 1.05, 'team', [x, r * 0.4, z]));
     g.add(...[0.6, 2.2, 3.8].map((a) => plate(r * 0.22, 0.6, 1.4, 0.6, 'crystal', [x + Math.cos(a) * r * 0.8, r * 1.2, z + Math.sin(a) * r * 0.8])));
-    g.add(ball(r * 0.15, 'signal', [x, r * 2.1, z], 4));
+    g.add(ball(r * 0.15, 'eye', [x, r * 2.1, z], 4));
   }
   for (let i = 0; i < 6; i++) g.add(root((i / 6) * Math.PI * 2, 0.4, 0.95, 0.12, 0.04));
   // Funnel mouth.

@@ -3,10 +3,10 @@ import { ball, barrel, box, cyl, dome, group, lathe, mesh, paintAll, slab, type 
 import { chips, facing, lightSlot, limb, plasmaFlash, slump, spike, WALL_ARMS, type Builder } from './parts';
 
 /**
- * The hover race: the original's enemy. Smooth oval shells in the team colour skimming the ground, dark grooves,
- * pale raised plates, light strips on the nose and plasma guns; nothing touches the ground and they bob between
- * move frames. Their buildings are monolithic pale vaults standing on their corners, with team crystals glowing
- * inside, on the light plated ground they live on.
+ * The hover race: the original's enemy. Smooth oval shells in the main colour skimming the ground, grooves and
+ * raised plates in the secondary colour, grey guns, light strips on the nose and plasma guns; nothing touches the
+ * ground and they bob between move frames. Their buildings are monolithic vaults in the main colour standing on
+ * their corners, with crystals in the secondary colour glowing inside, on the light plated ground they live on.
  */
 
 /** Smooth half-oval hull floating over a dark belly; returns it with the height of its top. */
@@ -15,7 +15,7 @@ function hoverHull(rx: number, ry: number, rz: number, y: number): { g: THREE.Gr
   shell.scale(rx, ry, rz);
   const belly = new THREE.CylinderGeometry(rx * 0.95, rx * 0.8, 0.06, 12);
   belly.scale(1, 1, rz / rx);
-  return { g: group(mesh(belly, 'teamDark', [0, y - 0.02, 0]), mesh(shell, 'team', [0, y, 0])), top: y + ry };
+  return { g: group(mesh(belly, 'team2Dark', [0, y - 0.02, 0]), mesh(shell, 'team', [0, y, 0])), top: y + ry };
 }
 
 /** Floating height of a hover unit for a frame: it bobs between the two move frames. */
@@ -29,8 +29,8 @@ const lightTank: Builder = (view, frame) => {
   const recoil = fire ? 0.03 : 0;
   g.add(
     slab(0.07, 0.05, 0.4, 'team2Light', [0, top - 0.04, 0.04], 0.6),
-    box(0.04, 0.02, 0.4, 'teamDark', [0, top + 0.005, 0.04]),
-    box(0.07, 0.06, 0.08, 'teamDark', [0, top - 0.02, -0.12]),
+    box(0.04, 0.02, 0.4, 'team2Dark', [0, top + 0.005, 0.04]),
+    box(0.07, 0.06, 0.08, 'team2Dark', [0, top - 0.02, -0.12]),
     barrel(0.022, 0.26, 'steel', [0, top + 0.02, -0.14 + recoil]),
     lightSlot(0.24, 0.02, 0.03, [0, y + 0.03, -0.34]),
     ...[-1, 1].map((sx) => {
@@ -57,20 +57,20 @@ const middleTank: Builder = (view, frame) => {
   belly.scale(1, 1, 1.12);
   const recoil = fire ? 0.04 : 0;
   const g = group(
-    mesh(belly, 'teamDark', [0, 0.08 + y, 0]),
+    mesh(belly, 'team2Dark', [0, 0.08 + y, 0]),
     mesh(shell, 'team', [0, 0.1 + y, 0]),
     // Spine: two raised plates either side of a dark groove.
     slab(0.09, 0.08, 0.56, 'team2Light', [-0.08, 0.17 + y, 0.08], 0.6),
     slab(0.09, 0.08, 0.56, 'team2Light', [0.08, 0.17 + y, 0.08], 0.6),
-    box(0.06, 0.03, 0.6, 'teamDark', [0, 0.215 + y, 0.06]),
+    box(0.06, 0.03, 0.6, 'team2Dark', [0, 0.215 + y, 0.06]),
     // Front channel splitting the shell into two lobes, the gun inside it.
-    box(0.13, 0.13, 0.26, 'teamDark', [0, 0.09 + y, -0.33]),
+    box(0.13, 0.13, 0.26, 'team2Dark', [0, 0.09 + y, -0.33]),
     barrel(0.03, 0.2, 'steel', [0, 0.15 + y, -0.3 + recoil]),
     barrel(0.04, 0.03, 'steelDark', [0, 0.15 + y, -0.47 + recoil], 8),
     // Light strips on the nose of each lobe and vents on the flanks.
     lightSlot(0.14, 0.025, 0.04, [-0.17, 0.12 + y, -0.39]),
     lightSlot(0.14, 0.025, 0.04, [0.17, 0.12 + y, -0.39]),
-    ...[-1, 1].flatMap((sx) => [box(0.05, 0.03, 0.12, 'teamDark', [sx * 0.24, 0.16 + y, -0.02]), box(0.05, 0.03, 0.08, 'teamDark', [sx * 0.22, 0.15 + y, 0.22])]),
+    ...[-1, 1].flatMap((sx) => [box(0.05, 0.03, 0.12, 'team2Dark', [sx * 0.24, 0.16 + y, -0.02]), box(0.05, 0.03, 0.08, 'team2Dark', [sx * 0.22, 0.15 + y, 0.22])]),
   );
   if (fire) g.add(plasmaFlash([0, 0.15 + y, -0.6], 0.1));
   if (frame === 'wreck') slump(g);
@@ -90,12 +90,12 @@ const heavyTank: Builder = (view, frame) => {
   hump.scale(0.2, 0.1, 0.26);
   g.add(
     mesh(hump, 'team2Light', [0, top - 0.04, 0.1]),
-    box(0.04, 0.02, 0.5, 'teamDark', [0, top + 0.05, 0.06]),
+    box(0.04, 0.02, 0.5, 'team2Dark', [0, top + 0.05, 0.06]),
     ...[-1, 1].flatMap((sx) => [
-      box(0.1, 0.14, 0.28, 'teamDark', [sx * 0.13, y - 0.02, -0.34]),
+      box(0.1, 0.14, 0.28, 'team2Dark', [sx * 0.13, y - 0.02, -0.34]),
       barrel(0.03, 0.26, 'steel', [sx * 0.13, y + 0.07, -0.3 + recoil]),
       barrel(0.042, 0.03, 'steelDark', [sx * 0.13, y + 0.07, -0.53 + recoil], 8),
-      box(0.05, 0.03, 0.16, 'teamDark', [sx * 0.33, y + 0.1, 0.02]),
+      box(0.05, 0.03, 0.16, 'team2Dark', [sx * 0.33, y + 0.1, 0.02]),
     ]),
     lightSlot(0.12, 0.025, 0.03, [0, y + 0.06, -0.47]),
     lightSlot(0.1, 0.025, 0.03, [-0.3, y + 0.05, -0.36]),
@@ -117,15 +117,15 @@ const harvester: Builder = (view, frame) => {
   const { g, top } = hoverHull(0.36, 0.17, 0.44, y);
   g.add(
     // Intake.
-    box(0.36, 0.1, 0.14, 'teamDark', [0, y - 0.02, -0.36]),
+    box(0.36, 0.1, 0.14, 'team2Dark', [0, y - 0.02, -0.36]),
     box(0.4, 0.03, 0.16, 'team2Light', [0, y + 0.08, -0.36]),
     ...[-0.12, -0.04, 0.04, 0.12].map((x) => box(0.025, 0.05, 0.03, 'steel', [x, y - 0.01, -0.44])),
     // Hopper dome.
-    dome(0.17, 'glass', [0, top - 0.06, 0.08], 0.75, 10),
+    dome(0.17, 'team2', [0, top - 0.06, 0.08], 0.75, 10),
     cyl(0.18, 0.18, 0.03, 'team2Light', [0, top - 0.07, 0.08], 10),
     lightSlot(0.08, 0.02, 0.03, [-0.22, y + 0.05, -0.34]),
     lightSlot(0.08, 0.02, 0.03, [0.22, y + 0.05, -0.34]),
-    ...[-1, 1].map((sx) => box(0.04, 0.03, 0.14, 'teamDark', [sx * 0.3, y + 0.09, 0.1])),
+    ...[-1, 1].map((sx) => box(0.04, 0.03, 0.14, 'team2Dark', [sx * 0.3, y + 0.09, 0.1])),
   );
   if (harvest) {
     // Tractor beam: a pale cone of light from the intake down to the ground, chips rising inside it.
@@ -138,17 +138,17 @@ const harvester: Builder = (view, frame) => {
 };
 
 /**
- * Hover defender: three pale ribs rising round a team coloured crystal and holding up a floating oval head with a
- * plasma gun; the head turns to face its target.
+ * Hover defender: three ribs rising round a crystal in the secondary colour and holding up a floating oval head with
+ * a plasma gun, on a grey plinth; the head turns to face its target.
  */
 const defender: Builder = (view, frame) => {
   const fire = frame === 'fire';
   const head = hoverHull(0.17, 0.11, 0.2, 0).g;
   head.add(
-    box(0.08, 0.07, 0.1, 'teamDark', [0, -0.01, -0.16]),
+    box(0.08, 0.07, 0.1, 'team2Dark', [0, -0.01, -0.16]),
     barrel(0.024, 0.18, 'steel', [0, 0.03, -0.18 + (fire ? 0.03 : 0)]),
     lightSlot(0.12, 0.018, 0.02, [0, 0.03, -0.19]),
-    box(0.03, 0.02, 0.22, 'teamDark', [0, 0.1, 0.02]),
+    box(0.03, 0.02, 0.22, 'team2Dark', [0, 0.1, 0.02]),
   );
   if (fire) head.add(plasmaFlash([0, 0.03, -0.4], 0.07));
   head.rotation.y = (-view * Math.PI) / 4;
@@ -159,8 +159,8 @@ const defender: Builder = (view, frame) => {
     [0.2, 0.42],
     [0.12, 0.58],
   ];
-  const g = group(slab(0.56, 0.05, 0.56, 'steelLight', [0, 0, 0], 0.95), spike(0.16, 0.5, 'team', [0, 0.05, 0]), head);
-  for (let i = 0; i < 3; i++) g.add(lathe(rib, 'steelLight', [0, 0.05, 0], 4, (i * Math.PI * 2) / 3 + 0.3, 0.6));
+  const g = group(slab(0.56, 0.05, 0.56, 'steelLight', [0, 0, 0], 0.95), spike(0.16, 0.5, 'team2', [0, 0.05, 0]), head);
+  for (let i = 0; i < 3; i++) g.add(lathe(rib, 'team', [0, 0.05, 0], 4, (i * Math.PI * 2) / 3 + 0.3, 0.6));
   return g;
 };
 
@@ -176,9 +176,9 @@ const shot: Builder = (view, frame) => {
 };
 
 /*
- * Buildings: monolithic vaults. A vault is a pale shell rising from a square (or oblong) plan to a point, with an
+ * Buildings: monolithic vaults. A vault is a shell in the main colour rising from a square (or oblong) plan to a point, with an
  * arched opening cut through the middle of chosen sides, so it stands on its four corners like legs; a second,
- * darker shell inside gives it thickness and shows through the arches.
+ * grey shell inside gives it thickness and shows through the arches.
  */
 
 interface VaultSpec {
@@ -274,7 +274,7 @@ function vault(s: VaultSpec, innerMat: 'steel' | 'steelDark' = 'steel'): THREE.G
     g.computeVertexNormals();
     return g;
   };
-  return group(mesh(geo(outer), 'steelLight'), mesh(geo(inner), innerMat));
+  return group(mesh(geo(outer), 'team'), mesh(geo(inner), innerMat));
 }
 
 /** Point on the outside of a vault side, nudged out by `out`, for details stuck on its surface. */
@@ -294,7 +294,7 @@ function slit(s: VaultSpec, side: number, u: number, v: number, len: number): TH
 
 /**
  * Hover HQ: one monolithic arch. A pale vault on four corner legs with a tall pointed arch through every side and an
- * open crown, a team coloured crystal pyramid inside rising out of the crown, small crystals on pedestals beside the
+ * open crown, a crystal pyramid in the secondary colour inside rising out of the crown, small crystals on pedestals beside the
  * legs and lamp slits running up the legs. Beside it a slim obelisk beacon with a crystal at its foot and an orb on
  * top. The crystal glows and the orb pulses over four frames.
  */
@@ -302,12 +302,12 @@ const hq: Builder = (_view, frame) => {
   const k = Number(frame.slice(-1)) || 0;
   const s: VaultSpec = { sx: 0.68, sz: 0.68, h: 1.5, archW: 0.6, archH: 0.8, arches: [true, true, true, true], crown: 0.93, t: 0.07 };
   // Turned to stand corner-on to the camera: a leg in front, an arch to each side of it.
-  const core = group(vault(s), spike(0.44, 1.56, k % 2 ? 'teamLight' : 'team', [0, 0, 0]));
+  const core = group(vault(s), spike(0.44, 1.56, k % 2 ? 'team2Light' : 'team2', [0, 0, 0]));
   for (let side = 0; side < 4; side++) {
     for (const u of [-0.82, 0.82]) core.add(slit(s, side, u, 0.1, 0.24));
     for (const u of [-0.45, 0.45]) {
       const [x, , z] = onVault(s, side, u, 0, -0.1);
-      core.add(slab(0.15, 0.05, 0.15, 'steelLight', [x, 0, z], 0.85), spike(0.07, 0.22, 'team2', [x, 0.05, z]));
+      core.add(slab(0.15, 0.05, 0.15, 'steelLight', [x, 0, z], 0.85), spike(0.07, 0.22, 'team2Dark', [x, 0.05, z]));
     }
   }
   core.rotation.y = Math.PI / 4;
@@ -324,12 +324,12 @@ const hq: Builder = (_view, frame) => {
         [0.03, 0.62],
         [0, 0.66],
       ],
-      'steelLight',
+      'team',
       [bx, 0.04, bz],
       6,
     ),
     spike(0.05, 0.16, 'team2', [bx, 0.04, bz + 0.06]),
-    ball(k % 2 ? 0.045 : 0.06, k % 2 ? 'team' : 'lamp', [bx, 0.76, bz], 6),
+    ball(k % 2 ? 0.045 : 0.06, k % 2 ? 'team2' : 'lamp', [bx, 0.76, bz], 6),
   );
   return g;
 };
@@ -361,7 +361,7 @@ const silo: Builder = () => {
 };
 
 /**
- * Hover factory: a long hangar vault on four legs, open front and back. Inside, a team crystal on the back wall
+ * Hover factory: a long hangar vault on four legs, open front and back. Inside, a crystal in the secondary colour on the back wall
  * hums; working, a fresh hover tank floats in the hangar in a ring of light. A small pointed tower with an orb
  * stands on the north-east.
  */
@@ -373,7 +373,7 @@ const factory: Builder = (_view, frame) => {
   const g = group(
     hangar,
     cyl(0.36, 0.38, 0.03, 'steelDark', [-0.2, 0, 0.08], 10),
-    spike(0.12, 0.42, work ? 'teamLight' : 'team', [-0.2, 0.03, -0.42]),
+    spike(0.12, 0.42, work ? 'team2Light' : 'team2', [-0.2, 0.03, -0.42]),
     // Tower.
     lathe(
       [
@@ -382,7 +382,7 @@ const factory: Builder = (_view, frame) => {
         [0.06, 0.9],
         [0, 0.98],
       ],
-      'steelLight',
+      'team',
       [0.62, 0, -0.56],
       6,
     ),
@@ -396,7 +396,7 @@ const factory: Builder = (_view, frame) => {
   );
   if (work) {
     const tank = middleTank(4, 'move0');
-    paintAll(tank, 'steel', ['steelDark', 'lamp', 'teamDark']);
+    paintAll(tank, 'steel', ['steelDark', 'lamp', 'team2Dark']);
     tank.position.set(-0.2, 0.1, 0.12);
     g.add(tank, mesh(new THREE.TorusGeometry(0.38, 0.02, 4, 16).rotateX(Math.PI / 2), 'lamp', [-0.2, 0.06, 0.12]));
   }
@@ -404,8 +404,9 @@ const factory: Builder = (_view, frame) => {
 };
 
 /**
- * Hover building site: a pale octagonal plate with light at its corners, four bare ribs of a vault rising round it
- * and a small team crystal floating in a ring over the middle, projecting the building.
+ * Hover building site: an octagonal plate in the main colour with light at its corners, four bare ribs of a vault
+ * rising round it and a small crystal in the secondary colour floating in a ring over the middle, projecting the
+ * building.
  */
 const construction: Builder = () => {
   const g = group(
@@ -415,15 +416,15 @@ const construction: Builder = () => {
         [0.98, 0.07],
         [0, 0.07],
       ],
-      'steelLight',
+      'team',
       [0, 0, 0],
       8,
       Math.PI / 8,
     ),
     cyl(0.6, 0.6, 0.012, 'team2', [0, 0.07, 0], 8),
-    cyl(0.54, 0.54, 0.016, 'steelLight', [0, 0.07, 0], 8),
+    cyl(0.54, 0.54, 0.016, 'teamLight', [0, 0.07, 0], 8),
     mesh(new THREE.TorusGeometry(0.16, 0.02, 4, 12).rotateX(Math.PI / 2), 'lamp', [0, 0.62, 0]),
-    spike(0.09, 0.26, 'team', [0, 0.5, 0]),
+    spike(0.09, 0.26, 'team2', [0, 0.5, 0]),
   );
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
@@ -436,14 +437,14 @@ const construction: Builder = () => {
       const r = 0.82 * vaultProfile(v);
       return [Math.cos(a) * r, 0.07 + v * 1.1, Math.sin(a) * r];
     });
-    for (let j = 0; j < pts.length - 1; j++) g.add(limb(pts[j]!, pts[j + 1]!, 0.06 - j * 0.01, 'steelLight', 6));
+    for (let j = 0; j < pts.length - 1; j++) g.add(limb(pts[j]!, pts[j + 1]!, 0.06 - j * 0.01, 'team', 6));
   }
   return g;
 };
 
 /**
- * Hover wall: smooth pale ridges, half round in section, with a light strip along the top, meeting at a pointed
- * post crowned with a team crystal (bits N1 E2 S4 W8).
+ * Hover wall: smooth ridges in the main colour, half round in section, with a light strip along the top, meeting at
+ * a pointed post crowned with a crystal in the secondary colour (bits N1 E2 S4 W8).
  */
 const wall: Builder = (mask) => {
   const g = group(
@@ -454,7 +455,7 @@ const wall: Builder = (mask) => {
         [0.1, 0.32],
         [0, 0.38],
       ],
-      'steelLight',
+      'team',
       [0, 0, 0],
       4,
       Math.PI / 4,
@@ -467,7 +468,7 @@ const wall: Builder = (mask) => {
     const ridge = new THREE.CylinderGeometry(0.13, 0.13, len, 8, 1, false, 0, Math.PI);
     ridge.rotateZ(Math.PI / 2);
     ridge.scale(1, 1.6, 1);
-    const arm = group(mesh(ridge, 'steelLight'), box(len, 0.02, 0.03, 'lamp', [0, 0.2, 0]), box(len, 0.012, 0.15, 'team2', [0, 0.005, 0]));
+    const arm = group(mesh(ridge, 'team'), box(len, 0.02, 0.03, 'lamp', [0, 0.2, 0]), box(len, 0.012, 0.15, 'team2', [0, 0.005, 0]));
     arm.children[1]!.castShadow = false;
     arm.position.set(dx * 0.26, 0, dz * 0.26);
     arm.rotation.y = dx ? 0 : Math.PI / 2;

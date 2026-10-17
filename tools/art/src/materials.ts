@@ -5,8 +5,8 @@ import type { RampName } from './palette';
  * another; the pixel step turns (material, light) into a palette colour. Ids start at 1; 0 means empty.
  */
 export interface MaterialDef {
-  /** 'team' and 'team2' are the side's main and secondary colours (see palette.ts). */
-  ramp: RampName | 'team' | 'team2';
+  /** 'team' and 'team2' are the side's main and secondary colours, 'team3' and 'team4' light in them (palette.ts). */
+  ramp: RampName | 'team' | 'team2' | 'team3' | 'team4';
   /** Moves the light level up or down the ramp (in steps), to tell apart surfaces that share a ramp. */
   shift?: number;
   /** Ignores lighting and always uses the brightest step (lamps, muzzle flash). */
@@ -38,12 +38,17 @@ export const MATERIALS = {
   flash: { ramp: 'fire', emissive: true },
   // Orange of the humans' shots, lit, so it shades from orange into pale yellow.
   ember: { ramp: 'fire' },
-  // The walkers' acid: dull wet green, a lighter tip, and a glow for charged muzzles and seams.
-  bile: { ramp: 'bile' },
-  bileLight: { ramp: 'bile', shift: 1 },
-  bileGlow: { ramp: 'bile', emissive: true },
-  // Sand heaped round the crystals of a resource field.
+  // The walkers' acid in the secondary colour's light: wet, a lighter tip, and a glow for charged muzzles and seams.
+  bile: { ramp: 'team4' },
+  bileLight: { ramp: 'team4', shift: 1 },
+  bileGlow: { ramp: 'team4', emissive: true },
+  // The walkers' eyes, glowing in the main colour's light.
+  eye: { ramp: 'team3', emissive: true },
+  // Ground heaped or broken round the crystals of a resource field: sand, forest soil and the hovers' plates.
   sand: { ramp: 'sand', shift: 1 },
+  soil: { ramp: 'soil' },
+  plate: { ramp: 'plate' },
+  plateDark: { ramp: 'plate', shift: -1 },
   pine: { ramp: 'pine', shift: 1 },
   pineDark: { ramp: 'pine' },
   bark: { ramp: 'concrete', shift: -1 },

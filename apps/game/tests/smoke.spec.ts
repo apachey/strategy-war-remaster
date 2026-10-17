@@ -49,12 +49,12 @@ test('mission 1 opens with its briefing, then the map', async ({ page }) => {
   await page.getByRole('button', { name: 'Почати' }).click();
   await expect(page.locator('#hud')).toContainText('Початок · Перші кроки');
   await expect(page.locator('#money')).toHaveText('$1000');
-  // The campaign is olive humans against cyan hovers.
+  // The campaign is white humans (olive accents) against cyan hovers (white accents).
   const sides = await page.evaluate(() => {
-    const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { race: string; color: string }> } } } }).__sw.game.world;
-    return [w.sides.player!.race, w.sides.player!.color, w.sides.enemy!.race, w.sides.enemy!.color];
+    const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { race: string; color: string; color2: string }> } } } }).__sw.game.world;
+    return [w.sides.player!.race, w.sides.player!.color, w.sides.player!.color2, w.sides.enemy!.race, w.sides.enemy!.color, w.sides.enemy!.color2];
   });
-  expect(sides).toEqual(['human', 'olive', 'hover', 'cyan']);
+  expect(sides).toEqual(['human', 'white', 'olive', 'hover', 'cyan', 'white']);
   await page.screenshot({ path: 'test-results/mission-1-1.png' });
   expect(errors).toEqual([]);
 });
@@ -67,7 +67,7 @@ test('click selects the tank and right click sends it', async ({ page }) => {
   // On a slow CI runner the first frames can lag behind the click, so retry the click until it registers.
   await expect(async () => {
     await page.mouse.click(tank.x, tank.y);
-    await expect(page.locator('#panel')).toContainText('Гаусс-багі', { timeout: 1000 });
+    await expect(page.locator('#panel')).toContainText('Багі', { timeout: 1000 });
   }).toPass({ timeout: 15_000 });
   await page.mouse.click(tank.x + 90, tank.y + 20, { button: 'right' });
   await expect(page.locator('#panel')).toContainText('їде');

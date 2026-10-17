@@ -16,15 +16,25 @@ pnpm sprites:check                 # CI: fail if assets/sprites is stale
    original's sprites. Each view and frame is rendered 8x larger in three
    passes: material id, light (white surfaces, sun from the north-west with shadows, sky and a weak fill), depth.
 3. **Pixels** (`src/pixel.ts`, pure and unit-tested): each 8x8 block becomes one art pixel by majority; the light
-   picks a step in the material's colour ramp (`src/palette.ts`, 38 colours for objects and
-   15 for the ground); surfaces that pass behind a nearer
+   picks a step in the material's colour ramp (`src/palette.ts`, 43 colours for objects and
+   19 for the ground); surfaces that pass behind a nearer
    one get an inner line two steps darker; a 2 px outline, two ramp steps darker than the body it touches, goes round the silhouette and the floor shadow becomes a
    38% dark overlay.
-4. **Team colours**: `team` surfaces are drawn once, in olive. `recolor` (and the game, when it loads the atlas)
-   swaps those five colours for the ramp of the colour a side wears, any of `TEAM_COLORS` in `@sw/data`; the
-   atlas meta lists `teamRamp` and `teamColors`. `team2` surfaces are the secondary colour, drawn in the red
-   `accent` ramp and swapped the same way (each race and object decides which parts carry it). Nothing else in the
-   palette uses those ten colours; shots and muzzle flashes keep their race's fixed colours.
+4. **Team colours**: a side wears a main and a secondary colour, any of the 24 `TEAM_COLORS` in `@sw/data` (8 hues
+   × dark, base, light). `team` surfaces are drawn once in olive, `team2` (secondary) in the red `accent` ramp, and
+   two kinds of light in the side's colours: `team3` (the walkers' eyes, drawn in the magenta `glow` ramp) and
+   `team4` (the walkers' spit, muzzles and acid, drawn in `bile`). `recolor` (and the game, when it loads the atlas)
+   swaps the four ramps for the side's colours and `glowRamp` of them; the atlas meta lists the drawn ramps
+   (`teamRamp`, `secondRamp`, `glowRamp`, `glow2Ramp`) and `teamColors`. Nothing else in the palette uses those
+   twenty colours. Which parts wear which colour:
+   - humans: hulls and building shells in the main colour; tracks, wheels, glass, cabs, bands and fittings in the
+     secondary; the harvester's cutter, guns, platforms, the silo's and factory's thin rings and masts and the
+     factory's big dark blocks stay grey; cyan lights stay cyan;
+   - hovers: shells and vaults in the main colour, everything else that is not grey (grooves, plates, crystals) in
+     the secondary; cyan lights stay cyan;
+   - walkers: carapace in the main colour and sacs and plates in the secondary, eyes glowing in the main colour and
+     spit glowing in the secondary.
+   Human and hover shots keep their race's own colours (yellow-orange gauss, cyan plasma).
 5. **Atlas** (`src/atlas.ts`): frames are trimmed and shelf-packed into `assets/sprites/sprites.png` with a
    PixiJS spritesheet `sprites.json`.
 
@@ -45,15 +55,18 @@ defender) or at the centre of its 2x2 cells (buildings) lines up with the map. A
 Each race (`human`, `hover`, `walker`) has the same roster, `<race>_<kind>`: `harvester`, `light_tank`,
 `middle_tank`, `heavy_tank`, `defender`, `hq`, `silo`, `factory`, `construction`, `wall`, and `shot`
 (frames `gun` and `cannon`, 8 directions: the projectile in flight).
-- humans: tracks and wheels, white buildings with cyan glass; gauss guns fire yellow-hot slugs through orange rings;
+- humans: tracks and wheels, mushroom-tower buildings with panoramic glass; gauss guns fire yellow-hot slugs through
+  orange rings;
 - hovers (the original's enemy): floating oval shells, monolithic pale vaults on four legs with team crystals
   inside; cyan plasma;
-- walkers: jointed many-legged creatures, hive mounds, sacs and a brood shell; green acid spit.
+- walkers: jointed many-legged creatures, hive mounds, sacs and a brood shell; acid spit in the side's colour.
 
 Every object gets a 2 px outline two ramp steps darker than the body next to it (black around the darkest colours);
 `pnpm sprites --outline 0 --out <dir>` renders without it, as the sprite studio wants.
 
-Neutral: `resource/idle` (low crystals breaking through the sand, flat enough for a harvester to stand on) and
+Neutral: `resource` (low crystals breaking through the ground, flat enough for a harvester to stand on: frame `idle`
+on sand, `forest` through forest soil, `plates` through the hovers' cracked plates; pick by the ground under the
+field) and
 `fir/idle/0..3`, four fir trees (young, wide and dark, slim and light, old and tall); the game scatters one or two
 per forest cell with a little jitter.
 

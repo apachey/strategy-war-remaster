@@ -15,8 +15,9 @@ commit messages are in English.
   `src/rules.ts` holds the original's numbers (speeds, damage, build times) read from the decompiled code;
   `docs/rules.md` lists them and every deliberate deviation.
 - `packages/data` — `campaign.json` (7 maps, 21 missions decoded from the original), types, original balance.
-  `src/races.ts`: the three races (`Race`: human, hover, walker), the 9 team colour ramps (`TEAM_COLORS`) and
-  `spriteName(race, type)`. Races are cosmetic, every race plays by the original's numbers.
+  `src/races.ts`: the three races (`Race`: human, hover, walker), the 24 team colour ramps (`TEAM_COLORS`: 8 hues in
+  `TEAM_HUES`, each dark/base/light in `TEAM_COLOR_GRID`) and `spriteName(race, type)`. Races are cosmetic, every
+  race plays by the original's numbers.
 - `tools/extract` — decoder for the original `.tae` map format (see its README).
 - `tools/art` — style B pipeline: low-poly three.js models rendered in headless Chromium to 8-direction palette
   sprites (see its README). Output: `assets/sprites/sprites.png` + `sprites.json` (PixiJS spritesheet), never edit
@@ -45,8 +46,8 @@ pnpm sfx            # re-render the sound effects into assets/sfx (WAV + sfx.jso
 - The game exposes `window.__sw` (game, issue, camera) so Playwright can read state and give orders.
 - `packages/sim/test/autoplay.ts` is a scripted player; the "mission 1 can be won" test is the phase 1 gate.
 - Each side (`world.sides.player` / `.enemy`, seats, not races) carries its `race`, `color` and secondary
-  `color2` (accents; may repeat any colour); the campaign is olive humans against cyan hovers, both with white
-  accents, a skirmish takes them from `SkirmishOptions`. The renderer takes team colours only from
+  `color2` (accents; may repeat any colour); the campaign is white humans with olive accents against cyan hovers with
+  white accents, a skirmish takes them from `SkirmishOptions`. The renderer takes team colours only from
   the side's ramp.
 - `packages/sim/src/ai.ts` is the computer player (difficulty levels); `test/campaign.test.ts` plays all 21 missions on
   every difficulty and is the stage 3 gate. Saves are `saveWorld`/`loadWorld` in `src/save.ts`; bump `SAVE_VERSION`

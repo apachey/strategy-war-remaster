@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { campaign, ObjectType, spriteName } from '@sw/data';
+import { campaign, DEFAULT_COLORS, DEFAULT_SECOND_COLORS, ObjectType, spriteName, TEAM_COLOR_GRID, TEAM_COLOR_NAMES, TEAM_COLORS, TEAM_HUES } from '@sw/data';
 import { canPlace, createSkirmish, createWorld, hashWorld, issue, loadWorld, raceOf, saveWorld, step, TICKS_PER_SECOND, type Side, type World } from '../src';
 
 const run = (world: World, seconds: number) => {
@@ -24,10 +24,10 @@ function lightTank(world: World) {
 }
 
 describe('races', () => {
-  it('the campaign is olive humans against cyan hovers', () => {
+  it('the campaign is white humans with olive accents against cyan hovers with white accents', () => {
     const w = createWorld(campaign.maps[0]!, 0);
-    expect(w.sides.player).toMatchObject({ race: 'human', color: 'olive' });
-    expect(w.sides.enemy).toMatchObject({ race: 'hover', color: 'cyan' });
+    expect(w.sides.player).toMatchObject({ race: 'human', color: 'white', color2: 'olive' });
+    expect(w.sides.enemy).toMatchObject({ race: 'hover', color: 'cyan', color2: 'white' });
     expect(raceOf(w, 'enemy')).toBe('hover');
     expect(raceOf(w, 'neutral')).toBeNull();
   });
@@ -38,19 +38,39 @@ describe('races', () => {
     expect(w.sides.enemy).toMatchObject({ race: 'human', color: 'red' });
     const d = createSkirmish(3, { opponent: 'human' });
     expect([d.sides.player.race, d.sides.enemy.race]).toEqual(['human', 'hover']);
-    expect([d.sides.player.color, d.sides.enemy.color]).toEqual(['olive', 'cyan']);
+    expect([d.sides.player.color, d.sides.enemy.color]).toEqual(['white', 'cyan']);
   });
 
   it('refuses both sides in the same colour', () => {
     expect(() => createSkirmish(3, { opponent: 'easy', colors: ['red', 'red'] })).toThrow(/red/);
     expect(() => createWorld(campaign.maps[0]!, 0, 1, { colors: ['olive', 'olive'] })).toThrow();
+    // Two shades of one hue are different colours.
+    const w = createSkirmish(3, { opponent: 'easy', colors: ['crimson', 'pink'] });
+    expect([w.sides.player.color, w.sides.enemy.color]).toEqual(['crimson', 'pink']);
   });
 
-  it('secondary colours default to white and may repeat any colour', () => {
+  it('offers 24 distinct colours, 8 hues in a dark, a base and a light shade', () => {
+    const grid = TEAM_HUES.flatMap((h) => TEAM_COLOR_GRID[h]);
+    expect(TEAM_HUES).toHaveLength(8);
+    expect(grid).toHaveLength(24);
+    expect(new Set(grid).size).toBe(24);
+    expect([...grid].sort()).toEqual([...TEAM_COLOR_NAMES].sort());
+    for (const c of grid) {
+      expect(TEAM_COLORS[c]).toHaveLength(5);
+      for (const hex of TEAM_COLORS[c]) expect(hex).toMatch(/^#[0-9a-f]{6}$/);
+    }
+    // Every shade of a ramp differs from every other colour's (no two swatches look the same).
+    expect(new Set(grid.map((c) => TEAM_COLORS[c][2])).size).toBe(24);
+    expect(DEFAULT_COLORS).toEqual(['white', 'cyan']);
+    expect(DEFAULT_SECOND_COLORS).toEqual(['olive', 'white']);
+    for (const c of [...DEFAULT_COLORS, ...DEFAULT_SECOND_COLORS]) expect(grid).toContain(c);
+  });
+
+  it('secondary colours default to olive and white and may repeat any colour', () => {
     const c = createWorld(campaign.maps[0]!, 0);
-    expect([c.sides.player.color2, c.sides.enemy.color2]).toEqual(['white', 'white']);
+    expect([c.sides.player.color2, c.sides.enemy.color2]).toEqual(['olive', 'white']);
     const d = createSkirmish(3, { opponent: 'human' });
-    expect([d.sides.player.color2, d.sides.enemy.color2]).toEqual(['white', 'white']);
+    expect([d.sides.player.color2, d.sides.enemy.color2]).toEqual(['olive', 'white']);
     // Both sides in black accents, and the second side's accent equal to its own main colour.
     const w = createSkirmish(3, { opponent: 'hard', colors: ['blue', 'red'], colors2: ['black', 'red'] });
     expect(w.sides.player).toMatchObject({ color: 'blue', color2: 'black' });
@@ -60,9 +80,9 @@ describe('races', () => {
   });
 
   it('a save keeps each side race and colours', () => {
-    const w = createSkirmish(2, { opponent: 'normal', races: ['hover', 'walker'], colors: ['pink', 'white'], colors2: ['black', 'pink'] });
+    const w = createSkirmish(2, { opponent: 'normal', races: ['hover', 'walker'], colors: ['pink', 'white'], colors2: ['lilac', 'pink'] });
     const l = loadWorld(saveWorld(w));
-    expect(l.sides.player).toMatchObject({ race: 'hover', color: 'pink', color2: 'black' });
+    expect(l.sides.player).toMatchObject({ race: 'hover', color: 'pink', color2: 'lilac' });
     expect(l.sides.enemy).toMatchObject({ race: 'walker', color: 'white', color2: 'pink' });
     expect(hashWorld(l)).toBe(hashWorld(w));
   });

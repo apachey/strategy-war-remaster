@@ -91,10 +91,13 @@ Start starts or pauses. Self-destruct stays mouse-only.
 
 The remaster has three races: humans, hovers (the original's enemy hover tanks) and walkers (jointed alien
 creatures). Races are cosmetic: every race uses the original's numbers and the race only changes how a side looks
-(`Race`, `TEAM_COLORS` and `spriteName` in `packages/data/src/races.ts`). The campaign is humans (olive) against
-hovers (cyan), as in the original; a skirmish lets each side pick any race and one of 9 team colours, never both the
-same colour, plus a secondary colour for accents (white by default), which may be any colour, also the other side's
-or the side's own. Neither colour changes shots or muzzle flashes. The original's raider (type 100) is drawn as the hover race's middle tank.
+(`Race`, `TEAM_COLORS` and `spriteName` in `packages/data/src/races.ts`). The campaign is white humans with olive
+accents (close to the original's olive army and white base) against cyan hovers with white accents. A skirmish lets
+each side pick any race and one of 24 team colours (8 hues, each in a dark, a base and a light shade), never both the
+exact same colour (two shades of one hue are fine), plus a secondary colour for accents (olive for the first side and
+white for the second by default), which may be any colour, also the other side's or the side's own. Shots and
+muzzle flashes keep their race's own colours, except the walkers', which glow in the side's colours (`glowRamp`). The
+original's raider (type 100) is drawn as the hover race's middle tank.
 
 ## Saves
 

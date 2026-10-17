@@ -7,8 +7,8 @@ import { PNG } from 'pngjs';
 import { pack, type Frame } from './atlas';
 import { CAMERA_ELEVATION_DEG, DIRECTION_NAMES, frameLayout, PX_PER_CELL, SPRITES, SUPERSAMPLE, type SpriteDef } from './catalog';
 import type { RawRender } from './browser/render';
-import { TEAM_COLORS } from '@sw/data';
-import { PALETTE, RAMPS, TEAM_RAMP, type Rgb } from './palette';
+import { DEFAULT_COLORS, DEFAULT_SECOND_COLORS, glowRamp, TEAM_COLORS, type TeamColor } from '@sw/data';
+import { GLOW2_RAMP, GLOW_RAMP, PALETTE, RAMPS, SECOND_RAMP, TEAM_RAMP, type Rgb } from './palette';
 import { colorize, flipRows, OUTLINE_WIDTH, recolor, reduce, type Reduced } from './pixel';
 import { forestTiles, PLATE_CELLS, plateEdges, plates, sand, SAND_CELLS } from './terrain';
 
@@ -116,6 +116,9 @@ async function main(): Promise<void> {
       supersample: SUPERSAMPLE,
       directions: DIRECTION_NAMES,
       teamRamp: RAMPS[TEAM_RAMP],
+      secondRamp: RAMPS[SECOND_RAMP],
+      glowRamp: RAMPS[GLOW_RAMP],
+      glow2Ramp: RAMPS[GLOW2_RAMP],
       teamColors: TEAM_COLORS,
       palette: PALETTE.map((c) => `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`),
     },
@@ -167,7 +170,7 @@ function writePreview(path: string, items: { def: SpriteDef; frame: string; view
   const gap = 4;
   const maxW = 8 * (48 + gap) + gap;
   const sand = [216, 196, 145] as const;
-  type Cell = { r: Reduced; to: Rgb[] | null };
+  type Cell = { r: Reduced; to: readonly [TeamColor, TeamColor] };
   const rows: Cell[][] = [];
   const addRows = (cells: Cell[]) => {
     let row: Cell[] = [];
@@ -183,14 +186,16 @@ function writePreview(path: string, items: { def: SpriteDef; frame: string; view
     }
     if (row.length) rows.push(row);
   };
-  const player = (list: typeof items) => list.map((i) => ({ r: i.r, to: null }));
+  // The first seat's colours on every sprite, the second seat's on one more row of each teamed sprite.
+  const seat = (k: 0 | 1) => [DEFAULT_COLORS[k], DEFAULT_SECOND_COLORS[k]] as const;
+  const player = (list: typeof items) => list.map((i) => ({ r: i.r, to: seat(0) }));
   for (const def of SPRITES.filter((d) => d.views === 8)) {
     for (const frame of def.frames) addRows(player(items.filter((i) => i.def === def && i.frame === frame)));
   }
   // Buildings and walls share rows.
   addRows(player(items.filter((i) => i.def.views !== 8)));
   for (const def of SPRITES.filter((d) => d.teamed)) {
-    addRows(items.filter((i) => i.def === def && i.frame === def.frames[0]).map((i) => ({ r: i.r, to: TEAM_COLORS.cyan.map(hexRgb) })));
+    addRows(items.filter((i) => i.def === def && i.frame === def.frames[0]).map((i) => ({ r: i.r, to: seat(1) })));
   }
   const rowH = rows.map((r) => Math.max(...r.map((c) => c.r.h)));
   const W = maxW * zoom;
@@ -201,7 +206,9 @@ function writePreview(path: string, items: { def: SpriteDef; frame: string; view
   rows.forEach((row, ri) => {
     let x = gap;
     for (const { r, to } of row) {
-      const rgba = to ? recolor(colorize(r, outline), to) : colorize(r, outline);
+      const [c1, c2] = to;
+      const rgb = (ramp: readonly string[]) => ramp.map(hexRgb);
+      const rgba = recolor(colorize(r, outline), rgb(TEAM_COLORS[c1]), rgb(TEAM_COLORS[c2]), rgb(glowRamp(c1)), rgb(glowRamp(c2)));
       const top = y + rowH[ri]! - r.h;
       for (let py = 0; py < r.h; py++) {
         for (let px = 0; px < r.w; px++) {

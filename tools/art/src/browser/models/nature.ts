@@ -6,11 +6,13 @@ import type { Builder } from './parts';
 /** Things that belong to nobody: the crystal field everyone harvests and the fir trees of the forest. */
 
 /**
- * Resource field: crystals that grew up from deep under the sand and only just break the surface. Clusters of short,
- * thick faceted tips poke out of low sand mounds, a few broken chips lie between them; nothing stands taller than a
- * harvester's tracks, so a harvester parked on the field reads as standing on top of it.
+ * Resource field: crystals that grew up from deep under the ground and only just break the surface. Clusters of
+ * short, thick faceted tips poke out of what they pushed through: low sand mounds (frame idle), heaps of dark soil
+ * with tufts of moss (forest), or the hovers' floor plates cracked and lifted on edge round them (plates). A few broken
+ * chips lie between them; nothing stands taller than a harvester's tracks, so a harvester parked on the field reads
+ * as standing on top of it.
  */
-const resource: Builder = () => {
+const resource: Builder = (_view, frame) => {
   const g = group();
   const rnd = seeded(42);
   const spots: [number, number][] = [
@@ -28,10 +30,24 @@ const resource: Builder = () => {
     const cx = cx0 + (rnd() - 0.5) * 0.12;
     const cz = cz0 + (rnd() - 0.5) * 0.12;
     const big = 1.1 - Math.hypot(cx, cz) * 0.3;
-    // Sand heaped round the tips where they pushed up through it.
-    const mound = new THREE.SphereGeometry(0.2 * big, 7, 3, 0, Math.PI * 2, 0, Math.PI / 2);
-    mound.scale(1, 0.32, 0.85);
-    g.add(mesh(mound, 'sand', [cx, -0.01, cz], [0, rnd() * 3, 0]));
+    if (frame === 'plates') {
+      // Floor plates broken into shards and pushed up on edge round the cluster.
+      const shards = 3 + Math.floor(rnd() * 2);
+      for (let i = 0; i < shards; i++) {
+        const a = (i / shards) * Math.PI * 2 + rnd() * 0.8;
+        const d = 0.13 * big;
+        const shard = mesh(new THREE.BoxGeometry(0.16 * big, 0.025, 0.11 * big), i % 2 ? 'plate' : 'plateDark', [cx + Math.cos(a) * d, 0.02, cz + Math.sin(a) * d]);
+        shard.rotation.set(0, -a, 0);
+        shard.rotateZ(-0.35 - rnd() * 0.3);
+        g.add(shard);
+      }
+    } else {
+      // Sand or soil heaped round the tips where they pushed up through it.
+      const mound = new THREE.SphereGeometry(0.2 * big, 7, 3, 0, Math.PI * 2, 0, Math.PI / 2);
+      mound.scale(1, 0.32, 0.85);
+      g.add(mesh(mound, frame === 'forest' ? 'soil' : 'sand', [cx, -0.01, cz], [0, rnd() * 3, 0]));
+      if (frame === 'forest') g.add(cyl(0, 0.05, 0.05, 'pineDark', [cx + 0.15 * big, 0, cz + 0.05], 5));
+    }
     const count = 3 + Math.floor(rnd() * 3);
     for (let i = 0; i < count; i++) {
       // Only the top of a long crystal shows: a short body and its point, leaning away from the cluster centre.

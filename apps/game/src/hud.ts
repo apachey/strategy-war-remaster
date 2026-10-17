@@ -1,4 +1,4 @@
-import { campaign, LANGS, ObjectType, RACES, TEAM_COLOR_NAMES, TEAM_COLORS, type Lang, type Race, type TeamColor } from '@sw/data';
+import { campaign, LANGS, ObjectType, RACES, TEAM_COLOR_GRID, TEAM_COLORS, TEAM_HUES, type Lang, type Race, type TeamColor } from '@sw/data';
 import {
   BUILDING_RULES,
   buildBlockedGrid,
@@ -139,28 +139,33 @@ export class Hud {
     this.bindGo(m);
   }
 
-  /** The skirmish start screen: map with a preview, opponent, each side's race and colour, starting money. Any change reopens the game. */
+  /**
+   * The skirmish start screen: map preview with the goal, money and language beside it, then map, opponent and both
+   * sides next to each other (race, main colour grid, secondary colour grid). It fits a 1280×720 window without
+   * scrolling. Any change reopens the game.
+   */
   private showSkirmishSetup(): void {
     const s = this.game.setup as Extract<Setup, { kind: 'skirmish' }>;
     const T = t();
     const maps = campaign.maps.map((_, i) => i);
     const m = this.modal(
-      `<div class="kicker">${T.skirmish}</div>
+      `<div class="head"><canvas class="preview" width="1" height="1"></canvas><div>
+       <div class="kicker">${T.skirmish}</div>
        <h1>${mapName(s.mapIndex)}</h1>
-       <canvas class="preview" width="1" height="1"></canvas>
        <p class="goal">${s.opponent === 'human' ? T.duoGoal : T.skirmishGoal}</p>
+       <div class="option"><span>${T.moneyLabel}</span>${choice('money', SKIRMISH_MONEY.map(String), String(s.money), (v) => `$${v}`)}</div>
+       <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => LANG_NAMES[l])}</div>
+       </div></div>
        <div class="options">
          <div class="option"><span>${T.mapLabel}</span>${choice('map', maps.map(String), String(s.mapIndex), (i) => `${Number(i) + 1}. ${mapName(Number(i))}`)}</div>
          <div class="option"><span>${T.opponentLabel}</span>${choice('opponent', OPPONENTS, s.opponent, (o) => T.opponent[o])}</div>
          <p class="hint">${T.opponentHint[s.opponent]}</p>
          ${s.opponent === 'human' ? `<p class="hint pads">${T.helpDuo}</p>` : ''}
-         ${[0, 1].map((i) => sideOptions(s, i)).join('')}
-         <div class="option"><span>${T.moneyLabel}</span>${choice('money', SKIRMISH_MONEY.map(String), String(s.money), (v) => `$${v}`)}</div>
-         <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => LANG_NAMES[l])}</div>
+         <div class="sides">${[0, 1].map((i) => sideOptions(s, i)).join('')}</div>
        </div>
        <div class="row"><button data-campaign>${T.campaign}</button><button class="primary" data-go>${T.start}</button></div>`,
     );
-    m.querySelector('.card')!.classList.add('wide');
+    m.querySelector('.card')!.classList.add('wide', 'setup');
     drawPreview(m.querySelector('canvas')!, s.mapIndex, s.colors);
     const change = (patch: Partial<typeof s>) => this.actions.open({ ...s, ...patch });
     m.querySelectorAll<HTMLButtonElement>('[data-map]').forEach((b) => (b.onclick = () => change({ mapIndex: Number(b.dataset.map) })));
@@ -299,25 +304,32 @@ function choice<V extends string>(attr: string, values: readonly V[], current: V
   return values.map((v) => `<button data-${attr}="${v}"${v === current ? ' class="active"' : ''}>${label(v)}</button>`).join('');
 }
 
-/** A row of colour swatches; `attr` names the data attribute, `taken` is a colour that cannot be picked. */
-function swatches(attr: string, current: TeamColor, taken: TeamColor | null): string {
+/** Rows of the colour grid, top to bottom: light shades, base colours, dark shades (index into TEAM_COLOR_GRID). */
+const GRID_ROWS = [2, 1, 0] as const;
+
+/**
+ * A grid of colour swatches, a column per hue in rainbow order and a row per shade (light on top, dark at the bottom);
+ * `attr` names the data attribute, `taken` is a colour that cannot be picked.
+ */
+function swatches(attr: string, label: string, current: TeamColor, taken: TeamColor | null, small = false): string {
   const T = t();
-  return TEAM_COLOR_NAMES.map((c) => {
+  const cells = GRID_ROWS.flatMap((row) => TEAM_HUES.map((hue) => TEAM_COLOR_GRID[hue][row])).map((c) => {
     const ramp = TEAM_COLORS[c];
     const cls = c === current ? 'swatch active' : 'swatch';
-    return `<button class="${cls}" data-${attr}="${c}" title="${T.color[c]}" aria-label="${T.color[c]}" style="--c: ${ramp[2]}; --c-edge: ${ramp[4]}"${c === taken ? ' disabled' : ''}></button>`;
-  }).join('');
+    return `<button class="${cls}" data-${attr}="${c}" title="${T.color[c]}" aria-label="${T.color[c]}" aria-pressed="${c === current}" style="--c: ${ramp[2]}; --c-edge: ${ramp[4]}"${c === taken ? ' disabled' : ''}></button>`;
+  });
+  return `<div class="colors${small ? ' small' : ''}"><span>${label}</span><div class="grid" role="group" aria-label="${label}">${cells.join('')}</div></div>`;
 }
 
 /**
  * One side's race, team colour and secondary colour on the skirmish screen. The colour the other side wears cannot be
- * picked, so the two sides never look alike; any secondary colour can, also one already worn.
+ * picked, so the two sides never look alike (other shades of its hue can); any secondary colour can, also one already worn.
  */
 function sideOptions(s: Extract<Setup, { kind: 'skirmish' }>, i: number): string {
   const T = t();
   const who = s.opponent === 'human' ? T.playerName(i + 1) : i === 0 ? T.you : T.computer;
-  return `<div class="option side"><span>${who}</span>${choice(`race${i}`, RACES, s.races[i]!, (r) => T.race[r])}<i class="gap"></i>${swatches(`color${i}`, s.colors[i]!, s.colors[1 - i]!)}</div>
-    <div class="option side second"><span>${T.color2Label}</span>${swatches(`second${i}`, s.colors2[i]!, null)}</div>`;
+  return `<div class="side" data-side="${i}"><div class="who"><b>${who}</b>${choice(`race${i}`, RACES, s.races[i]!, (r) => T.race[r])}</div>
+    <div class="palettes">${swatches(`color${i}`, T.colorLabel, s.colors[i]!, s.colors[1 - i]!)}${swatches(`second${i}`, T.color2Label, s.colors2[i]!, null, true)}</div></div>`;
 }
 
 /** A small map of the skirmish: forest, crystal fields and the two starts in their team colours. */

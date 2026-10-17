@@ -89,16 +89,29 @@ body.duo .toast.side-2 { left: 75%; }
 #modal .option span { min-width: 90px; color: var(--muted); }
 #modal .options .hint { margin: 6px 0 12px 96px; color: var(--muted); font-size: 12px; }
 #modal .options .option + .option { margin-top: 6px; }
-#modal .options .option.side { margin-top: 10px; }
-#modal .option.side .gap { width: 8px; }
-/* The secondary colour: a smaller row under the side's race and main colour. */
-#modal .options .option.side.second { margin-top: 4px; }
-#modal .option.side.second span { font-size: 12px; }
-#modal .option.side.second button.swatch { width: 18px; height: 18px; border-radius: 4px; }
+/* The skirmish setup: both sides next to each other, each with its race and two colour grids. */
+#modal .card.setup { width: min(860px, calc(100vw - 32px)); }
+#modal .setup .head { display: flex; align-items: flex-start; gap: 16px; }
+#modal .setup .head .preview { flex: none; margin: 0; }
+#modal .setup .head .goal { margin: 0 0 10px; }
+#modal .setup .head .option + .option { margin-top: 6px; }
+#modal .setup .options { margin-top: 10px; padding-top: 10px; }
+#modal .sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 8px; margin: 8px 0; }
+#modal .side { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #241f16; }
+#modal .side .who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+#modal .side .who b { min-width: 84px; }
+#modal .side .palettes { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; }
+#modal .colors span { display: block; margin-bottom: 3px; color: var(--muted); font-size: 12px; }
+/* Eight hues across, three shades down: light on top, dark at the bottom. */
+#modal .colors .grid { display: grid; grid-template-columns: repeat(8, 22px); grid-auto-rows: 22px; gap: 3px; }
+#modal .colors.small .grid { grid-template-columns: repeat(8, 15px); grid-auto-rows: 15px; gap: 2px; }
 #modal button.swatch {
-  width: 24px; height: 24px; padding: 0; border-radius: 5px; background: var(--c); border: 2px solid var(--c-edge);
+  width: 100%; height: 100%; padding: 0; border-radius: 4px; background: var(--c); border: 2px solid var(--c-edge);
 }
-#modal button.swatch.active { background: var(--c); border-color: var(--ink); box-shadow: 0 0 0 2px var(--accent); }
+#modal .colors.small button.swatch { border-width: 1px; border-radius: 3px; }
+#modal button.swatch.active {
+  position: relative; z-index: 1; background: var(--c); border-color: var(--ink); box-shadow: 0 0 0 2px var(--accent);
+}
 /* The other side's colour: crossed out. */
 #modal button.swatch:disabled {
   opacity: 0.45; background: linear-gradient(to top right, transparent 44%, var(--ink) 44% 56%, transparent 56%), var(--c);

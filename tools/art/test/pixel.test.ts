@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { pack } from '../src/atlas';
 import { GROUND_ID, materialId } from '../src/materials';
-import { SPRITE_SECOND_COLOR, TEAM_COLORS, TEAM_COLOR_NAMES } from '@sw/data';
+import { SPRITE_SECOND_COLOR, SPRITE_TEAM_COLOR, TEAM_COLORS, TEAM_COLOR_NAMES } from '@sw/data';
 import { PALETTE, ramp, RAMPS, SECOND_RAMP, TEAM_RAMP } from '../src/palette';
 import { colorize, flipRows, rampStep, recolor, reduce } from '../src/pixel';
 
@@ -22,13 +22,13 @@ function sample(mat = materialId('team'), light = 180) {
 }
 
 describe('palette', () => {
-  it('has 38 colours for objects and 15 for the ground, all different', () => {
-    expect(PALETTE).toHaveLength(53);
-    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(53);
+  it('has 43 colours for objects and 19 for the ground, all different', () => {
+    expect(PALETTE).toHaveLength(62);
+    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(62);
   });
 
-  it('draws team surfaces in the first team colour of the game', () => {
-    expect(TEAM_COLORS[TEAM_COLOR_NAMES[0]!]).toEqual(RAMPS[TEAM_RAMP]);
+  it('draws team surfaces in team colours of the game', () => {
+    expect(TEAM_COLORS[SPRITE_TEAM_COLOR]).toEqual(RAMPS[TEAM_RAMP]);
     expect(TEAM_COLORS[SPRITE_SECOND_COLOR]).toEqual(RAMPS[SECOND_RAMP]);
     for (const name of TEAM_COLOR_NAMES) expect(TEAM_COLORS[name]).toHaveLength(5);
   });
