@@ -59,11 +59,13 @@ Each race (`human`, `hover`, `walker`) has the same roster, `<race>_<kind>`: `ha
 - humans: tracks and wheels, mushroom-tower buildings with panoramic glass; gauss guns fire yellow-hot slugs through
   orange rings;
 - hovers (the original's enemy): floating oval shells, monolithic pale vaults on four legs with team crystals
-  inside; cyan plasma;
+  inside, round domed rotundas for the silo and a smooth capsule hangar for the factory; cyan plasma;
 - walkers: jointed many-legged creatures, hive mounds, sacs and a brood shell; acid spit in the side's colour.
 
 Every object gets a 2 px outline two ramp steps darker than the body next to it (black around the darkest colours);
-`pnpm sprites --outline 0 --out <dir>` renders without it, as the sprite studio wants.
+`pnpm sprites --outline 0 --out <dir>` renders without it, as the sprite studio wants. Glowing materials (`glow`:
+the walkers' eyes and spit) get no outline but a 2 px halo of their own colour fading out (`HALO_ALPHA`), and their
+white-hot core uses its own `core` ramp, so no other colour shows round the light.
 
 Neutral: `resource` (low crystals breaking through the ground, flat enough for a harvester to stand on: frame `idle`
 on sand, `forest` through forest soil, `plates` through the hovers' cracked plates; pick by the ground under the

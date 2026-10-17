@@ -1,5 +1,5 @@
 /**
- * The shared palette of style B: 43 colours for units and buildings plus 19 for the ground (fir trees, soil, sand and
+ * The shared palette of style B: 45 colours for units and buildings plus 19 for the ground (fir trees, soil, sand and
  * the hover race's plates).
  * Every sprite and tile is quantised to these colours, so units, buildings and terrain always sit together.
  * Colours are grouped into ramps, dark to light; a 3D material picks a ramp and the lighting picks the step inside
@@ -26,6 +26,8 @@ export const RAMPS = {
   // muzzles and seams in the secondary colour, drawn acid green.
   glow: ['#3a0a30', '#701a5c', '#a83088', '#d860b4', '#ffa0e0'],
   bile: ['#1f3a0a', '#3f6a14', '#6fa020', '#a8d040', '#e0f080'],
+  // White-hot core of the walkers' eyes and spit.
+  core: ['#fff0c4', '#fffdf2'],
   // Dark forest soil, heaped where crystals break through the forest floor.
   soil: ['#2a2016', '#463626', '#62503a', '#806c50'],
   // Terrain: turquoise fir needles and desert sand (dark to light).

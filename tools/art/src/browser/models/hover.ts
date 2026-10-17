@@ -395,28 +395,28 @@ const silo: Builder = () => {
 };
 
 /**
- * Hover factory: a long barrel-vault hangar, open front and back behind arched gate frames, its shell banded by ribs.
- * Inside, a crystal in the secondary colour on a plinth hums; working, a fresh hover tank floats in the hangar in a
- * ring of light. A small pointed tower with an orb stands on the north-east.
+ * Hover factory: a long smooth capsule hangar like one of their hulls grown huge, open front and back through round
+ * arches, a raised spine of pale plates down its back and light strips along its foot. Inside, a crystal in the
+ * secondary colour hums; working, a fresh hover tank floats in the hangar in a ring of light. A small pointed tower
+ * with an orb stands on the north-east.
  */
 const factory: Builder = (_view, frame) => {
   const work = frame === 'work';
-  const s: VaultSpec = { sx: 0.5, sz: 0.74, h: 0.72, archW: 0.74, archH: 0.82, arches: [true, false, true, false], crown: 1, t: 0.06, round: true, barrel: true };
+  const s: VaultSpec = { sx: 0.5, sz: 0.8, h: 0.66, archW: 0.62, archH: 0.72, arches: [true, false, true, false], crown: 1, t: 0.06, round: true };
   const hangar = vault(s, 'steelDark');
-  // Ribs round the shell and a frame round each gate.
-  for (const z of [-0.74, -0.37, 0, 0.37, 0.74]) {
-    const end = Math.abs(z) > 0.7;
-    const rib = new THREE.TorusGeometry(1, end ? 0.06 : 0.035, 4, 16, Math.PI);
-    rib.scale(s.sx + 0.015, s.h + 0.015, 1);
-    hangar.add(mesh(rib, end ? 'team2' : 'team2Dark', [0, 0, z]));
+  // Spine: two raised plates either side of a groove, following the curve of the shell from front to back.
+  for (let j = 0; j < 7; j++) {
+    const z = -0.6 + j * 0.2;
+    // Height of the shell's ridge over z: where the dome profile has narrowed to |z|.
+    const y = s.h * Math.pow(Math.max(0, 1 - (z / s.sz) ** 2), 1 / 2.2) - 0.02;
+    for (const sx of [-0.07, 0.07]) hangar.add(box(0.08, 0.05, 0.17, 'team2Light', [sx, y, z]));
   }
   hangar.position.set(-0.2, 0.04, 0.08);
   const g = group(
-    box(1.16, 0.04, 1.6, 'steelLight', [-0.2, 0, 0.08]),
+    cyl(0.62, 0.64, 0.04, 'steelLight', [-0.2, 0, 0.08], 12),
     hangar,
     cyl(0.32, 0.34, 0.03, 'steelDark', [-0.2, 0.04, 0.08], 10),
-    box(0.22, 0.12, 0.12, 'team2Dark', [-0.2, 0.04, -0.4]),
-    spike(0.1, 0.36, work ? 'team2Light' : 'team2', [-0.2, 0.16, -0.4]),
+    spike(0.1, 0.36, work ? 'team2Light' : 'team2', [-0.2, 0.07, -0.4]),
     // Tower.
     lathe(
       [
@@ -431,7 +431,7 @@ const factory: Builder = (_view, frame) => {
     ),
     spike(0.08, 0.26, 'team2', [0.62, 0.05, -0.47]),
     ball(0.055, 'lamp', [0.62, 1.04, -0.56], 6),
-    ...[-1, 1].map((sx) => lightSlot(0.012, 0.03, 0.9, [-0.2 + sx * (s.sx + 0.03), 0.12, 0.08])),
+    ...[-1, 1].map((sx) => lightSlot(0.012, 0.03, 0.8, [-0.2 + sx * (s.sx + 0.03), 0.1, 0.08])),
   );
   if (work) {
     const tank = middleTank(4, 'move0');

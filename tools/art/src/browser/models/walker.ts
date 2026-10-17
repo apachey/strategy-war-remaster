@@ -9,11 +9,11 @@ import { facing, limb, plate, slump, spitFlash, WALL_ARMS, type Builder } from '
  */
 
 /**
- * Eye glowing in the side's main colour as neon: a white-hot core showing at the top of a ball of saturated light,
- * so it reads as light in any colour.
+ * Eye glowing in the side's main colour as neon: a white-hot core inside a ball of saturated light with a soft
+ * halo, so it reads as light in any colour.
  */
 function eye(r: number, pos: Vec3): THREE.Group {
-  const g = group(ball(r * 1.1, 'eye', pos, 6), ball(r * 0.55, 'glowCore', [pos[0], pos[1] + r * 0.55, pos[2] + r * 0.2], 4));
+  const g = group(ball(r * 1.1, 'eye', pos, 6), ball(r * 0.6, 'glowCore', [pos[0], pos[1] + r * 0.3, pos[2]], 4));
   g.traverse((o) => (o.castShadow = false));
   return g;
 }

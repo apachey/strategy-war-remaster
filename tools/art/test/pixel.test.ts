@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { pack } from '../src/atlas';
 import { GROUND_ID, materialId } from '../src/materials';
 import { SPRITE_SECOND_COLOR, SPRITE_TEAM_COLOR, TEAM_COLORS, TEAM_COLOR_NAMES } from '@sw/data';
-import { PALETTE, ramp, RAMPS, SECOND_RAMP, TEAM_RAMP } from '../src/palette';
-import { colorize, flipRows, rampStep, recolor, reduce } from '../src/pixel';
+import { GLOW2_RAMP, PALETTE, ramp, RAMPS, SECOND_RAMP, TEAM_RAMP } from '../src/palette';
+import { colorize, flipRows, HALO_ALPHA, rampStep, recolor, reduce } from '../src/pixel';
 
 /** A 4x4 art frame rendered at 2x: one 2x2 art-pixel block of material in the middle on a lit floor. */
 function sample(mat = materialId('team'), light = 180) {
@@ -22,9 +22,9 @@ function sample(mat = materialId('team'), light = 180) {
 }
 
 describe('palette', () => {
-  it('has 43 colours for objects and 19 for the ground, all different', () => {
-    expect(PALETTE).toHaveLength(62);
-    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(62);
+  it('has 45 colours for objects and 19 for the ground, all different', () => {
+    expect(PALETTE).toHaveLength(64);
+    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(64);
   });
 
   it('draws team surfaces in team colours of the game', () => {
@@ -94,6 +94,16 @@ describe('colorize', () => {
     expect(k).toBeGreaterThanOrEqual(0);
     const out = recolor(rgba, TEAM_COLORS.olive.map(hex), TEAM_COLORS.black.map(hex));
     expect([...out.subarray(20, 23)]).toEqual(hex(TEAM_COLORS.black[k]!));
+  });
+
+  it('rings glowing materials with a fading halo of their own colour instead of a dark outline', () => {
+    const rgba = colorize(sample(materialId('bileGlow')));
+    const body = [...rgba.subarray(5 * 4, 5 * 4 + 3)];
+    expect(body).toEqual([...ramp(GLOW2_RAMP).at(-1)!]);
+    expect([...rgba.subarray(4 * 4, 4 * 4 + 3)]).toEqual(body);
+    expect(rgba[4 * 4 + 3]).toBe(Math.round(HALO_ALPHA[0] * 255));
+    expect([...rgba.subarray(0, 3)]).toEqual(body);
+    expect(rgba[3]).toBe(Math.round(HALO_ALPHA[1] * 255));
   });
 
   it('lights emissive materials fully whatever the light', () => {

@@ -11,6 +11,8 @@ export interface MaterialDef {
   shift?: number;
   /** Ignores lighting and always uses the brightest step (lamps, muzzle flash). */
   emissive?: boolean;
+  /** Glowing light: no dark outline, a soft halo of its own colour instead (the walkers' eyes and spit). */
+  glow?: boolean;
 }
 
 export const MATERIALS = {
@@ -41,10 +43,10 @@ export const MATERIALS = {
   // The walkers' acid in the secondary colour's light: wet, a lighter tip, and a glow for charged muzzles and seams.
   bile: { ramp: 'team4' },
   bileLight: { ramp: 'team4', shift: 1 },
-  bileGlow: { ramp: 'team4', emissive: true },
+  bileGlow: { ramp: 'team4', emissive: true, glow: true },
   // The walkers' eyes, glowing neon in the main colour, and the white-hot core of their eyes and spit.
-  eye: { ramp: 'team3', emissive: true },
-  glowCore: { ramp: 'fire', emissive: true },
+  eye: { ramp: 'team3', emissive: true, glow: true },
+  glowCore: { ramp: 'core', emissive: true, glow: true },
   // Ground heaped or broken round the crystals of a resource field: sand, forest soil and the hovers' plates.
   sand: { ramp: 'sand', shift: 1 },
   soil: { ramp: 'soil' },

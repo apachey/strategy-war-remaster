@@ -52,16 +52,16 @@ export function plasmaFlash(pos: Vec3, size: number): THREE.Group {
  * spat out with a few drops trailing behind it.
  */
 export function spitFlash(pos: Vec3, size: number): THREE.Group {
-  const gob = new THREE.IcosahedronGeometry(size * 0.7, 0);
+  const gob = new THREE.IcosahedronGeometry(size * 0.85, 0);
   gob.scale(1.1, 0.85, 1.3);
   const g = group(
     mesh(gob, 'bileGlow', pos),
-    ball(size * 0.36, 'glowCore', [pos[0], pos[1] + size * 0.32, pos[2] - size * 0.1], 4),
-    ball(size * 0.38, 'bile', [pos[0] + size * 0.35, pos[1] + size * 0.2, pos[2] + size * 0.3], 4),
+    ball(size * 0.66, 'glowCore', [pos[0], pos[1] + size * 0.15, pos[2] + size * 0.15], 6),
+    ball(size * 0.38, 'bileGlow', [pos[0] + size * 0.35, pos[1] + size * 0.2, pos[2] + size * 0.3], 4),
   );
   for (let i = 0; i < 3; i++) {
     const a = (i / 3) * Math.PI * 2 + 0.5;
-    g.add(ball(size * 0.2, 'bile', [pos[0] + Math.cos(a) * size * 0.7, pos[1] + Math.sin(a) * size * 0.5, pos[2] + size * (0.9 + i * 0.25)], 4));
+    g.add(ball(size * 0.2, 'bileGlow', [pos[0] + Math.cos(a) * size * 0.7, pos[1] + Math.sin(a) * size * 0.5, pos[2] + size * (0.9 + i * 0.25)], 4));
   }
   return noShadow(g);
 }

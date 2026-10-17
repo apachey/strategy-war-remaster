@@ -96,13 +96,16 @@ const OUTLINE: Rgb = ramp('outline')[0]!;
 export const OUTLINE_WIDTH = 2;
 /** How many ramp steps darker than the body next to it the outline is. */
 export const OUTLINE_STEPS = 2;
+/** Opacity of the two-pixel halo round glowing surfaces (the walkers' eyes and spit), which get no dark outline. */
+export const HALO_ALPHA = [0.65, 0.3] as const;
 
 const luma = (c: Rgb) => c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
 
 /**
  * Turns a reduced frame into RGBA with team surfaces in TEAM_RAMP: palette shading, inner lines two steps darker where a surface
  * disappears behind a nearer one, an outline `outline` pixels wide in a darker shade of the body it surrounds
- * (black around the darkest colours), and a soft floor shadow.
+ * (black around the darkest colours), and a soft floor shadow. Glowing surfaces get no outline but a soft halo of their
+ * own colour where they meet the empty background.
  */
 export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedArray {
   const { w, h, mat, light, depth } = frame;
@@ -114,6 +117,7 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
   // Colour of every pixel: body colours first, then outline rings around them.
   const color: (Rgb | null)[] = new Array(w * h).fill(null);
   const ink: (Rgb | null)[] = new Array(w * h).fill(null);
+  const glow = new Uint8Array(w * h);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
@@ -127,6 +131,7 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
       const step = def.emissive ? colors.length - 1 : rampStep(light[i]!, colors.length, (def.shift ?? 0) - (edge ? INNER_LINE_STEPS : 0));
       color[i] = colors[step]!;
       ink[i] = step === 0 ? OUTLINE : colors[Math.max(0, step - OUTLINE_STEPS)]!;
+      if (def.glow) glow[i] = 1;
     }
   }
   const at = (x: number, y: number) => (x >= 0 && y >= 0 && x < w && y < h ? y * w + x : -1);
@@ -165,8 +170,11 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
     }
     return added;
   };
+  // Halo first, from glowing pixels only; the outline then rings everything else and wins where both reach.
+  const halo = new Map(ring((j) => glow[j] === 1, (j) => color[j]!, false));
+  const outerHalo = new Map(ring((j) => halo.has(j), (j) => halo.get(j)!, true).filter(([i]) => !halo.has(i)));
   if (outline > 0) {
-    const body = color.map((c) => c !== null);
+    const body = color.map((c, j) => c !== null && !glow[j]);
     const first = ring((j) => body[j]!, (j) => ink[j]!, false);
     for (const [i, c] of first) color[i] = c;
     if (outline > 1) {
@@ -177,7 +185,10 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
   for (let i = 0; i < w * h; i++) {
     let rgb = color[i];
     let alpha = 255;
-    if (!rgb && mat[i] === GROUND_ID) {
+    if (!rgb && (halo.has(i) || outerHalo.has(i))) {
+      rgb = halo.get(i) ?? outerHalo.get(i)!;
+      alpha = Math.round(HALO_ALPHA[halo.has(i) ? 0 : 1] * 255);
+    } else if (!rgb && mat[i] === GROUND_ID) {
       rgb = OUTLINE;
       alpha = Math.round(SHADOW_ALPHA * 255);
     }
