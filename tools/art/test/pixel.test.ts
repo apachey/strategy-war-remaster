@@ -22,9 +22,9 @@ function sample(mat = materialId('team'), light = 180) {
 }
 
 describe('palette', () => {
-  it('has 45 colours for objects and 19 for the ground, all different', () => {
-    expect(PALETTE).toHaveLength(64);
-    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(64);
+  it('has 43 colours for objects and 19 for the ground, all different', () => {
+    expect(PALETTE).toHaveLength(62);
+    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(62);
   });
 
   it('draws team surfaces in team colours of the game', () => {
@@ -99,7 +99,7 @@ describe('colorize', () => {
   it('rings glowing materials with a fading halo of their own colour instead of a dark outline', () => {
     const rgba = colorize(sample(materialId('bileGlow')));
     const body = [...rgba.subarray(5 * 4, 5 * 4 + 3)];
-    expect(body).toEqual([...ramp(GLOW2_RAMP).at(-1)!]);
+    expect(body).toEqual([...ramp(GLOW2_RAMP).at(-2)!]);
     expect([...rgba.subarray(4 * 4, 4 * 4 + 3)]).toEqual(body);
     expect(rgba[4 * 4 + 3]).toBe(Math.round(HALO_ALPHA[0] * 255));
     expect([...rgba.subarray(0, 3)]).toEqual(body);

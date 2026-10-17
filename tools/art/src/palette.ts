@@ -1,5 +1,5 @@
 /**
- * The shared palette of style B: 45 colours for units and buildings plus 19 for the ground (fir trees, soil, sand and
+ * The shared palette of style B: 43 colours for units and buildings plus 19 for the ground (fir trees, soil, sand and
  * the hover race's plates).
  * Every sprite and tile is quantised to these colours, so units, buildings and terrain always sit together.
  * Colours are grouped into ramps, dark to light; a 3D material picks a ramp and the lighting picks the step inside
@@ -23,11 +23,10 @@ export const RAMPS = {
   fire: ['#ff8a1c', '#ffffcc'],
   signal: ['#006633', '#33ff66'],
   // The walkers' glow as drawn (the game recolours both): eyes glow in the main colour, drawn magenta, and spit,
-  // muzzles and seams in the secondary colour, drawn acid green.
-  glow: ['#3a0a30', '#701a5c', '#a83088', '#d860b4', '#ffa0e0'],
-  bile: ['#1f3a0a', '#3f6a14', '#6fa020', '#a8d040', '#e0f080'],
-  // White-hot core of the walkers' eyes and spit.
-  core: ['#fff0c4', '#fffdf2'],
+  // muzzles and seams in the secondary colour, drawn acid green. Like `glowRamp`: three dark steps, the neon, and
+  // a pale core of the same hue.
+  glow: ['#3a0a30', '#701a5c', '#b02c8c', '#e040b0', '#ffb4ea'],
+  bile: ['#24400a', '#467414', '#7cae1c', '#b0e030', '#e8ffa8'],
   // Dark forest soil, heaped where crystals break through the forest floor.
   soil: ['#2a2016', '#463626', '#62503a', '#806c50'],
   // Terrain: turquoise fir needles and desert sand (dark to light).
@@ -53,7 +52,7 @@ export const TEAM_RAMP = 'olive' satisfies RampName;
 export const SECOND_RAMP = 'accent' satisfies RampName;
 /** Light in the main colour ("team3": the walkers' eyes) is drawn in this ramp; it becomes `glowRamp(main)`. */
 export const GLOW_RAMP = 'glow' satisfies RampName;
-/** Light in the secondary colour ("team4": the walkers' spit and muzzles), drawn in this ramp; `glowRamp(secondary)`. */
+/** Light in the secondary colour ("team4": the walkers' spit and muzzles), drawn in this ramp; `glowRamp(spitColor(main, secondary))`. */
 export const GLOW2_RAMP = 'bile' satisfies RampName;
 
 /** Shadow under objects: the outline colour at this opacity. */

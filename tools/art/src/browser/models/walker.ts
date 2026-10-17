@@ -4,16 +4,17 @@ import { facing, limb, plate, slump, spitFlash, WALL_ARMS, type Builder } from '
 
 /**
  * The walkers: jointed many-legged creatures of the open sand. Faceted carapace plates in the team colour on thin
- * dark legs, eyes glowing neon in the main colour, and muzzles glowing in the secondary that spit gobs of organic
- * acid. Their buildings are grown, not built: hive mounds held in arching spines, sacs on roots, a brood shell.
+ * dark legs, eyes glowing neon in the main colour, and muzzles glowing in the secondary that spit thorns of
+ * acid. Their buildings are grown, not built: hive mounds held in arching spines, sacs on roots, a clawed womb.
  */
 
 /**
- * Eye glowing in the side's main colour as neon: a white-hot core inside a ball of saturated light with a soft
- * halo, so it reads as light in any colour.
+ * Eye glowing in the side's main colour as neon round a pale core, set in a dark socket so it stands out from a
+ * carapace of any colour, the main colour included. `out` is the way the eye looks.
  */
-function eye(r: number, pos: Vec3): THREE.Group {
-  const g = group(ball(r * 1.1, 'eye', pos, 6), ball(r * 0.6, 'glowCore', [pos[0], pos[1] + r * 0.3, pos[2]], 4));
+function eye(r: number, pos: Vec3, out: Vec3 = [0, 0, -1]): THREE.Group {
+  const at = (k: number, up = 0): Vec3 => [pos[0] + out[0] * r * k, pos[1] + out[1] * r * k + up * r, pos[2] + out[2] * r * k];
+  const g = group(ball(r * 1.75, 'socket', at(-1.1), 6), ball(r * 1.35, 'eye', pos, 6), ball(r * 0.7, 'eyeCore', at(0.8, 0.35), 4));
   g.traverse((o) => (o.castShadow = false));
   return g;
 }
@@ -244,7 +245,7 @@ const hq: Builder = (_view, frame) => {
     // Maw.
     plate(0.2, 1.4, 1, 0.6, 'teamDark', [0, 0.3, 0.6]),
     plate(k % 2 ? 0.12 : 0.15, 1.4, 0.9, 0.5, 'bileGlow', [0, 0.3, 0.66]),
-    ...[-0.12, 0, 0.12].map((x, i) => (k === i + 1 ? ball(0.04, 'teamDark', [x, 0.52 + (x ? 0 : 0.04), 0.6], 4) : eye(0.04, [x, 0.52 + (x ? 0 : 0.04), 0.6]))),
+    ...[-0.12, 0, 0.12].map((x, i) => (k === i + 1 ? ball(0.04, 'teamDark', [x, 0.52 + (x ? 0 : 0.04), 0.6], 4) : eye(0.04, [x, 0.52 + (x ? 0 : 0.04), 0.6], [0, 0, 1]))),
   );
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
@@ -274,7 +275,7 @@ const silo: Builder = () => {
   ] as const) {
     g.add(plate(r, 1, 1.15, 1, 'team2Light', [x, r * 1.05, z]), plate(r * 0.8, 1.05, 0.6, 1.05, 'team', [x, r * 0.4, z]));
     g.add(...[0.6, 2.2, 3.8].map((a) => plate(r * 0.22, 0.6, 1.4, 0.6, 'crystal', [x + Math.cos(a) * r * 0.8, r * 1.2, z + Math.sin(a) * r * 0.8])));
-    g.add(eye(r * 0.15, [x, r * 2.1, z]));
+    g.add(eye(r * 0.15, [x, r * 2.1, z], [0, 1, 0]));
   }
   for (let i = 0; i < 6; i++) g.add(root((i / 6) * Math.PI * 2, 0.4, 0.95, 0.12, 0.04));
   // Funnel mouth.
@@ -297,33 +298,79 @@ const silo: Builder = () => {
 };
 
 /**
- * Walker factory: a brood shell. A huge carapace like half a clam, propped on spines and open to the south; under it
- * a slimy egg glows. Working, the egg splits and a young tripod climbs out between two mandible arms.
+ * Walker factory, the incubator: a womb. A big soft sac in the main colour with two smaller lobes grown onto its
+ * back, gripped by claws of chitin curling up from the sand, veins in the secondary colour running over its skin and
+ * a slit on the south glowing from the egg inside. Eggs lie in a heap at its foot and roots spread into the sand. Working, the slit gapes
+ * and a young tripod climbs out in a puddle of slime.
  */
 const factory: Builder = (_view, frame) => {
   const work = frame === 'work';
-  const shell = new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2);
-  shell.scale(0.82, 0.8, 0.7);
-  shell.rotateX(-1.05);
-  const g = group(
-    mesh(shell, 'team', [0, 0.3, -0.2]),
-    plate(0.35, 1.6, 0.4, 1, 'team2Light', [0, 0.92, -0.3]),
-    ...[-0.5, 0, 0.5].flatMap((x) => spine(Math.PI / 2, x === 0 ? -0.75 : -0.6, -0.1, 0.9, 0.05).map((m) => {
-      m.position.x += x;
-      return m;
-    })),
-    plate(0.34, 1.6, 0.25, 1.4, 'teamDark', [0, 0.04, 0.12]),
-  );
-  for (const sx of [-1, 1]) {
-    g.add(limb([sx * 0.62, 0.1, 0.3], [sx * 0.5, 0.42, 0.5], 0.045, 'teamDark'), limb([sx * 0.5, 0.42, 0.5], [sx * 0.24, 0.3, 0.66], 0.035, 'teamDark'));
-    g.add(ball(0.04, 'team2Light', [sx * 0.5, 0.42, 0.5], 4));
+  // Womb: centre, radii.
+  const [cx, cy, cz] = [0, 0.4, -0.12];
+  const [rx, ry, rz] = [0.6, 0.48, 0.56];
+  const sac = new THREE.SphereGeometry(1, 14, 10);
+  sac.scale(rx, ry, rz);
+  const lobe = (r: number, pos: Vec3, mat: 'team' | 'teamDark') => {
+    const geo = new THREE.SphereGeometry(r, 10, 7);
+    geo.scale(1, 0.8, 1);
+    return mesh(geo, mat, pos);
+  };
+  // A point on the womb's skin at azimuth a (0 = east, pi/2 = south) and elevation e.
+  const skin = (a: number, e: number, k = 1.02): Vec3 => [
+    cx + Math.cos(a) * Math.cos(e) * rx * k,
+    cy + Math.sin(e) * ry * k,
+    cz + Math.sin(a) * Math.cos(e) * rz * k,
+  ];
+  const g = group(mesh(sac, 'team', [cx, cy, cz]), lobe(0.34, [-0.42, 0.3, -0.44], 'team'), lobe(0.28, [0.46, 0.24, -0.46], 'teamDark'));
+  // Swellings on the skin.
+  for (const [a, e, r] of [
+    [0.9, 0.5, 0.1],
+    [2.6, 0.7, 0.08],
+    [4.2, 0.3, 0.11],
+    [1.9, 1.0, 0.07],
+  ] as const) {
+    g.add(lobe(r, skin(a, e, 0.93), 'team'));
   }
+  // Claws of chitin gripping the womb from the sand, curling over towards its top; none over the slit.
+  for (const a of [-0.35, 1.0, 2.15, 3.3, 4.45]) g.add(...spine(a, 0.9, 0.3, 0.88, 0.05));
+  // Veins: wandering lines over the skin from the top down to the ground.
+  for (const [a0, wob] of [
+    [0.6, 0.35],
+    [2.3, -0.3],
+    [3.9, 0.25],
+    [5.3, -0.35],
+  ] as const) {
+    let prev = skin(a0, 1.2);
+    for (let i = 1; i <= 4; i++) {
+      const next = skin(a0 + wob * Math.sin(i * 1.7), 1.2 - i * 0.32);
+      g.add(limb(prev, next, 0.018, 'team2'));
+      prev = next;
+    }
+  }
+  // Slit on the south with swollen lips and the egg glowing inside.
+  const open = work ? 1.6 : 1;
+  const sz = cz + rz * 0.93;
+  g.add(
+    plate(0.27, 0.4 * open, 1.3, 0.5, 'teamDark', [0, 0.38, sz]),
+    plate(0.24, 0.26 * open, 1.15, 0.45, 'bileGlow', [0, 0.38, sz + 0.04]),
+    ...[-1, 1].map((sx) => plate(0.24, 0.26, 1.35, 0.5, 'team2Light', [sx * 0.11 * open, 0.38, sz + 0.02], [0, 0, sx * 0.22])),
+  );
+  // Eggs at its foot, and roots.
+  for (const [x, z, r] of [
+    [-0.5, 0.4, 0.09],
+    [-0.38, 0.52, 0.07],
+    [-0.6, 0.55, 0.06],
+    [0.52, 0.42, 0.08],
+  ] as const) {
+    g.add(lobe(r, [x, r * 0.8, z], 'team'), ball(r * 0.45, 'team2Light', [x - r * 0.25, r * 1.25, z + r * 0.4], 5));
+  }
+  for (let i = 0; i < 7; i++) g.add(root((i / 7) * Math.PI * 2 + 0.3, 0.55, 0.98, 0.1, 0.035));
   if (work) {
     const young = lightTank(4, 'move1');
-    young.scale.setScalar(0.85);
-    young.position.set(0.05, 0.06, 0.42);
-    g.add(young, plate(0.12, 1, 0.8, 1, 'bile', [-0.08, 0.1, 0.12]), plate(0.1, 1, 0.6, 1, 'bileLight', [0.2, 0.08, 0.16], [0, 0, 0.8]));
-  } else g.add(plate(0.17, 0.9, 1.3, 0.9, 'bileLight', [0, 0.22, 0.14]), ball(0.05, 'bileGlow', [0.04, 0.3, 0.28], 4));
+    young.scale.setScalar(0.8);
+    young.position.set(0.02, 0.04, sz + 0.12);
+    g.add(young, plate(0.16, 1.4, 0.25, 1, 'bile', [0, 0.02, sz + 0.1]));
+  }
   return g;
 };
 

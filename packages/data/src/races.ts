@@ -95,14 +95,23 @@ function neon(h: string): string {
 }
 
 /**
- * Light glowing in a colour: the walkers' eyes (main colour) and their spit and muzzles (secondary colour), drawn
- * round a white-hot core. The colour is pushed to neon, full saturation in its own hue, so any colour reads as light;
- * the greys glow white. Dark to light; emissive surfaces use the last step, lit ones shade through the ramp.
+ * Light glowing in a colour: the walkers' eyes (main colour) and their spit and muzzles (`spitColor`). The colour is
+ * pushed to neon, full saturation in its own hue, so any colour reads as light; the greys glow white. Dark to light:
+ * three dark steps, the neon (step 3, what glowing surfaces show) and a pale core of the same hue (step 4).
  */
 export function glowRamp(color: TeamColor): string[] {
   if (TEAM_COLOR_GRID.grey.includes(color)) return ['#6a6e78', '#9a9ea8', '#c8ccd4', '#e8eaee', '#ffffff'];
   const n = neon(TEAM_COLORS[color][2]);
-  return [mix(n, '#000000', 0.62), mix(n, '#000000', 0.44), mix(n, '#000000', 0.27), mix(n, '#000000', 0.12), n];
+  return [mix(n, '#000000', 0.6), mix(n, '#000000', 0.36), mix(n, '#000000', 0.14), n, mix(n, '#ffffff', 0.55)];
+}
+
+/**
+ * Colour the walkers' spit glows in: the secondary colour, or the main one when the secondary is a grey, so the spit
+ * is never a white gob; acid lime when both are greys.
+ */
+export function spitColor(color: TeamColor, color2: TeamColor): TeamColor {
+  const grey = (c: TeamColor) => TEAM_COLOR_GRID.grey.includes(c);
+  return !grey(color2) ? color2 : !grey(color) ? color : 'lime';
 }
 
 /** The ramps the sprites are drawn in: main colour and secondary colour. */

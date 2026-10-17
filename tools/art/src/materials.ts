@@ -9,7 +9,7 @@ export interface MaterialDef {
   ramp: RampName | 'team' | 'team2' | 'team3' | 'team4';
   /** Moves the light level up or down the ramp (in steps), to tell apart surfaces that share a ramp. */
   shift?: number;
-  /** Ignores lighting and always uses the brightest step (lamps, muzzle flash). */
+  /** Ignores lighting and always uses the brightest step (lamps, muzzle flash), or one `shift` below it. */
   emissive?: boolean;
   /** Glowing light: no dark outline, a soft halo of its own colour instead (the walkers' eyes and spit). */
   glow?: boolean;
@@ -43,10 +43,12 @@ export const MATERIALS = {
   // The walkers' acid in the secondary colour's light: wet, a lighter tip, and a glow for charged muzzles and seams.
   bile: { ramp: 'team4' },
   bileLight: { ramp: 'team4', shift: 1 },
-  bileGlow: { ramp: 'team4', emissive: true, glow: true },
-  // The walkers' eyes, glowing neon in the main colour, and the white-hot core of their eyes and spit.
-  eye: { ramp: 'team3', emissive: true, glow: true },
-  glowCore: { ramp: 'core', emissive: true, glow: true },
+  bileGlow: { ramp: 'team4', emissive: true, shift: -1, glow: true },
+  spitCore: { ramp: 'team4', emissive: true, glow: true },
+  // The walkers' eyes, glowing neon in the main colour round a pale core, set in dark sockets.
+  eye: { ramp: 'team3', emissive: true, shift: -1 },
+  eyeCore: { ramp: 'team3', emissive: true, glow: true },
+  socket: { ramp: 'steel', shift: -3 },
   // Ground heaped or broken round the crystals of a resource field: sand, forest soil and the hovers' plates.
   sand: { ramp: 'sand', shift: 1 },
   soil: { ramp: 'soil' },

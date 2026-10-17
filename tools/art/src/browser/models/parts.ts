@@ -48,22 +48,24 @@ export function plasmaFlash(pos: Vec3, size: number): THREE.Group {
 }
 
 /**
- * Shot of the walkers: a lumpy gob of acid glowing neon in the side's secondary colour round a white-hot core,
- * spat out with a few drops trailing behind it.
+ * Shot of the walkers: a thorn of acid glowing neon in the spit colour (`spitColor`) round a pale core of the same
+ * hue, pointing the way it flies (-z), with a dimmer streak trailing behind.
  */
 export function spitFlash(pos: Vec3, size: number): THREE.Group {
-  const gob = new THREE.IcosahedronGeometry(size * 0.85, 0);
-  gob.scale(1.1, 0.85, 1.3);
-  const g = group(
-    mesh(gob, 'bileGlow', pos),
-    ball(size * 0.66, 'glowCore', [pos[0], pos[1] + size * 0.15, pos[2] + size * 0.15], 6),
-    ball(size * 0.38, 'bileGlow', [pos[0] + size * 0.35, pos[1] + size * 0.2, pos[2] + size * 0.3], 4),
+  const thorn = new THREE.OctahedronGeometry(size * 0.62, 0);
+  thorn.scale(0.72, 0.72, 2.3);
+  thorn.translate(0, 0, -size * 0.25);
+  const core = new THREE.OctahedronGeometry(size * 0.62, 0);
+  core.scale(0.5, 0.5, 1.5);
+  const streak = new THREE.ConeGeometry(size * 0.28, size * 1.5, 4);
+  streak.rotateX(Math.PI / 2);
+  return noShadow(
+    group(
+      mesh(thorn, 'bileGlow', pos),
+      mesh(core, 'spitCore', [pos[0], pos[1] + size * 0.24, pos[2] - size * 0.2]),
+      mesh(streak, 'bileGlow', [pos[0], pos[1], pos[2] + size * 1.4]),
+    ),
   );
-  for (let i = 0; i < 3; i++) {
-    const a = (i / 3) * Math.PI * 2 + 0.5;
-    g.add(ball(size * 0.2, 'bileGlow', [pos[0] + Math.cos(a) * size * 0.7, pos[1] + Math.sin(a) * size * 0.5, pos[2] + size * (0.9 + i * 0.25)], 4));
-  }
-  return noShadow(g);
 }
 
 /** Slot of cyan light set into a surface. */

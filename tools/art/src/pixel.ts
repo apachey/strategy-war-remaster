@@ -128,7 +128,7 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
       const colors = def.ramp in drawn ? drawn[def.ramp as keyof typeof drawn] : ramp(def.ramp as RampName);
       const behind = (j: number) => j >= 0 && j < w * h && isObjectAt(j) && depth[j]! + INNER_LINE_DEPTH < depth[i]!;
       const edge = behind(i - w) || behind(i + w) || (x > 0 && behind(i - 1)) || (x < w - 1 && behind(i + 1));
-      const step = def.emissive ? colors.length - 1 : rampStep(light[i]!, colors.length, (def.shift ?? 0) - (edge ? INNER_LINE_STEPS : 0));
+      const step = def.emissive ? colors.length - 1 + Math.min(0, def.shift ?? 0) : rampStep(light[i]!, colors.length, (def.shift ?? 0) - (edge ? INNER_LINE_STEPS : 0));
       color[i] = colors[step]!;
       ink[i] = step === 0 ? OUTLINE : colors[Math.max(0, step - OUTLINE_STEPS)]!;
       if (def.glow) glow[i] = 1;
