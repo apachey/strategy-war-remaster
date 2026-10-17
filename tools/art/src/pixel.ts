@@ -91,43 +91,98 @@ export function rampStep(light: number, length: number, shift = 0): number {
 }
 
 const OUTLINE: Rgb = ramp('outline')[0]!;
+/** Outline width in pixels around every object (0 turns it off, e.g. for the sprite studio). */
+export const OUTLINE_WIDTH = 2;
+/** How many ramp steps darker than the body next to it the outline is. */
+export const OUTLINE_STEPS = 2;
+
+const luma = (c: Rgb) => c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
 
 /**
- * Turns a reduced frame into RGBA for one team: palette shading, a 1 px outline around the object, inner lines two
- * steps darker where a surface disappears behind a nearer one, and a soft floor shadow.
+ * Turns a reduced frame into RGBA for one team: palette shading, inner lines two steps darker where a surface
+ * disappears behind a nearer one, an outline `outline` pixels wide in a darker shade of the body it surrounds
+ * (black around the darkest colours), and a soft floor shadow.
  */
-export function colorize(frame: Reduced, team: Team): Uint8ClampedArray {
+export function colorize(frame: Reduced, team: Team, outline = OUTLINE_WIDTH): Uint8ClampedArray {
   const { w, h, mat, light, depth } = frame;
   const out = new Uint8ClampedArray(w * h * 4);
   const teamRamp = ramp(TEAMS[team]);
   const isObjectAt = (i: number) => mat[i]! !== 0 && mat[i]! !== GROUND_ID;
-  const isObject = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && isObjectAt(y * w + x);
+  // Colour of every pixel: body colours first, then outline rings around them.
+  const color: (Rgb | null)[] = new Array(w * h).fill(null);
+  const ink: (Rgb | null)[] = new Array(w * h).fill(null);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
       const id = mat[i]!;
-      let rgb: Rgb | null = null;
-      let alpha = 255;
-      if (id !== 0 && id !== GROUND_ID) {
-        const def = materialById(id);
-        if (!def) throw new Error(`unknown material id ${id}`);
-        const colors = def.ramp === 'team' ? teamRamp : ramp(def.ramp);
-        const behind = (j: number) => j >= 0 && j < w * h && isObjectAt(j) && depth[j]! + INNER_LINE_DEPTH < depth[i]!;
-        const edge = behind(i - w) || behind(i + w) || (x > 0 && behind(i - 1)) || (x < w - 1 && behind(i + 1));
-        const step = def.emissive ? colors.length - 1 : rampStep(light[i]!, colors.length, (def.shift ?? 0) - (edge ? INNER_LINE_STEPS : 0));
-        rgb = colors[step]!;
-      } else if (isObject(x - 1, y) || isObject(x + 1, y) || isObject(x, y - 1) || isObject(x, y + 1)) {
-        rgb = OUTLINE;
-      } else if (id === GROUND_ID) {
-        rgb = OUTLINE;
-        alpha = Math.round(SHADOW_ALPHA * 255);
-      }
-      if (!rgb) continue;
-      out[i * 4] = rgb[0];
-      out[i * 4 + 1] = rgb[1];
-      out[i * 4 + 2] = rgb[2];
-      out[i * 4 + 3] = alpha;
+      if (id === 0 || id === GROUND_ID) continue;
+      const def = materialById(id);
+      if (!def) throw new Error(`unknown material id ${id}`);
+      const colors = def.ramp === 'team' ? teamRamp : ramp(def.ramp);
+      const behind = (j: number) => j >= 0 && j < w * h && isObjectAt(j) && depth[j]! + INNER_LINE_DEPTH < depth[i]!;
+      const edge = behind(i - w) || behind(i + w) || (x > 0 && behind(i - 1)) || (x < w - 1 && behind(i + 1));
+      const step = def.emissive ? colors.length - 1 : rampStep(light[i]!, colors.length, (def.shift ?? 0) - (edge ? INNER_LINE_STEPS : 0));
+      color[i] = colors[step]!;
+      ink[i] = step === 0 ? OUTLINE : colors[Math.max(0, step - OUTLINE_STEPS)]!;
     }
+  }
+  const at = (x: number, y: number) => (x >= 0 && y >= 0 && x < w && y < h ? y * w + x : -1);
+  const ring = (from: (j: number) => boolean, inkOf: (j: number) => Rgb, diagonal: boolean) => {
+    const added: [number, Rgb][] = [];
+    const near = diagonal
+      ? [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+          [-1, -1],
+          [1, -1],
+          [-1, 1],
+          [1, 1],
+        ]
+      : [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+        ];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (color[i]) continue;
+        let best: Rgb | null = null;
+        for (const [dx, dy] of near) {
+          const j = at(x + dx!, y + dy!);
+          if (j < 0 || !from(j)) continue;
+          const c = inkOf(j);
+          if (!best || luma(c) < luma(best)) best = c;
+        }
+        if (best) added.push([i, best]);
+      }
+    }
+    return added;
+  };
+  if (outline > 0) {
+    const body = color.map((c) => c !== null);
+    const first = ring((j) => body[j]!, (j) => ink[j]!, false);
+    for (const [i, c] of first) color[i] = c;
+    if (outline > 1) {
+      const isFirst = new Set(first.map(([i]) => i));
+      for (const [i, c] of ring((j) => isFirst.has(j), (j) => color[j]!, true)) color[i] = c;
+    }
+  }
+  for (let i = 0; i < w * h; i++) {
+    let rgb = color[i];
+    let alpha = 255;
+    if (!rgb && mat[i] === GROUND_ID) {
+      rgb = OUTLINE;
+      alpha = Math.round(SHADOW_ALPHA * 255);
+    }
+    if (!rgb) continue;
+    out[i * 4] = rgb[0];
+    out[i * 4 + 1] = rgb[1];
+    out[i * 4 + 2] = rgb[2];
+    out[i * 4 + 3] = alpha;
   }
   return out;
 }

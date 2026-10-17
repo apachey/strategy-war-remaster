@@ -20,12 +20,34 @@ function facing(model: THREE.Object3D, view: number): THREE.Object3D {
   return g;
 }
 
+/** Muzzle flash of the player's guns: a burst of orange and pale yellow fire, stretched along the barrel. */
 function muzzleFlash(pos: [number, number, number], size: number): THREE.Mesh {
   const geo = new THREE.OctahedronGeometry(size, 0);
   geo.scale(1, 0.7, 1.6);
   const m = mesh(geo, 'flash', pos);
   m.castShadow = false;
   return m;
+}
+
+/** Shot of the hover race: a cyan plasma bolt flying out of a ring of light. */
+function plasmaFlash(pos: Vec3, size: number): THREE.Group {
+  const bolt = new THREE.IcosahedronGeometry(size * 0.7, 0);
+  bolt.scale(0.8, 0.8, 2.2);
+  const ring = new THREE.TorusGeometry(size * 0.9, size * 0.22, 4, 10);
+  const g = group(mesh(bolt, 'lamp', [pos[0], pos[1], pos[2] - size * 0.8]), mesh(ring, 'glass', [pos[0], pos[1], pos[2] + size * 0.6]));
+  g.traverse((o) => (o.castShadow = false));
+  return g;
+}
+
+/** Shot of the walkers: a green gob of acid with droplets spraying out round it. */
+function acidFlash(pos: Vec3, size: number): THREE.Group {
+  const g = group(ball(size * 0.75, 'signal', pos, 6));
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + 0.4;
+    g.add(ball(size * 0.28, 'signal', [pos[0] + Math.cos(a) * size, pos[1] + Math.sin(a) * size * 0.8, pos[2] + size * 0.3], 4));
+  }
+  g.traverse((o) => (o.castShadow = false));
+  return g;
 }
 
 /** Barrel(s) pointing north from the turret front, recoiled and flashing when firing. */
@@ -231,7 +253,7 @@ const hoverTank: Builder = (view, frame) => {
     lightSlot(0.14, 0.025, 0.04, [0.17, 0.12 + y, -0.39]),
     ...[-1, 1].flatMap((sx) => [box(0.05, 0.03, 0.12, 'teamDark', [sx * 0.24, 0.16 + y, -0.02]), box(0.05, 0.03, 0.08, 'teamDark', [sx * 0.22, 0.15 + y, 0.22])]),
   );
-  if (fire) g.add(muzzleFlash([0, 0.15 + y, -0.62], 0.1));
+  if (fire) g.add(plasmaFlash([0, 0.15 + y, -0.6], 0.1));
   if (frame === 'wreck') {
     g.position.y = -0.05;
     g.rotation.z = 0.18;
@@ -376,7 +398,7 @@ const alienLightTank: Builder = (view, frame) => {
   spike.rotateX(-Math.PI / 2);
   g.add(mesh(spike, 'teamLight', [0, 0.2, -0.3 + (fire ? 0.04 : 0)]));
   g.add(ball(0.03, 'lamp', [0, 0.2, -0.45], 4));
-  if (fire) g.add(muzzleFlash([0, 0.2, -0.56], 0.07));
+  if (fire) g.add(acidFlash([0, 0.2, -0.54], 0.08));
   if (frame === 'wreck') alienWreck(g);
   return facing(g, view);
 };
@@ -405,7 +427,7 @@ const alienMiddleTank: Builder = (view, frame) => {
     g.add(ball(0.05 - k * 0.025, i % 2 ? 'teamLight' : 'team', [Math.cos(a) * r * 0.6, 0.32 + k * 0.2, 0.12 - k * 0.32 + Math.sin(a) * r], 4));
   }
   g.add(ball(fire ? 0.07 : 0.045, 'lamp', [0, 0.53, -0.22], 6));
-  if (fire) g.add(muzzleFlash([0, 0.5, -0.4], 0.09));
+  if (fire) g.add(acidFlash([0, 0.5, -0.38], 0.09));
   if (frame === 'wreck') alienWreck(g);
   return facing(g, view);
 };
@@ -436,9 +458,195 @@ const alienHeavyTank: Builder = (view, frame) => {
     ball(fire ? 0.1 : 0.06, 'lamp', [0, 0.24, -0.55], 6),
     ...legs(4, -0.22, 0.3, 0.24, 0.13, 0.16, 0.03, frame),
   );
-  if (fire) g.add(muzzleFlash([0, 0.24, -0.7], 0.11));
+  if (fire) g.add(acidFlash([0, 0.24, -0.68], 0.11));
   if (frame === 'wreck') alienWreck(g);
   return facing(g, view);
+};
+
+/*
+ * The rest of the hover race, in the style of its tank: smooth oval shells in the team colour, dark grooves, pale
+ * raised plates, light strips on the nose, plasma guns. Nothing touches the ground; they bob between move frames.
+ */
+
+/** Smooth half-oval hull floating over a dark belly; returns it with the height of its top. */
+function hoverHull(rx: number, ry: number, rz: number, y: number): { g: THREE.Group; top: number } {
+  const shell = new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+  shell.scale(rx, ry, rz);
+  const belly = new THREE.CylinderGeometry(rx * 0.95, rx * 0.8, 0.06, 12);
+  belly.scale(1, 1, rz / rx);
+  return { g: group(mesh(belly, 'teamDark', [0, y - 0.02, 0]), mesh(shell, 'team', [0, y, 0])), top: y + ry };
+}
+
+/** Hover wreck: sunk on the ground, tilted, burnt. */
+function hoverWreck(g: THREE.Group): void {
+  g.position.y = -0.05;
+  g.rotation.z = 0.18;
+  paintAll(g, 'burnt');
+}
+
+/** Hover light tank: a small teardrop with one gun on its spine, a light strip across the nose and two tail fins. */
+const hoverLightTank: Builder = (view, frame) => {
+  const y = frame === 'move1' ? 0.1 : 0.08;
+  const fire = frame === 'fire';
+  const { g, top } = hoverHull(0.24, 0.13, 0.36, y);
+  const recoil = fire ? 0.03 : 0;
+  g.add(
+    slab(0.07, 0.05, 0.4, 'teamLight', [0, top - 0.04, 0.04], 0.6),
+    box(0.04, 0.02, 0.4, 'teamDark', [0, top + 0.005, 0.04]),
+    box(0.07, 0.06, 0.08, 'teamDark', [0, top - 0.02, -0.12]),
+    barrel(0.022, 0.26, 'steel', [0, top + 0.02, -0.14 + recoil]),
+    lightSlot(0.24, 0.02, 0.03, [0, y + 0.03, -0.34]),
+    ...[-1, 1].map((sx) => {
+      const fin = slab(0.03, 0.1, 0.12, 'teamLight', [sx * 0.12, top - 0.06, 0.28], 0.5);
+      fin.rotation.z = sx * 0.35;
+      return fin;
+    }),
+  );
+  if (fire) g.add(plasmaFlash([0, top + 0.02, -0.46], 0.08));
+  if (frame === 'wreck') hoverWreck(g);
+  return facing(g, view);
+};
+
+/**
+ * Hover heavy tank: a broad shell split at the nose into three lobes with a gun in each of the two channels, a raised
+ * pale hump on its back and three light strips across the front.
+ */
+const hoverHeavyTank: Builder = (view, frame) => {
+  const y = frame === 'move1' ? 0.1 : 0.08;
+  const fire = frame === 'fire';
+  const { g, top } = hoverHull(0.42, 0.18, 0.47, y);
+  const recoil = fire ? 0.04 : 0;
+  const hump = new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2);
+  hump.scale(0.2, 0.1, 0.26);
+  g.add(
+    mesh(hump, 'teamLight', [0, top - 0.04, 0.1]),
+    box(0.04, 0.02, 0.5, 'teamDark', [0, top + 0.05, 0.06]),
+    ...[-1, 1].flatMap((sx) => [
+      box(0.1, 0.14, 0.28, 'teamDark', [sx * 0.13, y - 0.02, -0.34]),
+      barrel(0.03, 0.26, 'steel', [sx * 0.13, y + 0.07, -0.3 + recoil]),
+      barrel(0.042, 0.03, 'steelDark', [sx * 0.13, y + 0.07, -0.53 + recoil], 8),
+      box(0.05, 0.03, 0.16, 'teamDark', [sx * 0.33, y + 0.1, 0.02]),
+    ]),
+    lightSlot(0.12, 0.025, 0.03, [0, y + 0.06, -0.47]),
+    lightSlot(0.1, 0.025, 0.03, [-0.3, y + 0.05, -0.36]),
+    lightSlot(0.1, 0.025, 0.03, [0.3, y + 0.05, -0.36]),
+  );
+  if (fire) for (const sx of [-1, 1]) g.add(plasmaFlash([sx * 0.13, y + 0.07, -0.66], 0.09));
+  if (frame === 'wreck') hoverWreck(g);
+  return facing(g, view);
+};
+
+/** Hover harvester: a shell with a wide toothed intake for a mouth and a glass dome hopper on its back. */
+const hoverHarvester: Builder = (view, frame) => {
+  const y = frame === 'move1' ? 0.1 : 0.08;
+  const { g, top } = hoverHull(0.36, 0.17, 0.44, y);
+  g.add(
+    // Intake.
+    box(0.36, 0.1, 0.14, 'teamDark', [0, y - 0.02, -0.36]),
+    box(0.4, 0.03, 0.16, 'teamLight', [0, y + 0.08, -0.36]),
+    ...[-0.12, -0.04, 0.04, 0.12].map((x) => box(0.025, 0.05, 0.03, 'steel', [x, y - 0.01, -0.44])),
+    // Hopper dome.
+    dome(0.17, 'glass', [0, top - 0.06, 0.08], 0.75, 10),
+    cyl(0.18, 0.18, 0.03, 'teamLight', [0, top - 0.07, 0.08], 10),
+    lightSlot(0.08, 0.02, 0.03, [-0.22, y + 0.05, -0.34]),
+    lightSlot(0.08, 0.02, 0.03, [0.22, y + 0.05, -0.34]),
+    ...[-1, 1].map((sx) => box(0.04, 0.03, 0.14, 'teamDark', [sx * 0.3, y + 0.09, 0.1])),
+  );
+  if (frame === 'wreck') hoverWreck(g);
+  return facing(g, view);
+};
+
+/**
+ * Hover defender: three pale ribs, like the hover race's HQ, rising round a team coloured crystal and holding up a
+ * floating oval head with a plasma gun; the head turns to face its target.
+ */
+const hoverDefender: Builder = (view, frame) => {
+  const fire = frame === 'fire';
+  const head = hoverHull(0.17, 0.11, 0.2, 0).g;
+  head.add(
+    box(0.08, 0.07, 0.1, 'teamDark', [0, -0.01, -0.16]),
+    barrel(0.024, 0.18, 'steel', [0, 0.03, -0.18 + (fire ? 0.03 : 0)]),
+    lightSlot(0.12, 0.018, 0.02, [0, 0.03, -0.19]),
+    box(0.03, 0.02, 0.22, 'teamDark', [0, 0.1, 0.02]),
+  );
+  if (fire) head.add(plasmaFlash([0, 0.03, -0.4], 0.07));
+  head.rotation.y = (-view * Math.PI) / 4;
+  head.position.y = 0.66;
+  const rib: [number, number][] = [
+    [0.3, 0],
+    [0.28, 0.2],
+    [0.2, 0.42],
+    [0.12, 0.58],
+  ];
+  const g = group(
+    slab(0.56, 0.05, 0.56, 'steelLight', [0, 0, 0], 0.95),
+    mesh(new THREE.ConeGeometry(0.16, 0.5, 4).translate(0, 0.25, 0), 'team', [0, 0.05, 0], [0, Math.PI / 4, 0]),
+    head,
+  );
+  for (let i = 0; i < 3; i++) g.add(lathe(rib, 'steelLight', [0, 0.05, 0], 4, (i * Math.PI * 2) / 3 + 0.3, 0.6));
+  return g;
+};
+
+/*
+ * The walkers' harvester and defender, in the style of their tanks: faceted plates, jointed legs, green eyes, acid.
+ */
+
+/** Walker harvester: a six-legged beetle carrying a big pale sac on its back, with a pair of mandibles to scoop. */
+const alienHarvester: Builder = (view, frame) => {
+  const g = group(
+    plate(0.19, 1.05, 0.55, 1.2, 'teamDark', [0, 0.17, -0.08]),
+    plate(0.14, 1.1, 0.6, 0.9, 'team', [0, 0.22, -0.18]),
+    plate(0.22, 1.0, 0.85, 1.1, 'teamLight', [0, 0.27, 0.18]),
+    ball(0.03, 'signal', [-0.06, 0.24, -0.3], 4),
+    ball(0.03, 'signal', [0.06, 0.24, -0.3], 4),
+    ...[-1, 1].map((sx) => {
+      const geo = new THREE.ConeGeometry(0.04, 0.22, 4);
+      geo.rotateX(-Math.PI / 2);
+      return mesh(geo, 'teamLight', [sx * 0.07, 0.13, -0.38], [0, -sx * 0.45, 0]);
+    }),
+    ...legs(3, -0.16, 0.22, 0.14, 0.17, 0.22, 0.022, frame),
+  );
+  if (frame === 'wreck') alienWreck(g);
+  return facing(g, view);
+};
+
+/** Walker defender: a thorny stalk on spreading roots, topped by a bulb with a green eye and an acid spike. */
+const alienDefender: Builder = (view, frame) => {
+  const fire = frame === 'fire';
+  const spike = new THREE.ConeGeometry(0.035, 0.24, 4);
+  spike.rotateX(-Math.PI / 2);
+  const head = group(
+    plate(0.16, 1, 0.8, 1.15, 'team', [0, 0, 0]),
+    plate(0.09, 1.1, 0.6, 1, 'teamLight', [0, 0.06, 0.05]),
+    ball(0.045, 'signal', [0, 0.03, -0.15], 6),
+    mesh(spike, 'teamLight', [0, -0.04, -0.2 + (fire ? 0.03 : 0)]),
+  );
+  if (fire) head.add(acidFlash([0, -0.04, -0.38], 0.08));
+  head.rotation.y = (-view * Math.PI) / 4;
+  head.position.y = 0.66;
+  const g = group(
+    lathe(
+      [
+        [0.24, 0],
+        [0.14, 0.06],
+        [0.08, 0.2],
+        [0.06, 0.58],
+        [0, 0.58],
+      ],
+      'teamDark',
+      [0, 0, 0],
+      6,
+    ),
+    head,
+  );
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + 0.4;
+    g.add(limb([Math.cos(a) * 0.08, 0.12, Math.sin(a) * 0.08], [Math.cos(a) * 0.32, 0, Math.sin(a) * 0.32], 0.035, 'teamDark'));
+    const thorn = new THREE.ConeGeometry(0.025, 0.12, 4);
+    thorn.rotateZ(-Math.PI / 2);
+    g.add(mesh(thorn, 'teamLight', [Math.cos(a) * 0.1, 0.25 + i * 0.07, Math.sin(a) * 0.1], [0, -a, 0.3]));
+  }
+  return g;
 };
 
 /*
@@ -888,6 +1096,12 @@ export const MODELS: Record<string, Builder> = {
   alien_light_tank: alienLightTank,
   alien_middle_tank: alienMiddleTank,
   alien_heavy_tank: alienHeavyTank,
+  alien_harvester: alienHarvester,
+  alien_defender: alienDefender,
+  hover_light_tank: hoverLightTank,
+  hover_heavy_tank: hoverHeavyTank,
+  hover_harvester: hoverHarvester,
+  hover_defender: hoverDefender,
   defender,
   hq,
   enemy_hq: enemyHq,

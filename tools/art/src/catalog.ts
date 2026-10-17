@@ -39,7 +39,14 @@ export const SPRITES: readonly SpriteDef[] = [
   { name: 'middle_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
   { name: 'heavy_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
   { name: 'hover_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
-  // The enemy's own light, middle and heavy tanks: alien walkers in the hover tank's style.
+  // The hover race (the original's enemy): hover_tank is its middle tank.
+  { name: 'hover_light_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
+  { name: 'hover_heavy_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
+  { name: 'hover_harvester', cells: 1, views: 8, frames: ['move0', 'move1', 'wreck'], teamed: true },
+  { name: 'hover_defender', cells: 1, views: 8, frames: ['idle', 'fire'], teamed: true },
+  // The walkers: a possible third race.
+  { name: 'alien_harvester', cells: 1, views: 8, frames: ['move0', 'move1', 'wreck'], teamed: true },
+  { name: 'alien_defender', cells: 1, views: 8, frames: ['idle', 'fire'], teamed: true },
   { name: 'alien_light_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
   { name: 'alien_middle_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
   { name: 'alien_heavy_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },

@@ -18,7 +18,7 @@ pnpm sprites:check                 # CI: fail if assets/sprites is stale
 3. **Pixels** (`src/pixel.ts`, pure and unit-tested): each 8x8 block becomes one art pixel by majority; the light
    picks a step in the material's colour ramp (`src/palette.ts`, 32 colours for objects and
    10 for the ground); surfaces that pass behind a nearer
-   one get an inner line two steps darker; a 1 px outline goes round the silhouette and the floor shadow becomes a
+   one get an inner line two steps darker; a 2 px outline, two ramp steps darker than the body it touches, goes round the silhouette and the floor shadow becomes a
    38% dark overlay.
 4. **Teams**: `team` surfaces are recoloured per team (player olive and enemy cyan as in the original, player 2
    red)
@@ -39,9 +39,15 @@ muzzle flash), `wreck`.
 Every frame carries an `anchor` at the centre of its footprint, so a sprite placed at a cell centre (units, walls,
 defender) or at the centre of its 2x2 cells (buildings) lines up with the map. Art scale is 32 px per cell.
 
-Alien walkers, `alien_light_tank` (tripod), `alien_middle_tank` (six-legged beetle with a coiled horn) and
-`alien_heavy_tank` (eight-legged shell with prongs), have the same frames as the other tanks. They stand in for the
-enemy's light, middle and heavy tanks for now and may become a third race.
+Three families of machines share the frame layout of the tanks:
+- the player's: `harvester`, `light_tank`, `middle_tank`, `heavy_tank`, `defender`; fire flashes orange;
+- the hover race (the original's enemy): `hover_harvester`, `hover_light_tank`, `hover_tank` (its middle tank),
+  `hover_heavy_tank`, `hover_defender`; cyan plasma bolts;
+- the walkers (a possible third race): `alien_harvester`, `alien_light_tank`, `alien_middle_tank`,
+  `alien_heavy_tank`, `alien_defender`; green acid.
+
+Every object gets a 2 px outline two ramp steps darker than the body next to it (black around the darkest colours);
+`pnpm sprites --outline 0 --out <dir>` renders without it, as the sprite studio wants.
 
 Fir trees are `fir/idle/0..3`, four variants (young, wide and dark, slim and light, old and tall) with no team or
 direction; the game scatters one or two per forest cell with a little jitter.

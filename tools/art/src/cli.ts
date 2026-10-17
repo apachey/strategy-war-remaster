@@ -8,15 +8,16 @@ import { pack, type Frame } from './atlas';
 import { CAMERA_ELEVATION_DEG, DIRECTION_NAMES, frameLayout, PX_PER_CELL, SPRITES, SUPERSAMPLE, type SpriteDef } from './catalog';
 import type { RawRender } from './browser/render';
 import { PALETTE, TEAMS, type Team } from './palette';
-import { colorize, flipRows, reduce, type Reduced } from './pixel';
+import { colorize, flipRows, OUTLINE_WIDTH, reduce, type Reduced } from './pixel';
 import { forestTiles, sand, SAND_CELLS } from './terrain';
 
 /**
- * pnpm sprites [--only name,name] [--out dir] [--preview file.png] [--check]
+ * pnpm sprites [--only name,name] [--out dir] [--preview file.png] [--outline px] [--check]
  *
  * Renders every model in the catalog in headless Chromium, turns the renders into palette pixel art for each team
  * and writes assets/sprites/sprites.png + sprites.json (a PixiJS spritesheet) and a preview sheet. It also paints
  * the ground (src/terrain.ts) into assets/sprites/terrain.png + terrain.json.
+ * --outline sets the outline width (default 2, 0 for none, as the sprite studio wants its frames).
  * --check writes nothing and fails if the committed sprites differ from what the models produce now.
  */
 
@@ -30,6 +31,7 @@ function arg(name: string): string | undefined {
 
 const only = arg('only')?.split(',');
 const check = process.argv.includes('--check');
+const outline = Number(arg('outline') ?? OUTLINE_WIDTH);
 const outDir = resolve(repo, arg('out') ?? 'assets/sprites');
 const previewPath = resolve(repo, arg('preview') ?? 'docs/art/sprites-preview.png');
 
@@ -105,7 +107,7 @@ async function main(): Promise<void> {
     const teams: (Team | null)[] = def.teamed ? (Object.keys(TEAMS) as Team[]) : [null];
     for (const team of teams) {
       const name = frameName(def, team, frame, view);
-      frames.push({ name, w: r.w, h: r.h, ax, ay, rgba: colorize(r, team ?? 'player') });
+      frames.push({ name, w: r.w, h: r.h, ax, ay, rgba: colorize(r, team ?? 'player', outline) });
       const anim = frameName(def, team, animationOf(frame), view);
       (animations[anim] ??= []).push(name);
     }
@@ -198,7 +200,7 @@ function writePreview(path: string, items: { def: SpriteDef; frame: string; view
   rows.forEach((row, ri) => {
     let x = gap;
     for (const { r, team } of row) {
-      const rgba = colorize(r, team);
+      const rgba = colorize(r, team, outline);
       const top = y + rowH[ri]! - r.h;
       for (let py = 0; py < r.h; py++) {
         for (let px = 0; px < r.w; px++) {

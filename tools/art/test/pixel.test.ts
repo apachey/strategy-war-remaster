@@ -44,12 +44,23 @@ describe('reduce', () => {
 });
 
 describe('colorize', () => {
-  it('uses only palette colours and outlines the object', () => {
+  it('uses only palette colours and draws a 2 px outline darker than the body', () => {
     const rgba = colorize(sample(), 'enemy');
     const allowed = new Set(PALETTE.map((c) => c.join()));
     for (let i = 0; i < rgba.length; i += 4) if (rgba[i + 3]) expect(allowed.has([rgba[i], rgba[i + 1], rgba[i + 2]].join())).toBe(true);
-    // Pixel (0,1) touches the object, so it is outline; corner (0,0) only touches diagonally and stays empty.
-    expect([...rgba.subarray(4 * 4, 4 * 4 + 4)]).toEqual([...ramp('outline')[0]!, 255]);
+    const cyan = ramp('cyan').map((c) => c.join());
+    const body = cyan.indexOf([...rgba.subarray(5 * 4, 5 * 4 + 3)].join());
+    // Pixel (0,1) touches the object: first ring, two steps darker than the body (black under the darkest step).
+    const first = [...rgba.subarray(4 * 4, 4 * 4 + 3)].join();
+    expect(first).toBe(body >= 2 ? cyan[body - 2] : ramp('outline')[0]!.join());
+    expect(rgba[4 * 4 + 3]).toBe(255);
+    // Corner (0,0) touches the first ring diagonally: second ring, the same colour.
+    expect([...rgba.subarray(0, 3)].join()).toBe(first);
+  });
+
+  it('can leave the outline off', () => {
+    const rgba = colorize(sample(), 'enemy', 0);
+    expect(rgba[4 * 4 + 3]).toBe(0);
     expect(rgba[3]).toBe(0);
   });
 
