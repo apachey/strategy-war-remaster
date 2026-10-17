@@ -49,8 +49,8 @@ export function plasmaFlash(pos: Vec3, size: number): THREE.Group {
 
 /** The walkers' two shots: a small sharp bullet for the light guns and a thicker shell for the cannon. */
 export const THORNS = {
-  gun: { len: 0.26, r: 0.05, drops: [0.034, 0.026] },
-  cannon: { len: 0.3, r: 0.068, drops: [0.042, 0.034, 0.026] },
+  gun: { len: 0.26, r: 0.05, drops: [0.044, 0.034] },
+  cannon: { len: 0.3, r: 0.068, drops: [0.052, 0.042, 0.034] },
 } as const;
 
 /**
@@ -63,13 +63,13 @@ export function thornShot(pos: Vec3, kind: keyof typeof THORNS, muzzle = false):
   const thorn = new THREE.ConeGeometry(r, len, 6);
   thorn.rotateX(-Math.PI / 2);
   const g = group(mesh(thorn, 'thorn', [pos[0], pos[1], pos[2] - len / 2]));
-  // Drops: no outline of their own, so a pixel of sand shows between them.
+  // Drops: a fine outline of their own, spaced so a pixel of sand shows between them.
   const mats = ['dropHot', 'drop', 'dropCool'] as const;
-  let z = pos[2] + 0.04;
+  let z = pos[2] + 0.05;
   drops.forEach((d, k) => {
     z += d;
     g.add(ball(d, mats[k]!, [pos[0] + (k % 2 ? 0.012 : -0.008), pos[1] - k * 0.006, z], 5));
-    z += d + 0.045;
+    z += d + 0.06;
   });
   noShadow(g);
   if (muzzle) g.userData.onTop = true;

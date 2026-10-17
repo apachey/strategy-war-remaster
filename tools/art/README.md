@@ -66,7 +66,7 @@ Each race (`human`, `hover`, `walker`) has the same roster, `<race>_<kind>`: `ha
 
 Every object gets a 2 px outline two ramp steps darker than the body next to it (black around the darkest colours);
 `pnpm sprites --outline 0 --out <dir>` renders without it, as the sprite studio wants. Materials marked `thin`
-(the thorns) get a 1 px outline so their points stay sharp, and `bare` ones (the drops of acid) none at all.
+(the drops of acid) get a 1 px outline, so each drop stays a drop instead of merging into a lump.
 
 Neutral: `resource` (low crystals breaking through the ground, flat enough for a harvester to stand on: frame `idle`
 on sand, `forest` through forest soil, `plates` through the hovers' cracked plates; pick by the ground under the
