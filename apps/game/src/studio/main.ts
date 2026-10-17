@@ -5,6 +5,7 @@ import { loadFonts } from '../ui/font';
 import { applySkin, skin } from '../ui/skin';
 import { CURSOR_KINDS, cursorImage, SCROLL_DIRS } from '../ui/cursors';
 import { flagHtml } from '../ui/flags';
+import { battleScene, outcomeScene, portrait } from '../ui/scene3d';
 
 const root = document.getElementById('studio')!;
 
@@ -32,6 +33,16 @@ async function main(): Promise<void> {
     const [r, c, c2] = el.dataset.skin!.split('/') as [never, TeamColor, TeamColor];
     applySkin(el, skin(r, c, c2));
   });
+  const kinds = ['harvester', 'light_tank', 'middle_tank', 'heavy_tank', 'defender', 'hq', 'silo', 'factory', 'wall'];
+  let ph = '<section><h2>Портрети</h2>';
+  for (const race of RACES) ph += `<div>${kinds.map((k) => `<img class="portrait" src="${portrait({ race, color: 'red', color2: 'white' }, k)}">`).join('')}</div>`;
+  ph += '</section><section><h2>Сцени</h2><canvas class="scene" id="sc1"></canvas><canvas class="scene" id="sc2"></canvas><canvas class="scene" id="sc3"></canvas></section>';
+  root.insertAdjacentHTML('beforeend', ph);
+  const own = { race: 'walker', color: 'blue', color2: 'white' } as const;
+  const foe = { race: 'hover', color: 'red', color2: 'white' } as const;
+  await outcomeScene(document.getElementById('sc1') as HTMLCanvasElement, { won: true, own, foe, ground: 'sand', forest: true });
+  await outcomeScene(document.getElementById('sc2') as HTMLCanvasElement, { won: false, own, foe, ground: 'sand', forest: true });
+  await battleScene(document.getElementById('sc3') as HTMLCanvasElement, { race: 'human', color: 'white', color2: 'olive' }, foe);
   document.body.dataset.ready = 'true';
 }
 void main();
