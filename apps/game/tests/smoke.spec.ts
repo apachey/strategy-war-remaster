@@ -170,3 +170,33 @@ test('losing the HQ shows the defeat screen with a retry', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Ще раз' })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('settings show the version, and the volumes are remembered', async ({ page }) => {
+  const errors = await open(page, '?m=1.1');
+  await page.getByRole('button', { name: 'Почати' }).click();
+  await page.getByRole('button', { name: 'Налаштування' }).click();
+  await expect(page.locator('#modal')).toContainText('Версія 1.0.0');
+  await expect(page.locator('#modal')).toContainText('Jiří Mikula');
+  await page.getByRole('slider', { name: 'Музика' }).fill('20');
+  await expect(page.locator('#modal output').first()).toHaveText('20%');
+  await page.screenshot({ path: 'test-results/settings.png' });
+  await page.getByRole('button', { name: 'Закрити' }).click();
+  await page.reload();
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sw.settings')!).music)).toBe(0.2);
+  expect(errors).toEqual([]);
+});
+
+test('the minimap shows the map and moves the camera', async ({ page }) => {
+  // Map 7 is taller than the window, so the camera can move up and down.
+  const errors = await open(page, '?m=7.1');
+  await page.getByRole('button', { name: 'Почати' }).click();
+  const box = (await page.locator('#minimap').boundingBox())!;
+  const camY = () => page.evaluate(() => (window as unknown as { __sw: Hook }).__sw.camera.y);
+  await page.mouse.click(box.x + box.width / 2, box.y + 3);
+  const top = await camY();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height - 3);
+  await expect.poll(camY).toBeLessThan(top);
+  await page.screenshot({ path: 'test-results/minimap.png' });
+  expect(errors).toEqual([]);
+});

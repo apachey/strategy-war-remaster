@@ -36,7 +36,7 @@ jobs:
           if-no-files-found: ignore
 
   mac:
-    name: macOS app (Apple Silicon)
+    name: macOS app (Apple Silicon and Intel)
     needs: check
     runs-on: macos-14
     steps:
@@ -47,14 +47,52 @@ jobs:
           node-version: 22
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: apps/desktop/src-tauri
       - run: pnpm install --frozen-lockfile
-      - run: pnpm desktop:build --ci
+      # One universal app, so friends with an Intel Mac can play too.
+      - run: pnpm desktop:build --ci --target universal-apple-darwin
       - name: Upload .dmg
         uses: actions/upload-artifact@v4
         with:
-          name: StrategyWarRemaster-macOS-arm64
-          path: apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg
+          name: StrategyWarRemaster-macOS
+          path: apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: error
+
+  release:
+    name: Release for friends
+    # Every version in apps/desktop/package.json that reaches main becomes a release with the .dmg and the
+    # installation guide; pushes that keep the version change nothing.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: mac
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version
+        id: version
+        run: echo "tag=v$(jq -r .version apps/desktop/package.json)" >> "$GITHUB_OUTPUT"
+      - name: Already released?
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.version.outputs.tag }}" > /dev/null 2>&1; then echo "yes=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/download-artifact@v4
+        if: steps.exists.outputs.yes != 'true'
+        with:
+          name: StrategyWarRemaster-macOS
+          path: dmg
+      - name: Publish
+        if: steps.exists.outputs.yes != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          cp dmg/*.dmg "StrategyWarRemaster-${tag#v}.dmg"
+          gh release create "$tag" "StrategyWarRemaster-${tag#v}.dmg" \
+            --target "$GITHUB_SHA" --title "Strategy War Remaster ${tag#v}" --notes-file docs/INSTALL.md

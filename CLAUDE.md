@@ -9,7 +9,11 @@ commit messages are in English.
 - `apps/game` — the game: Vite + TypeScript + PixiJS 8. `?m=6.2` opens map 6, mission 2;
   `?s=4&vs=hard` a skirmish on map 4 (`vs=human` splits the screen for two players, player 2 on a gamepad);
   `&r=walker,hover&c=blue,red&c2=white,black` sets the two sides' races, team colours and secondary colours.
-- `apps/desktop` — Tauri 2 shell that packages `apps/game/dist` as a macOS app and .dmg.
+  The game draws the style B atlases (`src/assets.ts` recolours them per side, `src/render.ts`), plays the music and
+  sound effects (`src/audio.ts`, `src/soundscape.ts`) and has a minimap (`src/minimap.ts`).
+- `apps/desktop` — Tauri 2 shell that packages `apps/game/dist` as a universal macOS app and .dmg (Apple Silicon and
+  Intel). Its `package.json` version is the game's version: a new version reaching `main` becomes a GitHub release
+  with the .dmg and `docs/INSTALL.md` (the friends' install guide, UA and EN) as notes.
 - `packages/sim` — deterministic simulation with no rendering. Fixed 20 ticks/s, seeded RNG, never `Math.random`
   or wall-clock time inside the sim, so replays, AI tests and later online play stay in lockstep.
   `src/rules.ts` holds the original's numbers (speeds, damage, build times) read from the decompiled code;
