@@ -101,12 +101,30 @@ export function renderSprite(name: string, view: number, frame: string): RawRend
   model.traverse((o) => {
     if (o instanceof THREE.Mesh) meshes.push(o);
   });
+  // Meshes marked `onTop` (the walkers' shots leaving the muzzle) are drawn after everything else over a cleared
+  // depth buffer, so the unit never hides them, while they still hide each other properly.
+  const top = new Set<THREE.Object3D>();
+  model.traverse((o) => {
+    if (o.userData.onTop) o.traverse((c) => top.add(c));
+  });
 
   const draw = (): Uint8Array => {
     const rgba = new Uint8Array(W * H * 4);
     renderer.setRenderTarget(target);
     renderer.clear();
+    for (const m of meshes) m.visible = !top.has(m);
     renderer.render(scene, cam);
+    if (top.size) {
+      const groundShown = ground.visible;
+      for (const m of meshes) m.visible = top.has(m);
+      ground.visible = false;
+      renderer.autoClear = false;
+      renderer.clearDepth();
+      renderer.render(scene, cam);
+      renderer.autoClear = true;
+      ground.visible = groundShown;
+      for (const m of meshes) m.visible = true;
+    }
     renderer.readRenderTargetPixels(target, 0, 0, W, H, rgba);
     renderer.setRenderTarget(null);
     return rgba;

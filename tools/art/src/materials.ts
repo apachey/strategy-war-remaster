@@ -5,14 +5,12 @@ import type { RampName } from './palette';
  * another; the pixel step turns (material, light) into a palette colour. Ids start at 1; 0 means empty.
  */
 export interface MaterialDef {
-  /** 'team' and 'team2' are the side's main and secondary colours, 'team3' and 'team4' light in them (palette.ts). */
-  ramp: RampName | 'team' | 'team2' | 'team3' | 'team4';
+  /** 'team' and 'team2' are the side's main and secondary colours, 'team3' light in the secondary (palette.ts). */
+  ramp: RampName | 'team' | 'team2' | 'team3';
   /** Moves the light level up or down the ramp (in steps), to tell apart surfaces that share a ramp. */
   shift?: number;
   /** Ignores lighting and always uses the brightest step (lamps, muzzle flash), or one `shift` below it. */
   emissive?: boolean;
-  /** Glowing light: no dark outline, a soft halo of its own colour instead (the walkers' eyes and spit). */
-  glow?: boolean;
 }
 
 export const MATERIALS = {
@@ -40,15 +38,14 @@ export const MATERIALS = {
   flash: { ramp: 'fire', emissive: true },
   // Orange of the humans' shots, lit, so it shades from orange into pale yellow.
   ember: { ramp: 'fire' },
-  // The walkers' acid in the secondary colour's light: wet, a lighter tip, and a glow for charged muzzles and seams.
-  bile: { ramp: 'team4' },
-  bileLight: { ramp: 'team4', shift: 1 },
-  bileGlow: { ramp: 'team4', emissive: true, shift: -1, glow: true },
-  spitCore: { ramp: 'team4', emissive: true, glow: true },
-  // The walkers' eyes, glowing neon in the main colour round a pale core, set in dark sockets.
-  eye: { ramp: 'team3', emissive: true, shift: -1 },
-  eyeCore: { ramp: 'team3', emissive: true, glow: true },
-  socket: { ramp: 'steel', shift: -3 },
+  // The walkers' acid, always the same toxic green whatever the side's colours: wet, a lighter tip, and a glow for
+  // muzzles and seams.
+  bile: { ramp: 'acid' },
+  bileLight: { ramp: 'acid', shift: 1 },
+  bileGlow: { ramp: 'acid', emissive: true },
+  // The walkers' eyes, glowing neon in the secondary colour, and their white-hot core.
+  eye: { ramp: 'team3', emissive: true },
+  glowCore: { ramp: 'steel', emissive: true },
   // Ground heaped or broken round the crystals of a resource field: sand, forest soil and the hovers' plates.
   sand: { ramp: 'sand', shift: 1 },
   soil: { ramp: 'soil' },

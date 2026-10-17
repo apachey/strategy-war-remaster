@@ -22,20 +22,19 @@ pnpm sprites:check                 # CI: fail if assets/sprites is stale
    38% dark overlay.
 4. **Team colours**: a side wears a main and a secondary colour, any of the 24 `TEAM_COLORS` in `@sw/data` (8 hues
    × dark, base, light). `team` surfaces are drawn once in olive, `team2` (secondary) in the red `accent` ramp, and
-   two kinds of light in the side's colours: `team3` (the walkers' eyes, drawn in the magenta `glow` ramp) and
-   `team4` (the walkers' spit, muzzles and acid, drawn in `bile`). `recolor` (and the game, when it loads the atlas)
-   swaps the four ramps for the side's colours, `glowRamp(main)` and `glowRamp(spitColor(main, secondary))`; the atlas meta lists the drawn ramps
-   (`teamRamp`, `secondRamp`, `glowRamp`, `glow2Ramp`) and `teamColors`. Nothing else in the palette uses those
-   twenty colours. Which parts wear which colour:
+   `team3`, light in the secondary (the walkers' eyes), in the magenta `glow` ramp. `recolor` (and the game, when
+   it loads the atlas) swaps the three ramps for the side's two colours and `glowRamp(secondary)`; the atlas meta
+   lists the drawn ramps (`teamRamp`, `secondRamp`, `glowRamp`) and `teamColors`. Nothing else in the palette uses
+   those fifteen colours. Which parts wear which colour:
    - humans: hulls, cabs and building shells in the main colour; tracks, tyres, glass, bands and fittings in the
      secondary; small fittings (turret rings, grilles, hatches, vents, gun sleeves), wheel hubs, the harvester's
      cutter, guns, platforms, the silo's and factory's thin rings and masts and the factory's big dark blocks stay
      grey, so a side in two equal colours still has some contrast; cyan lights stay cyan;
    - hovers: shells and vaults in the main colour, everything else that is not grey (grooves, plates, crystals) in
      the secondary; cyan lights stay cyan;
-   - walkers: carapace in the main colour and sacs and plates in the secondary, eyes glowing neon in the main colour
-     and spit glowing neon in the secondary (`spitColor`: the main colour if the secondary is a grey), each round
-     a pale core of its own hue.
+   - walkers: carapace and their thorn shots in the main colour, sacs and plates in the secondary, eyes glowing
+     neon in the secondary round a white-hot core; muzzles, the thorns' trails and all acid stay toxic green
+     (`acid` ramp) whatever the colours.
    Human and hover shots keep their race's own colours (yellow-orange gauss, cyan plasma).
 5. **Atlas** (`src/atlas.ts`): frames are trimmed and shelf-packed into `assets/sprites/sprites.png` with a
    PixiJS spritesheet `sprites.json`.
@@ -61,15 +60,11 @@ Each race (`human`, `hover`, `walker`) has the same roster, `<race>_<kind>`: `ha
   orange rings;
 - hovers (the original's enemy): floating oval shells, monolithic pale vaults on four legs with team crystals
   inside, round domed rotundas for the silo and a smooth capsule hangar for the factory; cyan plasma;
-- walkers: jointed many-legged creatures, hive mounds, sacs and a clawed womb; thorns of acid
-  spit glowing in the side's colour.
+- walkers: jointed many-legged creatures, hive mounds, sacs and a clawed womb; they shoot thorns trailing green
+  acid, drawn over the unit as they leave the muzzle (`onTop`).
 
 Every object gets a 2 px outline two ramp steps darker than the body next to it (black around the darkest colours);
-`pnpm sprites --outline 0 --out <dir>` renders without it, as the sprite studio wants. Glowing materials (`glow`:
-the walkers' spit and the cores of their eyes) get no outline but a 2 px halo of their own colour fading out
-(`HALO_ALPHA`). Their light shows the neon step of `glowRamp` with a pale core of the same hue on top, never white
-(the greys aside); eyes sit in dark sockets so they read on any carapace, and the spit takes `spitColor`, the main
-colour's light when the secondary is a grey.
+`pnpm sprites --outline 0 --out <dir>` renders without it, as the sprite studio wants.
 
 Neutral: `resource` (low crystals breaking through the ground, flat enough for a harvester to stand on: frame `idle`
 on sand, `forest` through forest soil, `plates` through the hovers' cracked plates; pick by the ground under the

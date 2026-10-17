@@ -48,24 +48,26 @@ export function plasmaFlash(pos: Vec3, size: number): THREE.Group {
 }
 
 /**
- * Shot of the walkers: a thorn of acid glowing neon in the spit colour (`spitColor`) round a pale core of the same
- * hue, pointing the way it flies (-z), with a dimmer streak trailing behind.
+ * Shot of the walkers: a cone of chitin in the side's main colour, a thorn pointing the way it flies (-z), trailing a
+ * short streak of acid that is always green. At a muzzle (`muzzle`) it is drawn over the unit, so the body never
+ * hides it.
  */
-export function spitFlash(pos: Vec3, size: number): THREE.Group {
-  const thorn = new THREE.OctahedronGeometry(size * 0.62, 0);
-  thorn.scale(0.72, 0.72, 2.3);
-  thorn.translate(0, 0, -size * 0.25);
-  const core = new THREE.OctahedronGeometry(size * 0.62, 0);
-  core.scale(0.5, 0.5, 1.5);
-  const streak = new THREE.ConeGeometry(size * 0.28, size * 1.5, 4);
-  streak.rotateX(Math.PI / 2);
-  return noShadow(
+export function thornShot(pos: Vec3, size: number, muzzle = false): THREE.Group {
+  const thorn = new THREE.ConeGeometry(size * 0.34, size * 2.2, 6);
+  thorn.rotateX(-Math.PI / 2);
+  const butt = new THREE.ConeGeometry(size * 0.34, size * 0.5, 6);
+  butt.rotateX(Math.PI / 2);
+  const trail = new THREE.ConeGeometry(size * 0.26, size * 1.5, 5);
+  trail.rotateX(Math.PI / 2);
+  const g = noShadow(
     group(
-      mesh(thorn, 'bileGlow', pos),
-      mesh(core, 'spitCore', [pos[0], pos[1] + size * 0.24, pos[2] - size * 0.2]),
-      mesh(streak, 'bileGlow', [pos[0], pos[1], pos[2] + size * 1.4]),
+      mesh(thorn, 'team', [pos[0], pos[1], pos[2] - size * 0.6]),
+      mesh(butt, 'teamDark', [pos[0], pos[1], pos[2] + size * 0.75]),
+      mesh(trail, 'bileGlow', [pos[0], pos[1], pos[2] + size * 1.6]),
     ),
   );
+  if (muzzle) g.userData.onTop = true;
+  return g;
 }
 
 /** Slot of cyan light set into a surface. */

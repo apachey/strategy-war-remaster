@@ -1,20 +1,19 @@
 import * as THREE from 'three';
 import { ball, cyl, dome, group, lathe, mesh, type Vec3 } from '../kit';
-import { facing, limb, plate, slump, spitFlash, WALL_ARMS, type Builder } from './parts';
+import { facing, limb, plate, slump, thornShot, WALL_ARMS, type Builder } from './parts';
 
 /**
  * The walkers: jointed many-legged creatures of the open sand. Faceted carapace plates in the team colour on thin
- * dark legs, eyes glowing neon in the main colour, and muzzles glowing in the secondary that spit thorns of
- * acid. Their buildings are grown, not built: hive mounds held in arching spines, sacs on roots, a clawed womb.
+ * dark legs, eyes glowing neon in the secondary colour, and muzzles of green acid that shoot thorns in the main
+ * colour. Their buildings are grown, not built: hive mounds held in arching spines, sacs on roots, a clawed womb.
  */
 
 /**
- * Eye glowing in the side's main colour as neon round a pale core, set in a dark socket so it stands out from a
- * carapace of any colour, the main colour included. `out` is the way the eye looks.
+ * Eye glowing in the side's secondary colour as neon: a white-hot core showing at the top of a ball of saturated
+ * light, so it reads as light in any colour.
  */
-function eye(r: number, pos: Vec3, out: Vec3 = [0, 0, -1]): THREE.Group {
-  const at = (k: number, up = 0): Vec3 => [pos[0] + out[0] * r * k, pos[1] + out[1] * r * k + up * r, pos[2] + out[2] * r * k];
-  const g = group(ball(r * 1.75, 'socket', at(-1.1), 6), ball(r * 1.35, 'eye', pos, 6), ball(r * 0.7, 'eyeCore', at(0.8, 0.35), 4));
+function eye(r: number, pos: Vec3): THREE.Group {
+  const g = group(ball(r * 1.1, 'eye', pos, 6), ball(r * 0.55, 'glowCore', [pos[0], pos[1] + r * 0.55, pos[2] + r * 0.2], 4));
   g.traverse((o) => (o.castShadow = false));
   return g;
 }
@@ -47,8 +46,8 @@ function fang(r: number, len: number, pos: Vec3, rot: Vec3 = [0, 0, 0]): THREE.M
 }
 
 /**
- * Walker light tank: a skittering tripod. A small arrowhead body on three thin legs, one big green eye in front and
- * a single spike under the chin that spits acid.
+ * Walker light tank: a skittering tripod. A small arrowhead body on three thin legs, one big eye in front and
+ * a single spike under the chin that shoots thorns.
  */
 const lightTank: Builder = (view, frame) => {
   const fire = frame === 'fire';
@@ -70,14 +69,14 @@ const lightTank: Builder = (view, frame) => {
     fang(0.03, 0.3, [0, 0.2, -0.3 + (fire ? 0.04 : 0)]),
     ball(0.03, 'bileGlow', [0, 0.2, -0.45], 4),
   );
-  if (fire) g.add(spitFlash([0, 0.2, -0.54], 0.08));
+  if (fire) g.add(thornShot([0, 0.2, -0.6], 0.08, true));
   if (frame === 'wreck') slump(g, -0.04, 0.15);
   return facing(g, view);
 };
 
 /**
  * Walker middle tank: a beetle. A segmented carapace on six legs, and on its back a coiled horn whose green tip
- * spits a gob of acid.
+ * shoots a thorn.
  */
 const middleTank: Builder = (view, frame) => {
   const fire = frame === 'fire';
@@ -99,14 +98,14 @@ const middleTank: Builder = (view, frame) => {
     g.add(ball(0.05 - k * 0.025, i % 2 ? 'team2Light' : 'team', [Math.cos(a) * r * 0.6, 0.32 + k * 0.2, 0.12 - k * 0.32 + Math.sin(a) * r], 4));
   }
   g.add(ball(fire ? 0.06 : 0.045, fire ? 'bileGlow' : 'bileLight', [0, 0.53, -0.22], 6));
-  if (fire) g.add(spitFlash([0, 0.5, -0.38], 0.09));
+  if (fire) g.add(thornShot([0, 0.5, -0.46], 0.09, true));
   if (frame === 'wreck') slump(g, -0.04, 0.15);
   return facing(g, view);
 };
 
 /**
  * Walker heavy tank: a crawling fortress. A broad faceted shell with glowing green seams, carried low on eight stubby
- * legs, a mouth of mandibles in front and two long green prongs with a gob of acid swelling between them.
+ * legs, a mouth of mandibles in front and two long green prongs with a thorn shooting from between them.
  */
 const heavyTank: Builder = (view, frame) => {
   const fire = frame === 'fire';
@@ -129,7 +128,7 @@ const heavyTank: Builder = (view, frame) => {
     ball(fire ? 0.09 : 0.06, fire ? 'bileGlow' : 'bileLight', [0, 0.24, -0.55], 6),
     ...legs(4, -0.22, 0.3, 0.24, 0.13, 0.16, 0.03, frame),
   );
-  if (fire) g.add(spitFlash([0, 0.24, -0.68], 0.11));
+  if (fire) g.add(thornShot([0, 0.24, -0.76], 0.1, true));
   if (frame === 'wreck') slump(g, -0.04, 0.15);
   return facing(g, view);
 };
@@ -176,7 +175,7 @@ const defender: Builder = (view, frame) => {
     eye(0.045, [0, 0.03, -0.15]),
     fang(0.035, 0.24, [0, -0.04, -0.2 + (fire ? 0.03 : 0)]),
   );
-  if (fire) head.add(spitFlash([0, -0.04, -0.38], 0.08));
+  if (fire) head.add(thornShot([0, -0.04, -0.46], 0.08, true));
   head.rotation.y = (-view * Math.PI) / 4;
   head.position.y = 0.66;
   const g = group(stalk(0.58), head);
@@ -224,9 +223,9 @@ function spine(a: number, r0: number, r1: number, h: number, r: number): THREE.M
   return out;
 }
 
-/** Spit in flight: a lumpy gob of acid with drops behind it, bigger for the cannon. */
+/** Thorn in flight with its trail of acid, bigger for the cannon. */
 const shot: Builder = (view, frame) => {
-  const g = group(spitFlash([0, 0.32, 0], frame === 'cannon' ? 0.1 : 0.065));
+  const g = group(thornShot([0, 0.32, 0], frame === 'cannon' ? 0.1 : 0.07));
   g.traverse((o) => (o.castShadow = true));
   return facing(g, view);
 };
@@ -245,7 +244,7 @@ const hq: Builder = (_view, frame) => {
     // Maw.
     plate(0.2, 1.4, 1, 0.6, 'teamDark', [0, 0.3, 0.6]),
     plate(k % 2 ? 0.12 : 0.15, 1.4, 0.9, 0.5, 'bileGlow', [0, 0.3, 0.66]),
-    ...[-0.12, 0, 0.12].map((x, i) => (k === i + 1 ? ball(0.04, 'teamDark', [x, 0.52 + (x ? 0 : 0.04), 0.6], 4) : eye(0.04, [x, 0.52 + (x ? 0 : 0.04), 0.6], [0, 0, 1]))),
+    ...[-0.12, 0, 0.12].map((x, i) => (k === i + 1 ? ball(0.04, 'teamDark', [x, 0.52 + (x ? 0 : 0.04), 0.6], 4) : eye(0.04, [x, 0.52 + (x ? 0 : 0.04), 0.6]))),
   );
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
@@ -275,7 +274,7 @@ const silo: Builder = () => {
   ] as const) {
     g.add(plate(r, 1, 1.15, 1, 'team2Light', [x, r * 1.05, z]), plate(r * 0.8, 1.05, 0.6, 1.05, 'team', [x, r * 0.4, z]));
     g.add(...[0.6, 2.2, 3.8].map((a) => plate(r * 0.22, 0.6, 1.4, 0.6, 'crystal', [x + Math.cos(a) * r * 0.8, r * 1.2, z + Math.sin(a) * r * 0.8])));
-    g.add(eye(r * 0.15, [x, r * 2.1, z], [0, 1, 0]));
+    g.add(eye(r * 0.15, [x, r * 2.1, z]));
   }
   for (let i = 0; i < 6; i++) g.add(root((i / 6) * Math.PI * 2, 0.4, 0.95, 0.12, 0.04));
   // Funnel mouth.

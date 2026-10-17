@@ -22,11 +22,10 @@ export const RAMPS = {
   concrete: ['#4d4a3c', '#7a7660', '#a8a388', '#d4cfb2'],
   fire: ['#ff8a1c', '#ffffcc'],
   signal: ['#006633', '#33ff66'],
-  // The walkers' glow as drawn (the game recolours both): eyes glow in the main colour, drawn magenta, and spit,
-  // muzzles and seams in the secondary colour, drawn acid green. Like `glowRamp`: three dark steps, the neon, and
-  // a pale core of the same hue.
-  glow: ['#3a0a30', '#701a5c', '#b02c8c', '#e040b0', '#ffb4ea'],
-  bile: ['#24400a', '#467414', '#7cae1c', '#b0e030', '#e8ffa8'],
+  // The walkers' eyes as drawn, magenta; the game recolours them to `glowRamp` of the secondary colour.
+  glow: ['#3a0a30', '#701a5c', '#a83088', '#d860b4', '#ffa0e0'],
+  // The walkers' acid: muzzles, the trail of their thorns, pools and seams. Fixed, not a team colour.
+  acid: ['#1a3606', '#36660c', '#5c9a10', '#8ed016', '#ccff4a'],
   // Dark forest soil, heaped where crystals break through the forest floor.
   soil: ['#2a2016', '#463626', '#62503a', '#806c50'],
   // Terrain: turquoise fir needles and desert sand (dark to light).
@@ -50,10 +49,8 @@ export const ramp = (name: RampName): Rgb[] => RAMPS[name].map(hex);
 export const TEAM_RAMP = 'olive' satisfies RampName;
 /** Every "team2" (secondary colour) surface is drawn in this ramp: TEAM_COLORS.red. */
 export const SECOND_RAMP = 'accent' satisfies RampName;
-/** Light in the main colour ("team3": the walkers' eyes) is drawn in this ramp; it becomes `glowRamp(main)`. */
+/** Light in the secondary colour ("team3": the walkers' eyes) is drawn in this ramp; it becomes `glowRamp(secondary)`. */
 export const GLOW_RAMP = 'glow' satisfies RampName;
-/** Light in the secondary colour ("team4": the walkers' spit and muzzles), drawn in this ramp; `glowRamp(spitColor(main, secondary))`. */
-export const GLOW2_RAMP = 'bile' satisfies RampName;
 
 /** Shadow under objects: the outline colour at this opacity. */
 export const SHADOW_ALPHA = 0.38;

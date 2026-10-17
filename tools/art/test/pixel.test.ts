@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { pack } from '../src/atlas';
 import { GROUND_ID, materialId } from '../src/materials';
 import { SPRITE_SECOND_COLOR, SPRITE_TEAM_COLOR, TEAM_COLORS, TEAM_COLOR_NAMES } from '@sw/data';
-import { GLOW2_RAMP, PALETTE, ramp, RAMPS, SECOND_RAMP, TEAM_RAMP } from '../src/palette';
-import { colorize, flipRows, HALO_ALPHA, rampStep, recolor, reduce } from '../src/pixel';
+import { PALETTE, ramp, RAMPS, SECOND_RAMP, TEAM_RAMP } from '../src/palette';
+import { colorize, flipRows, rampStep, recolor, reduce } from '../src/pixel';
 
 /** A 4x4 art frame rendered at 2x: one 2x2 art-pixel block of material in the middle on a lit floor. */
 function sample(mat = materialId('team'), light = 180) {
@@ -94,16 +94,6 @@ describe('colorize', () => {
     expect(k).toBeGreaterThanOrEqual(0);
     const out = recolor(rgba, TEAM_COLORS.olive.map(hex), TEAM_COLORS.black.map(hex));
     expect([...out.subarray(20, 23)]).toEqual(hex(TEAM_COLORS.black[k]!));
-  });
-
-  it('rings glowing materials with a fading halo of their own colour instead of a dark outline', () => {
-    const rgba = colorize(sample(materialId('bileGlow')));
-    const body = [...rgba.subarray(5 * 4, 5 * 4 + 3)];
-    expect(body).toEqual([...ramp(GLOW2_RAMP).at(-2)!]);
-    expect([...rgba.subarray(4 * 4, 4 * 4 + 3)]).toEqual(body);
-    expect(rgba[4 * 4 + 3]).toBe(Math.round(HALO_ALPHA[0] * 255));
-    expect([...rgba.subarray(0, 3)]).toEqual(body);
-    expect(rgba[3]).toBe(Math.round(HALO_ALPHA[1] * 255));
   });
 
   it('lights emissive materials fully whatever the light', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { glowRamp, spitColor, TEAM_COLOR_GRID, TEAM_COLOR_NAMES, TEAM_COLORS, TEAM_HUES, type TeamColor } from '@sw/data';
+import { glowRamp, TEAM_COLOR_GRID, TEAM_COLOR_NAMES, TEAM_COLORS, TEAM_HUES, type TeamColor } from '@sw/data';
 import { PALETTE, RAMPS, type Rgb } from '../src/palette';
 
 /**
@@ -91,7 +91,7 @@ describe('glow', () => {
   it('is neon: more saturated than the colour it comes from, also for dark and pale shades', () => {
     for (const c of TEAM_COLOR_NAMES) {
       if (TEAM_COLOR_GRID.grey.includes(c)) continue;
-      const lit = glowRamp(c)[3]!;
+      const lit = glowRamp(c)[4]!;
       expect(chroma(lit), c).toBeGreaterThan(Math.max(45, chroma(TEAM_COLORS[c][2])));
     }
   });
@@ -103,23 +103,8 @@ describe('glow', () => {
   it('keeps the hue of its colour', () => {
     const hueOf = (h: string) => Math.atan2(lab(hex(h))[2], lab(hex(h))[1]);
     for (const c of ['red', 'orange', 'green', 'azure', 'blue', 'violet'] as const) {
-      for (const k of [3, 4]) {
-        const d = Math.abs(hueOf(glowRamp(c)[k]!) - hueOf(TEAM_COLORS[c][2]));
-        expect(Math.min(d, 2 * Math.PI - d), `${c} step ${k}`).toBeLessThan(0.6);
-      }
+      const d = Math.abs(hueOf(glowRamp(c)[4]!) - hueOf(TEAM_COLORS[c][2]));
+      expect(Math.min(d, 2 * Math.PI - d), c).toBeLessThan(0.6);
     }
-  });
-
-  it('has a pale core that is tinted, not white', () => {
-    for (const c of TEAM_COLOR_NAMES) {
-      if (TEAM_COLOR_GRID.grey.includes(c)) continue;
-      expect(chroma(glowRamp(c)[4]!), c).toBeGreaterThan(15);
-    }
-  });
-
-  it('never makes the spit white unless both colours are greys', () => {
-    expect(spitColor('red', 'lime')).toBe('lime');
-    expect(spitColor('red', 'white')).toBe('red');
-    expect(spitColor('black', 'white')).toBe('lime');
   });
 });

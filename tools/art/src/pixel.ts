@@ -1,5 +1,5 @@
 import { GROUND_ID, materialById } from './materials';
-import { GLOW2_RAMP, GLOW_RAMP, ramp, SECOND_RAMP, SHADOW_ALPHA, TEAM_RAMP, type RampName, type Rgb } from './palette';
+import { GLOW_RAMP, ramp, SECOND_RAMP, SHADOW_ALPHA, TEAM_RAMP, type RampName, type Rgb } from './palette';
 
 /**
  * Pure pixel steps of the pipeline, kept free of three.js and the browser so they run (and are tested) in Node.
@@ -96,28 +96,24 @@ const OUTLINE: Rgb = ramp('outline')[0]!;
 export const OUTLINE_WIDTH = 2;
 /** How many ramp steps darker than the body next to it the outline is. */
 export const OUTLINE_STEPS = 2;
-/** Opacity of the two-pixel halo round glowing surfaces (the walkers' eyes and spit), which get no dark outline. */
-export const HALO_ALPHA = [0.65, 0.3] as const;
 
 const luma = (c: Rgb) => c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
 
 /**
  * Turns a reduced frame into RGBA with team surfaces in TEAM_RAMP: palette shading, inner lines two steps darker where a surface
  * disappears behind a nearer one, an outline `outline` pixels wide in a darker shade of the body it surrounds
- * (black around the darkest colours), and a soft floor shadow. Glowing surfaces get no outline but a soft halo of their
- * own colour where they meet the empty background.
+ * (black around the darkest colours), and a soft floor shadow.
  */
 export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedArray {
   const { w, h, mat, light, depth } = frame;
   const out = new Uint8ClampedArray(w * h * 4);
   const teamRamp = ramp(TEAM_RAMP);
   const secondRamp = ramp(SECOND_RAMP);
-  const drawn = { team: teamRamp, team2: secondRamp, team3: ramp(GLOW_RAMP), team4: ramp(GLOW2_RAMP) } as const;
+  const drawn = { team: teamRamp, team2: secondRamp, team3: ramp(GLOW_RAMP) } as const;
   const isObjectAt = (i: number) => mat[i]! !== 0 && mat[i]! !== GROUND_ID;
   // Colour of every pixel: body colours first, then outline rings around them.
   const color: (Rgb | null)[] = new Array(w * h).fill(null);
   const ink: (Rgb | null)[] = new Array(w * h).fill(null);
-  const glow = new Uint8Array(w * h);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
@@ -128,10 +124,9 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
       const colors = def.ramp in drawn ? drawn[def.ramp as keyof typeof drawn] : ramp(def.ramp as RampName);
       const behind = (j: number) => j >= 0 && j < w * h && isObjectAt(j) && depth[j]! + INNER_LINE_DEPTH < depth[i]!;
       const edge = behind(i - w) || behind(i + w) || (x > 0 && behind(i - 1)) || (x < w - 1 && behind(i + 1));
-      const step = def.emissive ? colors.length - 1 + Math.min(0, def.shift ?? 0) : rampStep(light[i]!, colors.length, (def.shift ?? 0) - (edge ? INNER_LINE_STEPS : 0));
+      const step = def.emissive ? colors.length - 1 : rampStep(light[i]!, colors.length, (def.shift ?? 0) - (edge ? INNER_LINE_STEPS : 0));
       color[i] = colors[step]!;
       ink[i] = step === 0 ? OUTLINE : colors[Math.max(0, step - OUTLINE_STEPS)]!;
-      if (def.glow) glow[i] = 1;
     }
   }
   const at = (x: number, y: number) => (x >= 0 && y >= 0 && x < w && y < h ? y * w + x : -1);
@@ -170,11 +165,8 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
     }
     return added;
   };
-  // Halo first, from glowing pixels only; the outline then rings everything else and wins where both reach.
-  const halo = new Map(ring((j) => glow[j] === 1, (j) => color[j]!, false));
-  const outerHalo = new Map(ring((j) => halo.has(j), (j) => halo.get(j)!, true).filter(([i]) => !halo.has(i)));
   if (outline > 0) {
-    const body = color.map((c, j) => c !== null && !glow[j]);
+    const body = color.map((c) => c !== null);
     const first = ring((j) => body[j]!, (j) => ink[j]!, false);
     for (const [i, c] of first) color[i] = c;
     if (outline > 1) {
@@ -185,10 +177,7 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
   for (let i = 0; i < w * h; i++) {
     let rgb = color[i];
     let alpha = 255;
-    if (!rgb && (halo.has(i) || outerHalo.has(i))) {
-      rgb = halo.get(i) ?? outerHalo.get(i)!;
-      alpha = Math.round(HALO_ALPHA[halo.has(i) ? 0 : 1] * 255);
-    } else if (!rgb && mat[i] === GROUND_ID) {
+    if (!rgb && mat[i] === GROUND_ID) {
       rgb = OUTLINE;
       alpha = Math.round(SHADOW_ALPHA * 255);
     }
@@ -203,8 +192,8 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
 
 /**
  * Copy of a coloured frame with every TEAM_RAMP pixel swapped for the same step of `to`, every SECOND_RAMP pixel for
- * the same step of `to2`, and the two glow ramps for `glow` and `glow2` (five colours each, dark to light; a ramp
- * left out stays as drawn). Team outlines are team colours too, so they follow; nothing else in the palette shares
+ * the same step of `to2`, and every GLOW_RAMP pixel for the same step of `glow` (five colours each, dark to light; a
+ * ramp left out stays as drawn). Team outlines are team colours too, so they follow; nothing else in the palette shares
  * those colours.
  */
 export function recolor(
@@ -212,14 +201,12 @@ export function recolor(
   to: readonly Rgb[],
   to2: readonly Rgb[] = ramp(SECOND_RAMP),
   glow: readonly Rgb[] = ramp(GLOW_RAMP),
-  glow2: readonly Rgb[] = ramp(GLOW2_RAMP),
 ): Uint8ClampedArray {
   const map = new Map<number, Rgb>();
   const key = (r: number, g: number, b: number) => (r << 16) | (g << 8) | b;
   ramp(TEAM_RAMP).forEach((c, k) => map.set(key(...c), to[k]!));
   ramp(SECOND_RAMP).forEach((c, k) => map.set(key(...c), to2[k]!));
   ramp(GLOW_RAMP).forEach((c, k) => map.set(key(...c), glow[k]!));
-  ramp(GLOW2_RAMP).forEach((c, k) => map.set(key(...c), glow2[k]!));
   const out = new Uint8ClampedArray(rgba);
   for (let i = 0; i < out.length; i += 4) {
     if (!out[i + 3]) continue;
