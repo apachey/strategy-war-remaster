@@ -1,11 +1,12 @@
 import { GROUND_ID, materialById } from './materials';
-import { ramp, SHADOW_ALPHA, TEAMS, type Rgb, type Team } from './palette';
+import { ramp, SHADOW_ALPHA, TEAM_RAMP, type Rgb } from './palette';
 
 /**
  * Pure pixel steps of the pipeline, kept free of three.js and the browser so they run (and are tested) in Node.
  *
  * A render arrives as two big buffers at SUPERSAMPLE resolution: the material id of every pixel and its light level.
- * `reduce` shrinks them to the art grid, `colorize` turns the result into palette colours for one team.
+ * `reduce` shrinks them to the art grid, `colorize` turns the result into palette colours, `recolor` dresses the team
+ * surfaces of a finished frame in another team colour.
  */
 
 /** A frame at art resolution, before colouring. */
@@ -99,14 +100,14 @@ export const OUTLINE_STEPS = 2;
 const luma = (c: Rgb) => c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
 
 /**
- * Turns a reduced frame into RGBA for one team: palette shading, inner lines two steps darker where a surface
+ * Turns a reduced frame into RGBA with team surfaces in TEAM_RAMP: palette shading, inner lines two steps darker where a surface
  * disappears behind a nearer one, an outline `outline` pixels wide in a darker shade of the body it surrounds
  * (black around the darkest colours), and a soft floor shadow.
  */
-export function colorize(frame: Reduced, team: Team, outline = OUTLINE_WIDTH): Uint8ClampedArray {
+export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedArray {
   const { w, h, mat, light, depth } = frame;
   const out = new Uint8ClampedArray(w * h * 4);
-  const teamRamp = ramp(TEAMS[team]);
+  const teamRamp = ramp(TEAM_RAMP);
   const isObjectAt = (i: number) => mat[i]! !== 0 && mat[i]! !== GROUND_ID;
   // Colour of every pixel: body colours first, then outline rings around them.
   const color: (Rgb | null)[] = new Array(w * h).fill(null);
@@ -183,6 +184,24 @@ export function colorize(frame: Reduced, team: Team, outline = OUTLINE_WIDTH): U
     out[i * 4 + 1] = rgb[1];
     out[i * 4 + 2] = rgb[2];
     out[i * 4 + 3] = alpha;
+  }
+  return out;
+}
+
+/**
+ * Copy of a coloured frame with every TEAM_RAMP pixel swapped for the same step of `to` (five colours, dark to
+ * light). Team outlines are team colours too, so they follow; nothing else in the palette shares those colours.
+ */
+export function recolor(rgba: Uint8ClampedArray, to: readonly Rgb[]): Uint8ClampedArray {
+  const from = ramp(TEAM_RAMP);
+  const out = new Uint8ClampedArray(rgba);
+  for (let i = 0; i < out.length; i += 4) {
+    if (!out[i + 3]) continue;
+    const k = from.findIndex((c) => c[0] === out[i] && c[1] === out[i + 1] && c[2] === out[i + 2]);
+    if (k < 0) continue;
+    out[i] = to[k]![0];
+    out[i + 1] = to[k]![1];
+    out[i + 2] = to[k]![2];
   }
   return out;
 }

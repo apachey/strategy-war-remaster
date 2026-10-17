@@ -1,4 +1,15 @@
-import { campaign, CELL, ObjectType, TILE_FOREST, type CampaignMap, type MapObject } from '@sw/data';
+import {
+  campaign,
+  CAMPAIGN_RACES,
+  CELL,
+  DEFAULT_COLORS,
+  ObjectType,
+  TILE_FOREST,
+  type CampaignMap,
+  type MapObject,
+  type Race,
+  type TeamColor,
+} from '@sw/data';
 import { aiStep, createAi, type AiState } from './ai';
 import { findPath, type Cell } from './path';
 import { nextRandom } from './rng';
@@ -104,6 +115,9 @@ export type GameEvent =
   | { kind: 'completed'; id: number; type: ObjectType };
 
 export interface SideState {
+  /** How the side looks: its race and team colour. Neither changes any rule. */
+  race: Race;
+  color: TeamColor;
   money: number;
   /** 1 = cell has been seen. The original has a classic shroud: once seen, always shown. */
   explored: Uint8Array;
@@ -214,12 +228,19 @@ export interface WorldOptions {
   playerAi?: AiBrainName;
   /** Default 'campaign'. */
   mode?: Mode;
+  /** Races of the two seats, [player, enemy]. Default humans against hovers, as in the campaign. */
+  races?: readonly [Race, Race];
+  /** Team colours of the two seats, [player, enemy]; they must differ. Default olive and cyan. */
+  colors?: readonly [TeamColor, TeamColor];
 }
 
 export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, options: WorldOptions = {}): World {
   const difficulty = options.difficulty ?? 'classic';
   const mission = map.missions[missionIndex];
   if (!mission) throw new Error(`Map "${map.name}" has no mission ${missionIndex + 1}`);
+  const [playerRace, enemyRace] = options.races ?? CAMPAIGN_RACES;
+  const [playerColor, enemyColor] = options.colors ?? DEFAULT_COLORS;
+  if (playerColor === enemyColor) throw new Error(`Both sides cannot wear ${playerColor}`);
   const grid = buildBlockedGrid(map);
   const cells = grid.cols * grid.rows;
   const world: World = {
@@ -229,8 +250,8 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, op
     byId: new Map(),
     projectiles: [],
     sides: {
-      player: { money: mission.money, explored: new Uint8Array(cells) },
-      enemy: { money: 0, explored: new Uint8Array(cells) },
+      player: { race: playerRace, color: playerColor, money: mission.money, explored: new Uint8Array(cells) },
+      enemy: { race: enemyRace, color: enemyColor, money: 0, explored: new Uint8Array(cells) },
     },
     tick: 0,
     rngState: seed >>> 0,
@@ -253,6 +274,11 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, op
   }
   if (options.playerAi) world.ai.player = createAi(world, 'player', options.playerAi);
   return world;
+}
+
+/** Race of the side an object belongs to; resource fields belong to nobody. */
+export function raceOf(world: World, team: Team): Race | null {
+  return team === 'neutral' ? null : world.sides[team].race;
 }
 
 /** Puts a fresh unit of `team` on a cell, as if it had just left a factory. */

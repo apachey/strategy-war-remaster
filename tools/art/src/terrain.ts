@@ -163,3 +163,71 @@ export function forestTiles(): Tile[] {
   }
   return tiles;
 }
+
+/**
+ * The hover race's ground: pale floor plates, four panels to a cell, with dark seams, a lit top-left edge on each
+ * panel, a cyan light where seams cross in the middle of the cell, and slight differences in tone between panels.
+ * Tiles come per neighbour mask (N1 E2 S4 W8 set = that neighbour is plated too): towards the sand the plating
+ * ends in a dark rim with chamfered corners and a soft shadow on the sand.
+ */
+export function plateTiles(): Tile[] {
+  const C = PX_PER_CELL;
+  const P = C / 2;
+  const colors = ramp('plate');
+  const lamp = ramp('cyan');
+  const tiles: Tile[] = [];
+  for (let mask = 0; mask < 16; mask++) {
+    const rgba = new Uint8ClampedArray(C * C * 4);
+    const open = (bit: number) => !(mask & bit);
+    // Distance inside the plating along each open side, with 3 px chamfers where two open sides meet.
+    const depth = (x: number, y: number) => {
+      let d = Infinity;
+      if (open(1)) d = Math.min(d, y - 1);
+      if (open(2)) d = Math.min(d, C - 2 - x);
+      if (open(4)) d = Math.min(d, C - 2 - y);
+      if (open(8)) d = Math.min(d, x - 1);
+      const corner = (cx: number, cy: number) => Math.abs(x - cx) + Math.abs(y - cy) - 4;
+      if (open(1) && open(8)) d = Math.min(d, corner(0, 0));
+      if (open(1) && open(2)) d = Math.min(d, corner(C - 1, 0));
+      if (open(4) && open(2)) d = Math.min(d, corner(C - 1, C - 1));
+      if (open(4) && open(8)) d = Math.min(d, corner(0, C - 1));
+      return d;
+    };
+    for (let y = 0; y < C; y++) {
+      for (let x = 0; x < C; x++) {
+        const i = y * C + x;
+        const d = depth(x, y);
+        if (d < 0) {
+          if (d >= -2) put(rgba, i, OUTLINE, Math.round(SHADOW_ALPHA * 255 * (d >= -1 ? 1 : 0.5)));
+          continue;
+        }
+        if (d < 1) {
+          put(rgba, i, colors[0]!);
+          continue;
+        }
+        const px = x % P;
+        const py = y % P;
+        const panel = (y >= P ? 2 : 0) + (x >= P ? 1 : 0);
+        let step = panel === 1 || panel === 2 ? 2 : 3;
+        if (px === P - 1 || py === P - 1) step = 0;
+        else if (px === 0 || py === 0) step = 4;
+        // A shallow inset square in each panel.
+        else if ((px === 4 || px === P - 5) && py >= 4 && py <= P - 5) step -= 1;
+        else if ((py === 4 || py === P - 5) && px >= 4 && px <= P - 5) step -= 1;
+        put(rgba, i, colors[step]!);
+      }
+    }
+    // Light where the seams cross in the middle of the cell.
+    for (const [x, y, c] of [
+      [P - 1, P - 1, 4],
+      [P - 2, P - 1, 3],
+      [P, P - 1, 3],
+      [P - 1, P - 2, 3],
+      [P - 1, P, 3],
+    ] as const) {
+      put(rgba, y * C + x, lamp[c]!);
+    }
+    tiles.push({ name: `plate/${mask}`, w: C, h: C, rgba });
+  }
+  return tiles;
+}

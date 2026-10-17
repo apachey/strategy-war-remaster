@@ -49,6 +49,12 @@ test('mission 1 opens with its briefing, then the map', async ({ page }) => {
   await page.getByRole('button', { name: 'Почати' }).click();
   await expect(page.locator('#hud')).toContainText('Початок · Перші кроки');
   await expect(page.locator('#money')).toHaveText('$1000');
+  // The campaign is olive humans against cyan hovers.
+  const sides = await page.evaluate(() => {
+    const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { race: string; color: string }> } } } }).__sw.game.world;
+    return [w.sides.player!.race, w.sides.player!.color, w.sides.enemy!.race, w.sides.enemy!.color];
+  });
+  expect(sides).toEqual(['human', 'olive', 'hover', 'cyan']);
   await page.screenshot({ path: 'test-results/mission-1-1.png' });
   expect(errors).toEqual([]);
 });

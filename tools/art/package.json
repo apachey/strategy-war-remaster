@@ -10,6 +10,7 @@
     "build": "echo \"@sw/art: run pnpm sprites to regenerate assets/sprites\""
   },
   "dependencies": {
+    "@sw/data": "workspace:*",
     "three": "^0.180.0"
   },
   "devDependencies": {

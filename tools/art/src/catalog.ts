@@ -19,7 +19,7 @@ export const CAMERA_FAR = 14;
 
 export interface SpriteDef {
   name: string;
-  /** Footprint in cells: units, walls and the defender take 1, other buildings 2x2. */
+  /** Footprint in cells: units, walls, the defender and shots take 1, other buildings 2x2. */
   cells: 1 | 2;
   /**
    * Number of views. 8 = compass directions, clockwise from north; walls use 16 = neighbour mask (N1 E2 S4 W8);
@@ -27,37 +27,34 @@ export interface SpriteDef {
    */
   views: number;
   frames: readonly string[];
-  /** Team-coloured sprites are exported once per team; neutral ones once. */
+  /** Has team surfaces, which the game recolours to the colour of the side that owns it. */
   teamed: boolean;
 }
 
 const TANK_FRAMES = ['move0', 'move1', 'fire', 'wreck'] as const;
+const HARVESTER_FRAMES = ['move0', 'move1', 'harvest0', 'harvest1', 'wreck'] as const;
+
+/** Each race has the same roster under its own name, `<race>_<kind>` (see spriteName in @sw/data). */
+export const RACE_NAMES = ['human', 'hover', 'walker'] as const;
+
+const roster = (race: (typeof RACE_NAMES)[number]): SpriteDef[] => [
+  { name: `${race}_harvester`, cells: 1, views: 8, frames: HARVESTER_FRAMES, teamed: true },
+  { name: `${race}_light_tank`, cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
+  { name: `${race}_middle_tank`, cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
+  { name: `${race}_heavy_tank`, cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
+  { name: `${race}_defender`, cells: 1, views: 8, frames: ['idle', 'fire'], teamed: true },
+  // In flight: a gauss slug, a plasma ball or a gob of acid, small for the light gun and big for the cannon.
+  { name: `${race}_shot`, cells: 1, views: 8, frames: ['gun', 'cannon'], teamed: false },
+  { name: `${race}_hq`, cells: 2, views: 1, frames: ['idle0', 'idle1', 'idle2', 'idle3'], teamed: true },
+  { name: `${race}_silo`, cells: 2, views: 1, frames: ['idle'], teamed: true },
+  { name: `${race}_factory`, cells: 2, views: 1, frames: ['idle', 'work'], teamed: true },
+  { name: `${race}_construction`, cells: 2, views: 1, frames: ['idle'], teamed: true },
+  { name: `${race}_wall`, cells: 1, views: 16, frames: ['idle'], teamed: true },
+];
 
 export const SPRITES: readonly SpriteDef[] = [
-  { name: 'harvester', cells: 1, views: 8, frames: ['move0', 'move1', 'wreck'], teamed: true },
-  { name: 'light_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
-  { name: 'middle_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
-  { name: 'heavy_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
-  { name: 'hover_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
-  // The hover race (the original's enemy): hover_tank is its middle tank.
-  { name: 'hover_light_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
-  { name: 'hover_heavy_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
-  { name: 'hover_harvester', cells: 1, views: 8, frames: ['move0', 'move1', 'wreck'], teamed: true },
-  { name: 'hover_defender', cells: 1, views: 8, frames: ['idle', 'fire'], teamed: true },
-  // The walkers: a possible third race.
-  { name: 'alien_harvester', cells: 1, views: 8, frames: ['move0', 'move1', 'wreck'], teamed: true },
-  { name: 'alien_defender', cells: 1, views: 8, frames: ['idle', 'fire'], teamed: true },
-  { name: 'alien_light_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
-  { name: 'alien_middle_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
-  { name: 'alien_heavy_tank', cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
-  { name: 'defender', cells: 1, views: 8, frames: ['idle', 'fire'], teamed: true },
-  { name: 'hq', cells: 2, views: 1, frames: ['idle0', 'idle1', 'idle2', 'idle3'], teamed: true },
-  { name: 'enemy_hq', cells: 2, views: 1, frames: ['idle0', 'idle1', 'idle2', 'idle3'], teamed: true },
-  { name: 'silo', cells: 2, views: 1, frames: ['idle'], teamed: true },
-  { name: 'factory', cells: 2, views: 1, frames: ['idle', 'work'], teamed: true },
-  { name: 'construction', cells: 2, views: 1, frames: ['idle'], teamed: false },
+  ...RACE_NAMES.flatMap(roster),
   { name: 'resource', cells: 2, views: 1, frames: ['idle'], teamed: false },
-  { name: 'wall', cells: 1, views: 16, frames: ['idle'], teamed: false },
   // Four variants of fir tree for the forest, one per cell.
   { name: 'fir', cells: 1, views: 4, frames: ['idle'], teamed: false },
 ];

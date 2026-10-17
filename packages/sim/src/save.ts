@@ -1,7 +1,7 @@
-import type { World } from './world';
+import type { SideState, World } from './world';
 
 /** Bumped whenever the World shape changes; older saves are refused rather than loaded wrong. */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 /** A world as plain JSON: everything the simulation needs to continue exactly where it stopped. */
 export interface WorldSave {
@@ -9,7 +9,7 @@ export interface WorldSave {
   world: Omit<World, 'blocked' | 'buildingAt' | 'byId' | 'sides' | 'events'> & {
     blocked: string;
     buildingAt: number[];
-    sides: Record<keyof World['sides'], { money: number; explored: string }>;
+    sides: Record<keyof World['sides'], Omit<SideState, 'explored'> & { explored: string }>;
   };
 }
 
@@ -25,8 +25,8 @@ export function saveWorld(world: World): WorldSave {
       blocked: bits(blocked),
       buildingAt: Array.from(buildingAt),
       sides: {
-        player: { money: sides.player.money, explored: bits(sides.player.explored) },
-        enemy: { money: sides.enemy.money, explored: bits(sides.enemy.explored) },
+        player: { ...sides.player, explored: bits(sides.player.explored) },
+        enemy: { ...sides.enemy, explored: bits(sides.enemy.explored) },
       },
     },
   };
@@ -43,8 +43,8 @@ export function loadWorld(save: WorldSave): World {
     buildingAt: Int32Array.from(s.buildingAt),
     byId: new Map(s.entities.map((e) => [e.id, e])),
     sides: {
-      player: { money: s.sides.player.money, explored: unbits(s.sides.player.explored) },
-      enemy: { money: s.sides.enemy.money, explored: unbits(s.sides.enemy.explored) },
+      player: { ...s.sides.player, explored: unbits(s.sides.player.explored) },
+      enemy: { ...s.sides.enemy, explored: unbits(s.sides.enemy.explored) },
     },
     events: [],
   };

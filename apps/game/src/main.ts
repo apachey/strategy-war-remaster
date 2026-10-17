@@ -13,7 +13,8 @@ import { View } from './view';
  * The game with mouse and gamepad control. LMB selects (drag for a box), RMB orders, arrows/WASD or the screen edge
  * scroll, wheel zooms. A two-player skirmish splits the screen: player 1 on the left with the mouse, player 2 on
  * the right with a gamepad. URL options: `?m=6.2` mission, `?s=4&vs=hard&money=3000` skirmish on map 4 (`vs=human`
- * for two players), `?d=hard` campaign difficulty, `?lang=en`, `?speed=8`, `?load=quick` continues a save.
+ * for two players, `&r=walker,hover&c=blue,red` the sides' races and colours), `?d=hard` campaign difficulty,
+ * `?lang=en`, `?speed=8`, `?load=quick` continues a save.
  */
 
 const params = new URLSearchParams(location.search);
@@ -26,7 +27,7 @@ const difficulty = urlDifficulty && DIFFICULTIES.includes(urlDifficulty) ? urlDi
 
 function open(setup: Setup, load?: Slot): void {
   const p = new URLSearchParams(location.search);
-  for (const key of ['m', 's', 'vs', 'money', 'd', 'load']) p.delete(key);
+  for (const key of ['m', 's', 'vs', 'money', 'r', 'c', 'd', 'load']) p.delete(key);
   for (const [k, v] of Object.entries(setupQuery(setup))) p.set(k, v);
   if (load) p.set('load', load);
   if (setup.kind === 'skirmish') {

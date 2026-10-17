@@ -1,19 +1,15 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { CELL, ObjectType, TILE } from '@sw/data';
-import { isUnit, TICK_MS, UNIT_RULES, BUILDING_RULES, type Entity, type GameEvent, type UnitType, type BuildingType } from '@sw/sim';
+import { CELL, ObjectType, TEAM_COLORS, TILE } from '@sw/data';
+import { isUnit, TICK_MS, UNIT_RULES, BUILDING_RULES, type Entity, type GameEvent, type Side, type UnitType, type BuildingType } from '@sw/sim';
 import type { Commander } from './game';
 import { SHORT } from './text';
 
-/** Grey-box palette: readable shapes only, the real art arrives in phase 2. */
+/** Grey-box palette: readable shapes only, the real art arrives in phase 2. Team colours come from each side's ramp. */
 const C = {
   sand: 0xd8c491,
   sandLine: 0xcbb57f,
   forest: 0x2f6b3d,
   forestEdge: 0x24552f,
-  player: 0x2c8fa3,
-  playerDark: 0x1b5f6e,
-  enemy: 0xb8372a,
-  enemyDark: 0x7a2018,
   field: 0xf0c43a,
   fieldDark: 0xc79a1c,
   wall: 0x8d9497,
@@ -158,9 +154,14 @@ export class Renderer {
     }
   }
 
+  /** A side's team colour: the middle of its ramp, or the step below for outlines and barrels. */
+  private sideColor(side: Side, dark = false): number {
+    const ramp = TEAM_COLORS[this.game.world.sides[side].color];
+    return Number.parseInt(ramp[dark ? 1 : 2].slice(1), 16);
+  }
+
   private teamColor(e: Entity, dark = false): number {
-    if (e.team === 'enemy') return dark ? C.enemyDark : C.enemy;
-    return dark ? C.playerDark : C.player;
+    return this.sideColor(e.team === 'enemy' ? 'enemy' : 'player', dark);
   }
 
   private drawField(e: Entity, x: number, y: number): void {
@@ -284,7 +285,7 @@ export class Renderer {
   private drawCursor(c: { x: number; y: number }): void {
     const w = 1.5 / this.camera.scale.x;
     const r = 5;
-    const color = this.game.side === 'player' ? C.player : C.enemy;
+    const color = this.sideColor(this.game.side);
     for (const stroke of [{ width: w * 3, color: 0x000000, alpha: 0.6 }, { width: w, color: 0xffffff }]) {
       this.ui.circle(c.x, c.y, r).stroke(stroke);
       this.ui.moveTo(c.x - r * 1.8, c.y).lineTo(c.x - r * 0.6, c.y).moveTo(c.x + r * 0.6, c.y).lineTo(c.x + r * 1.8, c.y).stroke(stroke);

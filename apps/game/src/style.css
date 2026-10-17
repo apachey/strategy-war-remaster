@@ -75,6 +75,7 @@ body.duo .toast.side-2 { left: 75%; }
   width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto; padding: 20px 22px;
   background: #1d1912; border: 1px solid var(--line); border-radius: 12px;
 }
+#modal .card.wide { width: min(640px, calc(100vw - 32px)); }
 #modal h1 { margin: 0 0 8px; font-size: 22px; }
 #modal .kicker { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
 #modal .brief { font-size: 15px; }
@@ -88,6 +89,16 @@ body.duo .toast.side-2 { left: 75%; }
 #modal .option span { min-width: 90px; color: var(--muted); }
 #modal .options .hint { margin: 6px 0 12px 96px; color: var(--muted); font-size: 12px; }
 #modal .options .option + .option { margin-top: 6px; }
+#modal .options .option.side { margin-top: 10px; }
+#modal .option.side .gap { width: 8px; }
+#modal button.swatch {
+  width: 24px; height: 24px; padding: 0; border-radius: 5px; background: var(--c); border: 2px solid var(--c-edge);
+}
+#modal button.swatch.active { background: var(--c); border-color: var(--ink); box-shadow: 0 0 0 2px var(--accent); }
+/* The other side's colour: crossed out. */
+#modal button.swatch:disabled {
+  opacity: 0.45; background: linear-gradient(to top right, transparent 44%, var(--ink) 44% 56%, transparent 56%), var(--c);
+}
 #modal .preview { display: block; max-width: 100%; margin: 4px 0 8px; image-rendering: pixelated; border: 1px solid var(--line); border-radius: 4px; }
 #modal .slots { display: flex; flex-direction: column; gap: 8px; }
 #modal .slot { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 8px; align-items: center; }

@@ -60,6 +60,9 @@ importers:
 
   tools/art:
     dependencies:
+      '@sw/data':
+        specifier: workspace:*
+        version: link:../../packages/data
       three:
         specifier: ^0.180.0
         version: 0.180.0

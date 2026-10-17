@@ -7,15 +7,16 @@ import { PNG } from 'pngjs';
 import { pack, type Frame } from './atlas';
 import { CAMERA_ELEVATION_DEG, DIRECTION_NAMES, frameLayout, PX_PER_CELL, SPRITES, SUPERSAMPLE, type SpriteDef } from './catalog';
 import type { RawRender } from './browser/render';
-import { PALETTE, TEAMS, type Team } from './palette';
-import { colorize, flipRows, OUTLINE_WIDTH, reduce, type Reduced } from './pixel';
-import { forestTiles, sand, SAND_CELLS } from './terrain';
+import { TEAM_COLORS } from '@sw/data';
+import { PALETTE, RAMPS, TEAM_RAMP, type Rgb } from './palette';
+import { colorize, flipRows, OUTLINE_WIDTH, recolor, reduce, type Reduced } from './pixel';
+import { forestTiles, plateTiles, sand, SAND_CELLS } from './terrain';
 
 /**
  * pnpm sprites [--only name,name] [--out dir] [--preview file.png] [--outline px] [--check]
  *
- * Renders every model in the catalog in headless Chromium, turns the renders into palette pixel art for each team
- * and writes assets/sprites/sprites.png + sprites.json (a PixiJS spritesheet) and a preview sheet. It also paints
+ * Renders every model in the catalog in headless Chromium, turns the renders into palette pixel art (team surfaces in
+ * TEAM_RAMP, which the game recolours per side) and writes assets/sprites/sprites.png + sprites.json (a PixiJS spritesheet) and a preview sheet. It also paints
  * the ground (src/terrain.ts) into assets/sprites/terrain.png + terrain.json.
  * --outline sets the outline width (default 2, 0 for none, as the sprite studio wants its frames).
  * --check writes nothing and fails if the committed sprites differ from what the models produce now.
@@ -41,8 +42,8 @@ function viewName(def: SpriteDef, view: number): string | null {
   return String(view);
 }
 
-function frameName(def: SpriteDef, team: Team | null, frame: string, view: number): string {
-  return [def.name, team, frame, viewName(def, view)].filter((p) => p !== null).join('/');
+function frameName(def: SpriteDef, frame: string, view: number): string {
+  return [def.name, frame, viewName(def, view)].filter((p) => p !== null).join('/');
 }
 
 /** move0 + move1 play as "move"; single frames such as "fire" stay as they are. */
@@ -104,13 +105,9 @@ async function main(): Promise<void> {
   const animations: Record<string, string[]> = {};
   for (const { def, frame, view, r } of reduced.values()) {
     const { ax, ay } = frameLayout(def.cells);
-    const teams: (Team | null)[] = def.teamed ? (Object.keys(TEAMS) as Team[]) : [null];
-    for (const team of teams) {
-      const name = frameName(def, team, frame, view);
-      frames.push({ name, w: r.w, h: r.h, ax, ay, rgba: colorize(r, team ?? 'player', outline) });
-      const anim = frameName(def, team, animationOf(frame), view);
-      (animations[anim] ??= []).push(name);
-    }
+    const name = frameName(def, frame, view);
+    frames.push({ name, w: r.w, h: r.h, ax, ay, rgba: colorize(r, outline) });
+    (animations[frameName(def, animationOf(frame), view)] ??= []).push(name);
   }
   const atlas = pack(frames, 1024, 'sprites.png', {
     pipeline: {
@@ -118,7 +115,8 @@ async function main(): Promise<void> {
       cameraElevationDeg: CAMERA_ELEVATION_DEG,
       supersample: SUPERSAMPLE,
       directions: DIRECTION_NAMES,
-      teams: TEAMS,
+      teamRamp: RAMPS[TEAM_RAMP],
+      teamColors: TEAM_COLORS,
       palette: PALETTE.map((c) => `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`),
     },
   });
@@ -130,10 +128,10 @@ async function main(): Promise<void> {
     [join(outDir, 'sprites.json'), Buffer.from(JSON.stringify(atlas.json, null, 1) + '\n')],
   ];
   const ground = pack(
-    [sand(), ...forestTiles()].map((t) => ({ ...t, ax: 0, ay: 0 })),
+    [sand(), ...forestTiles(), ...plateTiles()].map((t) => ({ ...t, ax: 0, ay: 0 })),
     512,
     'terrain.png',
-    { terrain: { pxPerCell: PX_PER_CELL, sandCells: SAND_CELLS, forestMask: 'N1 E2 S4 W8 = that neighbour is forest' } },
+    { terrain: { pxPerCell: PX_PER_CELL, sandCells: SAND_CELLS, mask: 'forest/<mask> and plate/<mask>: N1 E2 S4 W8 = that neighbour is the same ground' } },
   );
   files.push(
     [join(outDir, 'terrain.png'), pngBytes(ground.w, ground.h, ground.rgba)],
@@ -147,7 +145,8 @@ async function main(): Promise<void> {
     } else console.log('Committed sprites match the models.');
     return;
   }
-  if (!only) {
+  // A partial render only goes to an explicit --out, never over the committed atlas.
+  if (!only || arg('out')) {
     for (const [path, bytes] of files) {
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, bytes);
@@ -157,16 +156,18 @@ async function main(): Promise<void> {
   console.log(`${frames.length} frames, atlas ${atlas.w}x${atlas.h}, ${((Date.now() - started) / 1000).toFixed(1)} s`);
 }
 
+const hexRgb = (h: string): Rgb => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+
 /**
- * A contact sheet on sand, scaled up 3x: every frame of every sprite in player colours, then one frame per sprite
- * in enemy colours.
+ * A contact sheet on sand, scaled up 3x: every frame of every sprite in the drawn team colour, then one frame per
+ * team-coloured sprite recoloured as the game does, to cyan.
  */
 function writePreview(path: string, items: { def: SpriteDef; frame: string; view: number; r: Reduced }[]): void {
   const zoom = 3;
   const gap = 4;
   const maxW = 8 * (48 + gap) + gap;
   const sand = [216, 196, 145] as const;
-  type Cell = { r: Reduced; team: Team };
+  type Cell = { r: Reduced; to: Rgb[] | null };
   const rows: Cell[][] = [];
   const addRows = (cells: Cell[]) => {
     let row: Cell[] = [];
@@ -182,14 +183,14 @@ function writePreview(path: string, items: { def: SpriteDef; frame: string; view
     }
     if (row.length) rows.push(row);
   };
-  const player = (list: typeof items) => list.map((i) => ({ r: i.r, team: 'player' as Team }));
+  const player = (list: typeof items) => list.map((i) => ({ r: i.r, to: null }));
   for (const def of SPRITES.filter((d) => d.views === 8)) {
     for (const frame of def.frames) addRows(player(items.filter((i) => i.def === def && i.frame === frame)));
   }
   // Buildings and walls share rows.
   addRows(player(items.filter((i) => i.def.views !== 8)));
   for (const def of SPRITES.filter((d) => d.teamed)) {
-    addRows(items.filter((i) => i.def === def && i.frame === def.frames[0]).map((i) => ({ r: i.r, team: 'enemy' as Team })));
+    addRows(items.filter((i) => i.def === def && i.frame === def.frames[0]).map((i) => ({ r: i.r, to: TEAM_COLORS.cyan.map(hexRgb) })));
   }
   const rowH = rows.map((r) => Math.max(...r.map((c) => c.r.h)));
   const W = maxW * zoom;
@@ -199,8 +200,8 @@ function writePreview(path: string, items: { def: SpriteDef; frame: string; view
   let y = gap;
   rows.forEach((row, ri) => {
     let x = gap;
-    for (const { r, team } of row) {
-      const rgba = colorize(r, team, outline);
+    for (const { r, to } of row) {
+      const rgba = to ? recolor(colorize(r, outline), to) : colorize(r, outline);
       const top = y + rowH[ri]! - r.h;
       for (let py = 0; py < r.h; py++) {
         for (let px = 0; px < r.w; px++) {

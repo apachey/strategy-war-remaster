@@ -32,6 +32,14 @@ export const MATERIALS = {
   crystal: { ramp: 'gold', shift: -1 },
   signal: { ramp: 'signal', emissive: true },
   flash: { ramp: 'fire', emissive: true },
+  // White-hot core of a gauss slug.
+  spark: { ramp: 'steel', emissive: true },
+  // The walkers' acid: dull wet green, a lighter tip, and a glow for charged muzzles and seams.
+  bile: { ramp: 'bile' },
+  bileLight: { ramp: 'bile', shift: 1 },
+  bileGlow: { ramp: 'bile', emissive: true },
+  // Sand heaped round the crystals of a resource field.
+  sand: { ramp: 'sand', shift: 1 },
   pine: { ramp: 'pine', shift: 1 },
   pineDark: { ramp: 'pine' },
   bark: { ramp: 'concrete', shift: -1 },

@@ -1,4 +1,4 @@
-import { campaign, LANGS, ObjectType, type Lang } from '@sw/data';
+import { campaign, LANGS, ObjectType, RACES, TEAM_COLOR_NAMES, TEAM_COLORS, type Lang, type Race, type TeamColor } from '@sw/data';
 import {
   BUILDING_RULES,
   buildBlockedGrid,
@@ -7,6 +7,7 @@ import {
   HQ_BUILDS,
   isUnit,
   OPPONENTS,
+  raceOf,
   SKIRMISH_MONEY,
   skirmishLayout,
   UNIT_RULES,
@@ -46,6 +47,9 @@ export class Hud {
     private readonly actions: HudActions,
   ) {
     document.body.classList.toggle('duo', game.twoPlayers);
+    // Panel titles and money badges in the sides' team colours, a light step so they read on the dark panels.
+    document.body.style.setProperty('--player', TEAM_COLORS[game.world.sides.player.color][3]);
+    document.body.style.setProperty('--enemy', TEAM_COLORS[game.world.sides.enemy.color][3]);
     this.panels = game.commanders.map((c) => new PlayerPanel(c, game.twoPlayers));
     $('btn-pause').onclick = () => this.togglePause();
     $('btn-missions').onclick = () => this.showMissions();
@@ -135,7 +139,7 @@ export class Hud {
     this.bindGo(m);
   }
 
-  /** The skirmish start screen: map with a preview, opponent, starting money. Any change reopens the game. */
+  /** The skirmish start screen: map with a preview, opponent, each side's race and colour, starting money. Any change reopens the game. */
   private showSkirmishSetup(): void {
     const s = this.game.setup as Extract<Setup, { kind: 'skirmish' }>;
     const T = t();
@@ -150,15 +154,22 @@ export class Hud {
          <div class="option"><span>${T.opponentLabel}</span>${choice('opponent', OPPONENTS, s.opponent, (o) => T.opponent[o])}</div>
          <p class="hint">${T.opponentHint[s.opponent]}</p>
          ${s.opponent === 'human' ? `<p class="hint pads">${T.helpDuo}</p>` : ''}
+         ${[0, 1].map((i) => sideOptions(s, i)).join('')}
          <div class="option"><span>${T.moneyLabel}</span>${choice('money', SKIRMISH_MONEY.map(String), String(s.money), (v) => `$${v}`)}</div>
          <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => LANG_NAMES[l])}</div>
        </div>
        <div class="row"><button data-campaign>${T.campaign}</button><button class="primary" data-go>${T.start}</button></div>`,
     );
-    drawPreview(m.querySelector('canvas')!, s.mapIndex);
+    m.querySelector('.card')!.classList.add('wide');
+    drawPreview(m.querySelector('canvas')!, s.mapIndex, s.colors);
     const change = (patch: Partial<typeof s>) => this.actions.open({ ...s, ...patch });
     m.querySelectorAll<HTMLButtonElement>('[data-map]').forEach((b) => (b.onclick = () => change({ mapIndex: Number(b.dataset.map) })));
     m.querySelectorAll<HTMLButtonElement>('[data-opponent]').forEach((b) => (b.onclick = () => change({ opponent: b.dataset.opponent as Opponent })));
+    for (const i of [0, 1] as const) {
+      const pair = <V>(list: [V, V], v: V): [V, V] => (i === 0 ? [v, list[1]] : [list[0], v]);
+      m.querySelectorAll<HTMLButtonElement>(`[data-race${i}]`).forEach((b) => (b.onclick = () => change({ races: pair(s.races, b.dataset[`race${i}`] as Race) })));
+      m.querySelectorAll<HTMLButtonElement>(`[data-color${i}]`).forEach((b) => (b.onclick = () => change({ colors: pair(s.colors, b.dataset[`color${i}`] as TeamColor) })));
+    }
     m.querySelectorAll<HTMLButtonElement>('[data-money]').forEach((b) => (b.onclick = () => change({ money: Number(b.dataset.money) })));
     m.querySelector<HTMLButtonElement>('[data-campaign]')!.onclick = () => this.showMissions();
     this.bindLang(m);
@@ -287,8 +298,24 @@ function choice<V extends string>(attr: string, values: readonly V[], current: V
   return values.map((v) => `<button data-${attr}="${v}"${v === current ? ' class="active"' : ''}>${label(v)}</button>`).join('');
 }
 
+/**
+ * One side's race and team colour on the skirmish screen. The colour the other side wears cannot be picked, so the
+ * two sides never look alike.
+ */
+function sideOptions(s: Extract<Setup, { kind: 'skirmish' }>, i: number): string {
+  const T = t();
+  const who = s.opponent === 'human' ? T.playerName(i + 1) : i === 0 ? T.you : T.computer;
+  const taken = s.colors[1 - i];
+  const swatches = TEAM_COLOR_NAMES.map((c) => {
+    const ramp = TEAM_COLORS[c];
+    const cls = c === s.colors[i] ? 'swatch active' : 'swatch';
+    return `<button class="${cls}" data-color${i}="${c}" title="${T.color[c]}" aria-label="${T.color[c]}" style="--c: ${ramp[2]}; --c-edge: ${ramp[4]}"${c === taken ? ' disabled' : ''}></button>`;
+  }).join('');
+  return `<div class="option side"><span>${who}</span>${choice(`race${i}`, RACES, s.races[i]!, (r) => T.race[r])}<i class="gap"></i>${swatches}</div>`;
+}
+
 /** A small map of the skirmish: forest, crystal fields and the two starts in their team colours. */
-function drawPreview(canvas: HTMLCanvasElement, mapIndex: number): void {
+function drawPreview(canvas: HTMLCanvasElement, mapIndex: number, colors: readonly [TeamColor, TeamColor]): void {
   const map = campaign.maps[mapIndex]!;
   const { cols, rows, blocked } = buildBlockedGrid(map);
   const layout = skirmishLayout(map);
@@ -304,7 +331,7 @@ function drawPreview(canvas: HTMLCanvasElement, mapIndex: number): void {
   g.fillStyle = '#f0c43a';
   for (const f of layout.fields) g.fillRect(f.cx * px, f.cy * px, 2 * px, 2 * px);
   layout.starts.forEach((s, i) => {
-    g.fillStyle = i === 0 ? '#2c8fa3' : '#b8372a';
+    g.fillStyle = TEAM_COLORS[colors[i]!][2];
     g.fillRect(s.cx * px, s.cy * px, 2 * px, 2 * px);
     g.fillStyle = '#ffffff';
     g.font = `bold ${Math.max(9, px * 2)}px Menlo, monospace`;
@@ -400,9 +427,11 @@ export class PlayerPanel {
     ]);
   }
 
+  /** The object's name; the other side's objects also name their race, as in "HQ · hovers". */
   private name(e: Entity): string {
-    // A person playing the second side calls their own HQ just "HQ".
-    return t().names[e.type === ObjectType.EnemyHQ && this.c.isOwn(e) ? ObjectType.PlayerHQ : e.type]!;
+    const T = t();
+    const race = this.c.isFoe(e) ? raceOf(this.c.world, e.team) : null;
+    return race ? `${T.names[e.type]} · ${T.raceOf[race]}` : T.names[e.type]!;
   }
 
   private html(sel: Entity[]): string {

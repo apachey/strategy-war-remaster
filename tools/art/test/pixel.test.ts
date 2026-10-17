@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { pack } from '../src/atlas';
 import { GROUND_ID, materialId } from '../src/materials';
-import { PALETTE, ramp } from '../src/palette';
-import { colorize, flipRows, rampStep, reduce } from '../src/pixel';
+import { TEAM_COLORS, TEAM_COLOR_NAMES } from '@sw/data';
+import { PALETTE, ramp, RAMPS, TEAM_RAMP } from '../src/palette';
+import { colorize, flipRows, rampStep, recolor, reduce } from '../src/pixel';
 
 /** A 4x4 art frame rendered at 2x: one 2x2 art-pixel block of material in the middle on a lit floor. */
 function sample(mat = materialId('team'), light = 180) {
@@ -21,9 +22,14 @@ function sample(mat = materialId('team'), light = 180) {
 }
 
 describe('palette', () => {
-  it('has 32 colours for objects and 10 for the ground, all different', () => {
-    expect(PALETTE).toHaveLength(42);
-    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(42);
+  it('has 33 colours for objects and 15 for the ground, all different', () => {
+    expect(PALETTE).toHaveLength(48);
+    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(48);
+  });
+
+  it('draws team surfaces in the first team colour of the game', () => {
+    expect(TEAM_COLORS[TEAM_COLOR_NAMES[0]!]).toEqual(RAMPS[TEAM_RAMP]);
+    for (const name of TEAM_COLOR_NAMES) expect(TEAM_COLORS[name]).toHaveLength(5);
   });
 });
 
@@ -45,34 +51,42 @@ describe('reduce', () => {
 
 describe('colorize', () => {
   it('uses only palette colours and draws a 2 px outline darker than the body', () => {
-    const rgba = colorize(sample(), 'enemy');
+    const rgba = colorize(sample());
     const allowed = new Set(PALETTE.map((c) => c.join()));
     for (let i = 0; i < rgba.length; i += 4) if (rgba[i + 3]) expect(allowed.has([rgba[i], rgba[i + 1], rgba[i + 2]].join())).toBe(true);
-    const cyan = ramp('cyan').map((c) => c.join());
-    const body = cyan.indexOf([...rgba.subarray(5 * 4, 5 * 4 + 3)].join());
+    const team = ramp(TEAM_RAMP).map((c) => c.join());
+    const body = team.indexOf([...rgba.subarray(5 * 4, 5 * 4 + 3)].join());
     // Pixel (0,1) touches the object: first ring, two steps darker than the body (black under the darkest step).
     const first = [...rgba.subarray(4 * 4, 4 * 4 + 3)].join();
-    expect(first).toBe(body >= 2 ? cyan[body - 2] : ramp('outline')[0]!.join());
+    expect(first).toBe(body >= 2 ? team[body - 2] : ramp('outline')[0]!.join());
     expect(rgba[4 * 4 + 3]).toBe(255);
     // Corner (0,0) touches the first ring diagonally: second ring, the same colour.
     expect([...rgba.subarray(0, 3)].join()).toBe(first);
   });
 
   it('can leave the outline off', () => {
-    const rgba = colorize(sample(), 'enemy', 0);
+    const rgba = colorize(sample(), 0);
     expect(rgba[4 * 4 + 3]).toBe(0);
     expect(rgba[3]).toBe(0);
   });
 
-  it('recolours team surfaces per team but leaves steel alone', () => {
-    const team = sample();
-    expect(colorize(team, 'player').subarray(20, 23)).not.toEqual(colorize(team, 'enemy').subarray(20, 23));
-    const steel = sample(materialId('steel'));
-    expect(colorize(steel, 'player')).toEqual(colorize(steel, 'enemy'));
+  it('recolours team surfaces and their outline to another team colour but leaves steel alone', () => {
+    const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const blue = TEAM_COLORS.blue.map(hex) as unknown as [number, number, number][];
+    const rgba = colorize(sample());
+    const olive = ramp(TEAM_RAMP).map((c) => c.join());
+    const blueRgba = recolor(rgba, blue);
+    for (const i of [0, 4, 5]) {
+      const k = olive.indexOf([...rgba.subarray(i * 4, i * 4 + 3)].join());
+      if (k >= 0) expect([...blueRgba.subarray(i * 4, i * 4 + 3)]).toEqual(blue[k]);
+    }
+    expect(blueRgba.subarray(20, 23)).not.toEqual(rgba.subarray(20, 23));
+    const steel = colorize(sample(materialId('steel')));
+    expect(recolor(steel, blue)).toEqual(steel);
   });
 
   it('lights emissive materials fully whatever the light', () => {
-    const rgba = colorize(sample(materialId('lamp'), 0), 'player');
+    const rgba = colorize(sample(materialId('lamp'), 0));
     expect([...rgba.subarray(20, 23)]).toEqual([...ramp('cyan').at(-1)!]);
   });
 });

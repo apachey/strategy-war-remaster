@@ -1,7 +1,7 @@
 import { LANGS, type Lang } from '@sw/data';
 import { campaign } from '@sw/data';
 import { DEFAULT_SKIRMISH_MONEY, DIFFICULTIES, OPPONENTS, SAVE_VERSION, SKIRMISH_MONEY, type Difficulty, type WorldSave } from '@sw/sim';
-import type { Setup } from './game';
+import { sidesLook, type Setup } from './game';
 
 /**
  * Settings, campaign progress and save slots in localStorage. Storage can be missing or full (private windows,
@@ -48,6 +48,7 @@ export function loadSettings(): Settings {
       mapIndex: k && k.mapIndex >= 0 && k.mapIndex < campaign.maps.length ? k.mapIndex : 3,
       opponent: k && OPPONENTS.includes(k.opponent) ? k.opponent : 'normal',
       money: k && (SKIRMISH_MONEY as readonly number[]).includes(k.money) ? k.money : DEFAULT_SKIRMISH_MONEY,
+      ...sidesLook(k?.races, k?.colors),
     },
   };
 }

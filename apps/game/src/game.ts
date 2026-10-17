@@ -1,4 +1,15 @@
-import { campaign, CELL, ObjectType, type CampaignMap } from '@sw/data';
+import {
+  campaign,
+  CAMPAIGN_RACES,
+  CELL,
+  DEFAULT_COLORS,
+  ObjectType,
+  RACES,
+  TEAM_COLOR_NAMES,
+  type CampaignMap,
+  type Race,
+  type TeamColor,
+} from '@sw/data';
 import {
   canPlace,
   createSkirmish,
@@ -26,7 +37,15 @@ import { t } from './text';
 /** What is being played: a campaign mission, or a skirmish against the computer or a second person. */
 export type Setup =
   | { kind: 'campaign'; mapIndex: number; missionIndex: number; difficulty: Difficulty }
-  | { kind: 'skirmish'; mapIndex: number; opponent: Opponent; money: number };
+  | {
+      kind: 'skirmish';
+      mapIndex: number;
+      opponent: Opponent;
+      money: number;
+      /** Race and team colour of each side, [first, second]; the colours always differ. */
+      races: [Race, Race];
+      colors: [TeamColor, TeamColor];
+    };
 
 /** The match both players share: the world, pause, speed and whether it has started. */
 export class Game {
@@ -85,7 +104,7 @@ export class Game {
 
 function newWorld(setup: Setup): World {
   if (setup.kind === 'campaign') return createWorld(campaign.maps[setup.mapIndex]!, setup.missionIndex, 1, { difficulty: setup.difficulty });
-  return createSkirmish(setup.mapIndex, { opponent: setup.opponent, money: setup.money });
+  return createSkirmish(setup.mapIndex, { opponent: setup.opponent, money: setup.money, races: setup.races, colors: setup.colors });
 }
 
 /** HQ type of a side: the second side's HQ is the alien one, also when a person plays it. */
@@ -268,7 +287,10 @@ function rank(e: Entity): number {
   return 1;
 }
 
-/** The setup an URL asks for: `?m=6.2` a campaign mission, `?s=4&vs=hard&money=3000` a skirmish on map 4. */
+/**
+ * The setup an URL asks for: `?m=6.2` a campaign mission, `?s=4&vs=hard&money=3000` a skirmish on map 4, with
+ * `&r=walker,hover&c=blue,red` for the two sides' races and colours.
+ */
 export function parseSetup(search: string, difficulty: Difficulty): Setup {
   const params = new URLSearchParams(search);
   const skirmish = params.get('s');
@@ -281,6 +303,7 @@ export function parseSetup(search: string, difficulty: Difficulty): Setup {
       mapIndex,
       opponent: vs && OPPONENTS.includes(vs) ? vs : 'normal',
       money: (SKIRMISH_MONEY as readonly number[]).includes(money) ? money : DEFAULT_SKIRMISH_MONEY,
+      ...sidesLook(params.get('r')?.split(','), params.get('c')?.split(',')),
     };
   }
   return { kind: 'campaign', ...parseMission(search), difficulty };
@@ -289,7 +312,29 @@ export function parseSetup(search: string, difficulty: Difficulty): Setup {
 /** The URL query for a setup. */
 export function setupQuery(setup: Setup): Record<string, string> {
   if (setup.kind === 'campaign') return { m: `${setup.mapIndex + 1}.${setup.missionIndex + 1}` };
-  return { s: String(setup.mapIndex + 1), vs: setup.opponent, money: String(setup.money) };
+  return { s: String(setup.mapIndex + 1), vs: setup.opponent, money: String(setup.money), r: setup.races.join(','), c: setup.colors.join(',') };
+}
+
+/**
+ * Races and colours of a skirmish from untrusted input (URL, stored settings): unknown values fall back to the
+ * campaign's, and a second side wearing the first side's colour takes the next free one.
+ */
+export function sidesLook(races?: readonly unknown[], colors?: readonly unknown[]): { races: [Race, Race]; colors: [TeamColor, TeamColor] } {
+  const race = (i: number) => (RACES.includes(races?.[i] as Race) ? (races![i] as Race) : CAMPAIGN_RACES[i]!);
+  const color = (i: number) => (TEAM_COLOR_NAMES.includes(colors?.[i] as TeamColor) ? (colors![i] as TeamColor) : DEFAULT_COLORS[i]!);
+  const first = color(0);
+  let second = color(1);
+  if (second === first) second = nextColor(first, 1, first);
+  return { races: [race(0), race(1)], colors: [first, second] };
+}
+
+/** The colour `step` places after `from` in the list, skipping `taken` (the other side's). */
+export function nextColor(from: TeamColor, step: number, taken: TeamColor): TeamColor {
+  const n = TEAM_COLOR_NAMES.length;
+  let i = TEAM_COLOR_NAMES.indexOf(from);
+  do i = (((i + step) % n) + n) % n;
+  while (TEAM_COLOR_NAMES[i] === taken);
+  return TEAM_COLOR_NAMES[i]!;
 }
 
 export function parseMission(search: string): { mapIndex: number; missionIndex: number } {
