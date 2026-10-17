@@ -14,7 +14,7 @@ import { facing, limb, plate, slump, spitFlash, WALL_ARMS, type Builder } from '
  */
 function legs(pairs: number, z0: number, z1: number, hipX: number, hipY: number, reach: number, r: number, frame: string): THREE.Mesh[] {
   const out: THREE.Mesh[] = [];
-  const step = frame === 'move1' || frame === 'harvest1' ? 1 : 0;
+  const step = frame === 'move1' ? 1 : 0;
   for (let i = 0; i < pairs; i++) {
     const z = pairs === 1 ? z0 : z0 + ((z1 - z0) * i) / (pairs - 1);
     for (const sx of [-1, 1]) {
@@ -22,7 +22,7 @@ function legs(pairs: number, z0: number, z1: number, hipX: number, hipY: number,
       const hip: Vec3 = [sx * hipX, hipY, z];
       const knee: Vec3 = [sx * (hipX + reach * 0.55), hipY + 0.08, z + swing];
       const foot: Vec3 = [sx * (hipX + reach), 0, z + swing * 1.6 + (z / Math.abs(z || 1)) * 0.03];
-      out.push(limb(hip, knee, r, 'teamDark'), limb(knee, foot, r * 0.8, 'teamDark'), ball(r * 1.3, 'teamLight', knee, 4));
+      out.push(limb(hip, knee, r, 'teamDark'), limb(knee, foot, r * 0.8, 'teamDark'), ball(r * 1.3, 'team2Light', knee, 4));
     }
   }
   return out;
@@ -47,15 +47,15 @@ const lightTank: Builder = (view, frame) => {
   body.scale(1, 0.55, 1);
   const g = group(
     mesh(body, 'team', [0, 0.26, 0]),
-    plate(0.13, 1, 0.6, 1.4, 'teamLight', [0, 0.33, 0.06]),
+    plate(0.13, 1, 0.6, 1.4, 'team2Light', [0, 0.33, 0.06]),
     ball(0.055, 'signal', [0, 0.31, -0.16], 6),
     cyl(0, 0.035, 0.12, 'teamDark', [0, 0.36, 0.14], 4),
     limb([0, 0.24, -0.12], [0, 0.0, -0.3 - step], 0.034, 'teamDark'),
     limb([-0.08, 0.24, 0.12], [-0.3, 0.0, 0.26 + step], 0.034, 'teamDark'),
     limb([0.08, 0.24, 0.12], [0.3, 0.0, 0.26 - step], 0.034, 'teamDark'),
-    ball(0.03, 'teamLight', [0, 0.0, -0.3 - step], 4),
-    ball(0.03, 'teamLight', [-0.3, 0.0, 0.26 + step], 4),
-    ball(0.03, 'teamLight', [0.3, 0.0, 0.26 - step], 4),
+    ball(0.03, 'team2Light', [0, 0.0, -0.3 - step], 4),
+    ball(0.03, 'team2Light', [-0.3, 0.0, 0.26 + step], 4),
+    ball(0.03, 'team2Light', [0.3, 0.0, 0.26 - step], 4),
     fang(0.03, 0.3, [0, 0.2, -0.3 + (fire ? 0.04 : 0)]),
     ball(0.03, 'bileGlow', [0, 0.2, -0.45], 4),
   );
@@ -74,7 +74,7 @@ const middleTank: Builder = (view, frame) => {
     plate(0.2, 1.05, 0.55, 1.5, 'teamDark', [0, 0.18, 0.05]),
     plate(0.17, 1.05, 0.6, 0.9, 'team', [0, 0.24, 0.16]),
     plate(0.15, 1.1, 0.6, 0.8, 'team', [0, 0.24, -0.06]),
-    plate(0.1, 1.2, 0.6, 0.8, 'teamLight', [0, 0.2, -0.25]),
+    plate(0.1, 1.2, 0.6, 0.8, 'team2Light', [0, 0.2, -0.25]),
     ball(0.035, 'signal', [-0.06, 0.24, -0.33], 4),
     ball(0.035, 'signal', [0.06, 0.24, -0.33], 4),
     ...legs(3, -0.18, 0.22, 0.14, 0.17, 0.24, 0.022, frame),
@@ -85,7 +85,7 @@ const middleTank: Builder = (view, frame) => {
     const k = i / steps;
     const a = k * Math.PI * 2 * 1.25;
     const r = 0.1 - k * 0.07;
-    g.add(ball(0.05 - k * 0.025, i % 2 ? 'teamLight' : 'team', [Math.cos(a) * r * 0.6, 0.32 + k * 0.2, 0.12 - k * 0.32 + Math.sin(a) * r], 4));
+    g.add(ball(0.05 - k * 0.025, i % 2 ? 'team2Light' : 'team', [Math.cos(a) * r * 0.6, 0.32 + k * 0.2, 0.12 - k * 0.32 + Math.sin(a) * r], 4));
   }
   g.add(ball(fire ? 0.06 : 0.045, fire ? 'bileGlow' : 'bileLight', [0, 0.53, -0.22], 6));
   if (fire) g.add(spitFlash([0, 0.5, -0.38], 0.09));
@@ -102,7 +102,7 @@ const heavyTank: Builder = (view, frame) => {
   const g = group(
     plate(0.3, 1.0, 0.5, 1.25, 'teamDark', [0, 0.17, 0.05]),
     plate(0.26, 1.0, 0.62, 1.15, 'team', [0, 0.25, 0.08]),
-    plate(0.14, 1.2, 0.7, 1.0, 'teamLight', [0, 0.38, 0.12]),
+    plate(0.14, 1.2, 0.7, 1.0, 'team2Light', [0, 0.38, 0.12]),
     // Glowing seams across the shell.
     ...[-0.08, 0.08, 0.24].map((z) => {
       const seam = mesh(new THREE.BoxGeometry(0.42, 0.02, 0.025), 'bileGlow', [0, 0.33 - Math.abs(z - 0.08) * 0.3, z]);
@@ -125,7 +125,7 @@ const heavyTank: Builder = (view, frame) => {
 
 /**
  * Walker harvester: a six-legged beetle carrying a big pale sac on its back, with a pair of mandibles to scoop.
- * Harvesting, it dips its head and its mandibles open and snap shut on a crystal.
+ * Harvesting, it stands still, dips its head, and its mandibles open and snap shut on a crystal.
  */
 const harvester: Builder = (view, frame) => {
   const harvest = frame.startsWith('harvest');
@@ -139,7 +139,7 @@ const harvester: Builder = (view, frame) => {
       const geo = new THREE.ConeGeometry(0.04, 0.22, 4);
       geo.rotateX(-Math.PI / 2);
       geo.translate(0, 0, -0.11);
-      return mesh(geo, 'teamLight', [sx * 0.07, -0.09, -0.08], [0, -sx * open, 0]);
+      return mesh(geo, 'team2Light', [sx * 0.07, -0.09, -0.08], [0, -sx * open, 0]);
     }),
   );
   // A crystal caught between the closed mandibles.
@@ -148,12 +148,10 @@ const harvester: Builder = (view, frame) => {
   if (harvest) head.rotation.x = -0.35;
   const g = group(
     plate(0.19, 1.05, 0.55, 1.2, 'teamDark', [0, 0.17, -0.08]),
-    plate(0.22, 1.0, 0.85, 1.1, 'teamLight', [0, 0.27, 0.18]),
+    plate(0.22, 1.0, 0.85, 1.1, 'team2Light', [0, 0.27, 0.18]),
     head,
     ...legs(3, -0.16, 0.22, 0.14, 0.17, 0.22, 0.022, frame),
   );
-  // The sac fills: crystals show through its skin while harvesting.
-  if (harvest) g.add(plate(0.08, 1, 0.8, 1, 'crystal', [0.08 - k * 0.12, 0.42, 0.2 + k * 0.05]));
   if (frame === 'wreck') slump(g, -0.04, 0.15);
   return facing(g, view);
 };
@@ -163,7 +161,7 @@ const defender: Builder = (view, frame) => {
   const fire = frame === 'fire';
   const head = group(
     plate(0.16, 1, 0.8, 1.15, 'team', [0, 0, 0]),
-    plate(0.09, 1.1, 0.6, 1, 'teamLight', [0, 0.06, 0.05]),
+    plate(0.09, 1.1, 0.6, 1, 'team2Light', [0, 0.06, 0.05]),
     ball(0.045, 'signal', [0, 0.03, -0.15], 6),
     fang(0.035, 0.24, [0, -0.04, -0.2 + (fire ? 0.03 : 0)]),
   );
@@ -176,7 +174,7 @@ const defender: Builder = (view, frame) => {
     g.add(root(a, 0.08, 0.32, 0.12));
     const thorn = new THREE.ConeGeometry(0.025, 0.12, 4);
     thorn.rotateZ(-Math.PI / 2);
-    g.add(mesh(thorn, 'teamLight', [Math.cos(a) * 0.1, 0.25 + i * 0.07, Math.sin(a) * 0.1], [0, -a, 0.3]));
+    g.add(mesh(thorn, 'team2Light', [Math.cos(a) * 0.1, 0.25 + i * 0.07, Math.sin(a) * 0.1], [0, -a, 0.3]));
   }
   return g;
 };
@@ -211,7 +209,7 @@ function spine(a: number, r0: number, r1: number, h: number, r: number): THREE.M
   const out: THREE.Mesh[] = [];
   const n = 4;
   for (let i = 0; i < n; i++) out.push(limb(p(i / n), p((i + 1) / n), r * (1 - i * 0.18), i % 2 ? 'team' : 'teamDark'));
-  out.push(ball(r * 0.9, 'teamLight', p(0.5), 4), ball(r * 0.8, 'bileLight', p(1), 4));
+  out.push(ball(r * 0.9, 'team2Light', p(0.5), 4), ball(r * 0.8, 'bileLight', p(1), 4));
   return out;
 }
 
@@ -232,7 +230,7 @@ const hq: Builder = (_view, frame) => {
   const g = group(
     plate(0.62, 1.2, 0.75, 1.15, 'teamDark', [0, 0.28, 0]),
     plate(0.5, 1.1, 0.95, 1.05, 'team', [0, 0.5, -0.02]),
-    plate(0.3, 1.1, 1.1, 1.0, 'teamLight', [0.02, 0.86, -0.04]),
+    plate(0.3, 1.1, 1.1, 1.0, 'team2Light', [0.02, 0.86, -0.04]),
     // Maw.
     plate(0.2, 1.4, 1, 0.6, 'teamDark', [0, 0.3, 0.6]),
     plate(k % 2 ? 0.12 : 0.15, 1.4, 0.9, 0.5, 'bileGlow', [0, 0.3, 0.66]),
@@ -248,7 +246,7 @@ const hq: Builder = (_view, frame) => {
     [-0.48, 0.7, 0.08],
     [0.66, 0.42, 0.1],
   ] as const) {
-    g.add(plate(r, 1, 1.2, 1, 'teamLight', [x, r, z]), ball(r * 0.35, 'bile', [x, r * 1.8, z + r * 0.4], 4));
+    g.add(plate(r, 1, 1.2, 1, 'team2Light', [x, r, z]), ball(r * 0.35, 'bile', [x, r * 1.8, z + r * 0.4], 4));
   }
   return g;
 };
@@ -264,7 +262,7 @@ const silo: Builder = () => {
     [0.36, -0.36, 0.34],
     [-0.05, 0.25, 0.3],
   ] as const) {
-    g.add(plate(r, 1, 1.15, 1, 'teamLight', [x, r * 1.05, z]), plate(r * 0.8, 1.05, 0.6, 1.05, 'team', [x, r * 0.4, z]));
+    g.add(plate(r, 1, 1.15, 1, 'team2Light', [x, r * 1.05, z]), plate(r * 0.8, 1.05, 0.6, 1.05, 'team', [x, r * 0.4, z]));
     g.add(...[0.6, 2.2, 3.8].map((a) => plate(r * 0.22, 0.6, 1.4, 0.6, 'crystal', [x + Math.cos(a) * r * 0.8, r * 1.2, z + Math.sin(a) * r * 0.8])));
     g.add(ball(r * 0.15, 'signal', [x, r * 2.1, z], 4));
   }
@@ -299,7 +297,7 @@ const factory: Builder = (_view, frame) => {
   shell.rotateX(-1.05);
   const g = group(
     mesh(shell, 'team', [0, 0.3, -0.2]),
-    plate(0.35, 1.6, 0.4, 1, 'teamLight', [0, 0.92, -0.3]),
+    plate(0.35, 1.6, 0.4, 1, 'team2Light', [0, 0.92, -0.3]),
     ...[-0.5, 0, 0.5].flatMap((x) => spine(Math.PI / 2, x === 0 ? -0.75 : -0.6, -0.1, 0.9, 0.05).map((m) => {
       m.position.x += x;
       return m;
@@ -308,7 +306,7 @@ const factory: Builder = (_view, frame) => {
   );
   for (const sx of [-1, 1]) {
     g.add(limb([sx * 0.62, 0.1, 0.3], [sx * 0.5, 0.42, 0.5], 0.045, 'teamDark'), limb([sx * 0.5, 0.42, 0.5], [sx * 0.24, 0.3, 0.66], 0.035, 'teamDark'));
-    g.add(ball(0.04, 'teamLight', [sx * 0.5, 0.42, 0.5], 4));
+    g.add(ball(0.04, 'team2Light', [sx * 0.5, 0.42, 0.5], 4));
   }
   if (work) {
     const young = lightTank(4, 'move1');
@@ -339,14 +337,14 @@ const construction: Builder = () => {
  * (bits N1 E2 S4 W8).
  */
 const wall: Builder = (mask) => {
-  const thorn = (x: number, z: number, h: number, lean: Vec3, mat: 'team' | 'teamLight') => {
+  const thorn = (x: number, z: number, h: number, lean: Vec3, mat: 'team' | 'team2Light') => {
     const m = mesh(new THREE.ConeGeometry(0.05, h, 4).translate(0, h / 2, 0), mat, [x, 0.1, z]);
     m.rotation.set(...lean);
     return m;
   };
   const g = group(
     plate(0.17, 1.1, 0.75, 1.1, 'teamDark', [0, 0.1, 0]),
-    thorn(0, 0, 0.36, [0, 0, 0], 'teamLight'),
+    thorn(0, 0, 0.36, [0, 0, 0], 'team2Light'),
     thorn(-0.06, 0.04, 0.24, [0.2, 0, 0.4], 'team'),
     thorn(0.06, 0.04, 0.24, [0.2, 0, -0.4], 'team'),
   );
@@ -355,7 +353,7 @@ const wall: Builder = (mask) => {
     for (const t of [0.22, 0.4]) {
       g.add(plate(0.12, dx ? 1.3 : 1, 0.7, dz ? 1.3 : 1, t < 0.3 ? 'team' : 'teamDark', [dx * t, 0.08, dz * t]));
     }
-    g.add(thorn(dx * 0.31, dz * 0.31, 0.2, [dz * 0.25, 0, -dx * 0.25], 'teamLight'));
+    g.add(thorn(dx * 0.31, dz * 0.31, 0.2, [dz * 0.25, 0, -dx * 0.25], 'team2Light'));
   }
   return g;
 };

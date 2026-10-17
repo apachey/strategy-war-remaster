@@ -36,6 +36,8 @@ export interface SkirmishOptions {
   races?: readonly [Race, Race];
   /** Team colours of the two sides; they must differ. Default olive and cyan. */
   colors?: readonly [TeamColor, TeamColor];
+  /** Secondary colours of the two sides; any pair, also the same. Default white and white. */
+  colors2?: readonly [TeamColor, TeamColor];
 }
 
 export interface SkirmishLayout {
@@ -144,6 +146,7 @@ export function createSkirmish(mapIndex: number, options: SkirmishOptions): Worl
     playerAi: options.playerAi,
     races: options.races,
     colors: options.colors,
+    colors2: options.colors2,
   });
   // The computer gets the same money as the person; its difficulty only adds the income bonus.
   world.sides.enemy.money = money;

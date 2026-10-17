@@ -3,6 +3,7 @@ import {
   CAMPAIGN_RACES,
   CELL,
   DEFAULT_COLORS,
+  DEFAULT_SECOND_COLORS,
   ObjectType,
   RACES,
   TEAM_COLOR_NAMES,
@@ -42,9 +43,10 @@ export type Setup =
       mapIndex: number;
       opponent: Opponent;
       money: number;
-      /** Race and team colour of each side, [first, second]; the colours always differ. */
+      /** Race, team colour and secondary colour of each side, [first, second]; the main colours always differ. */
       races: [Race, Race];
       colors: [TeamColor, TeamColor];
+      colors2: [TeamColor, TeamColor];
     };
 
 /** The match both players share: the world, pause, speed and whether it has started. */
@@ -104,7 +106,7 @@ export class Game {
 
 function newWorld(setup: Setup): World {
   if (setup.kind === 'campaign') return createWorld(campaign.maps[setup.mapIndex]!, setup.missionIndex, 1, { difficulty: setup.difficulty });
-  return createSkirmish(setup.mapIndex, { opponent: setup.opponent, money: setup.money, races: setup.races, colors: setup.colors });
+  return createSkirmish(setup.mapIndex, { opponent: setup.opponent, money: setup.money, races: setup.races, colors: setup.colors, colors2: setup.colors2 });
 }
 
 /** HQ type of a side: the second side's HQ is the alien one, also when a person plays it. */
@@ -289,7 +291,7 @@ function rank(e: Entity): number {
 
 /**
  * The setup an URL asks for: `?m=6.2` a campaign mission, `?s=4&vs=hard&money=3000` a skirmish on map 4, with
- * `&r=walker,hover&c=blue,red` for the two sides' races and colours.
+ * `&r=walker,hover&c=blue,red&c2=white,black` for the two sides' races, colours and secondary colours.
  */
 export function parseSetup(search: string, difficulty: Difficulty): Setup {
   const params = new URLSearchParams(search);
@@ -303,7 +305,7 @@ export function parseSetup(search: string, difficulty: Difficulty): Setup {
       mapIndex,
       opponent: vs && OPPONENTS.includes(vs) ? vs : 'normal',
       money: (SKIRMISH_MONEY as readonly number[]).includes(money) ? money : DEFAULT_SKIRMISH_MONEY,
-      ...sidesLook(params.get('r')?.split(','), params.get('c')?.split(',')),
+      ...sidesLook(params.get('r')?.split(','), params.get('c')?.split(','), params.get('c2')?.split(',')),
     };
   }
   return { kind: 'campaign', ...parseMission(search), difficulty };
@@ -312,20 +314,25 @@ export function parseSetup(search: string, difficulty: Difficulty): Setup {
 /** The URL query for a setup. */
 export function setupQuery(setup: Setup): Record<string, string> {
   if (setup.kind === 'campaign') return { m: `${setup.mapIndex + 1}.${setup.missionIndex + 1}` };
-  return { s: String(setup.mapIndex + 1), vs: setup.opponent, money: String(setup.money), r: setup.races.join(','), c: setup.colors.join(',') };
+  return { s: String(setup.mapIndex + 1), vs: setup.opponent, money: String(setup.money), r: setup.races.join(','), c: setup.colors.join(','), c2: setup.colors2.join(',') };
 }
 
 /**
  * Races and colours of a skirmish from untrusted input (URL, stored settings): unknown values fall back to the
- * campaign's, and a second side wearing the first side's colour takes the next free one.
+ * campaign's, and a second side wearing the first side's colour takes the next free one. Secondary colours may repeat.
  */
-export function sidesLook(races?: readonly unknown[], colors?: readonly unknown[]): { races: [Race, Race]; colors: [TeamColor, TeamColor] } {
+export function sidesLook(
+  races?: readonly unknown[],
+  colors?: readonly unknown[],
+  colors2?: readonly unknown[],
+): { races: [Race, Race]; colors: [TeamColor, TeamColor]; colors2: [TeamColor, TeamColor] } {
   const race = (i: number) => (RACES.includes(races?.[i] as Race) ? (races![i] as Race) : CAMPAIGN_RACES[i]!);
-  const color = (i: number) => (TEAM_COLOR_NAMES.includes(colors?.[i] as TeamColor) ? (colors![i] as TeamColor) : DEFAULT_COLORS[i]!);
-  const first = color(0);
-  let second = color(1);
+  const pick = (list: readonly unknown[] | undefined, fallback: readonly TeamColor[], i: number) =>
+    TEAM_COLOR_NAMES.includes(list?.[i] as TeamColor) ? (list![i] as TeamColor) : fallback[i]!;
+  const first = pick(colors, DEFAULT_COLORS, 0);
+  let second = pick(colors, DEFAULT_COLORS, 1);
   if (second === first) second = nextColor(first, 1, first);
-  return { races: [race(0), race(1)], colors: [first, second] };
+  return { races: [race(0), race(1)], colors: [first, second], colors2: [pick(colors2, DEFAULT_SECOND_COLORS, 0), pick(colors2, DEFAULT_SECOND_COLORS, 1)] };
 }
 
 /** The colour `step` places after `from` in the list, skipping `taken` (the other side's). */

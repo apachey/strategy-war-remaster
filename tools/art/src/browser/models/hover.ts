@@ -28,13 +28,13 @@ const lightTank: Builder = (view, frame) => {
   const { g, top } = hoverHull(0.24, 0.13, 0.36, y);
   const recoil = fire ? 0.03 : 0;
   g.add(
-    slab(0.07, 0.05, 0.4, 'teamLight', [0, top - 0.04, 0.04], 0.6),
+    slab(0.07, 0.05, 0.4, 'team2Light', [0, top - 0.04, 0.04], 0.6),
     box(0.04, 0.02, 0.4, 'teamDark', [0, top + 0.005, 0.04]),
     box(0.07, 0.06, 0.08, 'teamDark', [0, top - 0.02, -0.12]),
     barrel(0.022, 0.26, 'steel', [0, top + 0.02, -0.14 + recoil]),
     lightSlot(0.24, 0.02, 0.03, [0, y + 0.03, -0.34]),
     ...[-1, 1].map((sx) => {
-      const fin = slab(0.03, 0.1, 0.12, 'teamLight', [sx * 0.12, top - 0.06, 0.28], 0.5);
+      const fin = slab(0.03, 0.1, 0.12, 'team2Light', [sx * 0.12, top - 0.06, 0.28], 0.5);
       fin.rotation.z = sx * 0.35;
       return fin;
     }),
@@ -60,8 +60,8 @@ const middleTank: Builder = (view, frame) => {
     mesh(belly, 'teamDark', [0, 0.08 + y, 0]),
     mesh(shell, 'team', [0, 0.1 + y, 0]),
     // Spine: two raised plates either side of a dark groove.
-    slab(0.09, 0.08, 0.56, 'teamLight', [-0.08, 0.17 + y, 0.08], 0.6),
-    slab(0.09, 0.08, 0.56, 'teamLight', [0.08, 0.17 + y, 0.08], 0.6),
+    slab(0.09, 0.08, 0.56, 'team2Light', [-0.08, 0.17 + y, 0.08], 0.6),
+    slab(0.09, 0.08, 0.56, 'team2Light', [0.08, 0.17 + y, 0.08], 0.6),
     box(0.06, 0.03, 0.6, 'teamDark', [0, 0.215 + y, 0.06]),
     // Front channel splitting the shell into two lobes, the gun inside it.
     box(0.13, 0.13, 0.26, 'teamDark', [0, 0.09 + y, -0.33]),
@@ -89,7 +89,7 @@ const heavyTank: Builder = (view, frame) => {
   const hump = new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2);
   hump.scale(0.2, 0.1, 0.26);
   g.add(
-    mesh(hump, 'teamLight', [0, top - 0.04, 0.1]),
+    mesh(hump, 'team2Light', [0, top - 0.04, 0.1]),
     box(0.04, 0.02, 0.5, 'teamDark', [0, top + 0.05, 0.06]),
     ...[-1, 1].flatMap((sx) => [
       box(0.1, 0.14, 0.28, 'teamDark', [sx * 0.13, y - 0.02, -0.34]),
@@ -118,11 +118,11 @@ const harvester: Builder = (view, frame) => {
   g.add(
     // Intake.
     box(0.36, 0.1, 0.14, 'teamDark', [0, y - 0.02, -0.36]),
-    box(0.4, 0.03, 0.16, 'teamLight', [0, y + 0.08, -0.36]),
+    box(0.4, 0.03, 0.16, 'team2Light', [0, y + 0.08, -0.36]),
     ...[-0.12, -0.04, 0.04, 0.12].map((x) => box(0.025, 0.05, 0.03, 'steel', [x, y - 0.01, -0.44])),
     // Hopper dome.
     dome(0.17, 'glass', [0, top - 0.06, 0.08], 0.75, 10),
-    cyl(0.18, 0.18, 0.03, 'teamLight', [0, top - 0.07, 0.08], 10),
+    cyl(0.18, 0.18, 0.03, 'team2Light', [0, top - 0.07, 0.08], 10),
     lightSlot(0.08, 0.02, 0.03, [-0.22, y + 0.05, -0.34]),
     lightSlot(0.08, 0.02, 0.03, [0.22, y + 0.05, -0.34]),
     ...[-1, 1].map((sx) => box(0.04, 0.03, 0.14, 'teamDark', [sx * 0.3, y + 0.09, 0.1])),
@@ -307,7 +307,7 @@ const hq: Builder = (_view, frame) => {
     for (const u of [-0.82, 0.82]) core.add(slit(s, side, u, 0.1, 0.24));
     for (const u of [-0.45, 0.45]) {
       const [x, , z] = onVault(s, side, u, 0, -0.1);
-      core.add(slab(0.15, 0.05, 0.15, 'steelLight', [x, 0, z], 0.85), spike(0.07, 0.22, 'team', [x, 0.05, z]));
+      core.add(slab(0.15, 0.05, 0.15, 'steelLight', [x, 0, z], 0.85), spike(0.07, 0.22, 'team2', [x, 0.05, z]));
     }
   }
   core.rotation.y = Math.PI / 4;
@@ -328,7 +328,7 @@ const hq: Builder = (_view, frame) => {
       [bx, 0.04, bz],
       6,
     ),
-    spike(0.05, 0.16, 'team', [bx, 0.04, bz + 0.06]),
+    spike(0.05, 0.16, 'team2', [bx, 0.04, bz + 0.06]),
     ball(k % 2 ? 0.045 : 0.06, k % 2 ? 'team' : 'lamp', [bx, 0.76, bz], 6),
   );
   return g;
@@ -350,7 +350,7 @@ const silo: Builder = () => {
   // Landing pad.
   g.add(
     cyl(0.44, 0.46, 0.05, 'steelLight', [0.3, 0, 0.36], 12),
-    cyl(0.38, 0.38, 0.012, 'team', [0.3, 0.05, 0.36], 12),
+    cyl(0.38, 0.38, 0.012, 'team2', [0.3, 0.05, 0.36], 12),
     cyl(0.32, 0.32, 0.016, 'steelLight', [0.3, 0.05, 0.36], 12),
     ...[0, 1, 2, 3, 4, 5].map((i) => {
       const t = (i / 6) * Math.PI * 2;
@@ -386,7 +386,7 @@ const factory: Builder = (_view, frame) => {
       [0.62, 0, -0.56],
       6,
     ),
-    spike(0.08, 0.26, 'team', [0.62, 0.05, -0.47]),
+    spike(0.08, 0.26, 'team2', [0.62, 0.05, -0.47]),
     ball(0.055, 'lamp', [0.62, 1.04, -0.56], 6),
     ...[-1, 1].map((sx) => slit(s, 1, sx * 0.85, 0.1, 0.22)).map((m) => {
       m.position.x -= 0.2;
@@ -420,7 +420,7 @@ const construction: Builder = () => {
       8,
       Math.PI / 8,
     ),
-    cyl(0.6, 0.6, 0.012, 'team', [0, 0.07, 0], 8),
+    cyl(0.6, 0.6, 0.012, 'team2', [0, 0.07, 0], 8),
     cyl(0.54, 0.54, 0.016, 'steelLight', [0, 0.07, 0], 8),
     mesh(new THREE.TorusGeometry(0.16, 0.02, 4, 12).rotateX(Math.PI / 2), 'lamp', [0, 0.62, 0]),
     spike(0.09, 0.26, 'team', [0, 0.5, 0]),
@@ -459,7 +459,7 @@ const wall: Builder = (mask) => {
       4,
       Math.PI / 4,
     ),
-    spike(0.07, 0.2, 'team', [0, 0.3, 0]),
+    spike(0.07, 0.2, 'team2', [0, 0.3, 0]),
   );
   for (const [bit, dx, dz] of WALL_ARMS) {
     if (!(mask & bit)) continue;
@@ -467,7 +467,7 @@ const wall: Builder = (mask) => {
     const ridge = new THREE.CylinderGeometry(0.13, 0.13, len, 8, 1, false, 0, Math.PI);
     ridge.rotateZ(Math.PI / 2);
     ridge.scale(1, 1.6, 1);
-    const arm = group(mesh(ridge, 'steelLight'), box(len, 0.02, 0.03, 'lamp', [0, 0.2, 0]), box(len, 0.012, 0.15, 'team', [0, 0.005, 0]));
+    const arm = group(mesh(ridge, 'steelLight'), box(len, 0.02, 0.03, 'lamp', [0, 0.2, 0]), box(len, 0.012, 0.15, 'team2', [0, 0.005, 0]));
     arm.children[1]!.castShadow = false;
     arm.position.set(dx * 0.26, 0, dz * 0.26);
     arm.rotation.y = dx ? 0 : Math.PI / 2;

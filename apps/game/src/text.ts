@@ -1,6 +1,11 @@
 import { MAP_NAMES, missionText, ObjectType, type Lang, type Race, type TeamColor } from '@sw/data';
 import type { Difficulty, Opponent } from '@sw/sim';
 
+/** A race's own object names by type, and the name of its building site; missing ones fall back to the generic. */
+interface RaceNames extends Partial<Record<number, string>> {
+  site?: string;
+}
+
 /** Interface strings in both languages. Mission titles and briefings live in @sw/data. */
 const UK = {
   names: {
@@ -15,8 +20,46 @@ const UK = {
     [ObjectType.LightTank]: 'Легкий танк',
     [ObjectType.MiddleTank]: 'Середній танк',
     [ObjectType.HeavyTank]: 'Важкий танк',
-    [ObjectType.Harvester]: 'Харвестер',
+    [ObjectType.Harvester]: 'Комбайн',
   } as Record<number, string>,
+  /**
+   * Each race's own names, over the generic `names` above; a site is the building while it goes up. Human buildings,
+   * the human harvester and wall keep the generic names. The raider is named as its race's middle tank.
+   */
+  raceNames: {
+    human: {
+      [ObjectType.LightTank]: 'Гаусс-багі',
+      [ObjectType.MiddleTank]: 'Котушковий танк',
+      [ObjectType.HeavyTank]: 'Бастіон',
+      [ObjectType.Defender]: 'Гаусс-турель',
+    },
+    hover: {
+      [ObjectType.Harvester]: 'Збирач',
+      [ObjectType.LightTank]: 'Скіф',
+      [ObjectType.MiddleTank]: 'Рейдер',
+      [ObjectType.HeavyTank]: 'Левіафан',
+      [ObjectType.Defender]: 'Плазмовий шпиль',
+      [ObjectType.PlayerHQ]: 'Святилище',
+      [ObjectType.EnemyHQ]: 'Святилище',
+      [ObjectType.Silo]: 'Кристалосховище',
+      [ObjectType.TankFactory]: 'Ангар',
+      [ObjectType.Wall]: 'Барʼєр',
+      site: 'Проектор',
+    },
+    walker: {
+      [ObjectType.Harvester]: 'Комбайн',
+      [ObjectType.LightTank]: 'Триніжок',
+      [ObjectType.MiddleTank]: 'Жук',
+      [ObjectType.HeavyTank]: 'Панцирник',
+      [ObjectType.Defender]: 'Плювач',
+      [ObjectType.PlayerHQ]: 'Вулик',
+      [ObjectType.EnemyHQ]: 'Вулик',
+      [ObjectType.Silo]: 'Запасник',
+      [ObjectType.TankFactory]: 'Інкубатор',
+      [ObjectType.Wall]: 'Шипи',
+      site: 'Гніздо',
+    },
+  } as Record<Race, RaceNames>,
   order: { idle: 'чекає', move: 'їде', attackMove: 'їде в атаку', attack: 'атакує', harvest: 'збирає ресурс', defend: 'охороняє' },
   phase: { toField: 'їде на поле', loading: 'набирає ресурс', toSilo: 'везе до сховища', unloading: 'розвантажується' },
   reason: {
@@ -100,7 +143,9 @@ const UK = {
     orange: 'Помаранчевий',
     pink: 'Рожевий',
     white: 'Білий',
+    black: 'Чорний',
   } as Record<TeamColor, string>,
+  color2Label: 'Другий колір',
   you: 'Ви',
   computer: 'Компʼютер',
   skirmishGoal: 'Мета: знищити штаб компʼютера. Обидві сторони починають рівно: штаб, харвестер і гроші.',
@@ -135,6 +180,40 @@ const EN: Strings = {
     [ObjectType.MiddleTank]: 'Medium tank',
     [ObjectType.HeavyTank]: 'Heavy tank',
     [ObjectType.Harvester]: 'Harvester',
+  },
+  raceNames: {
+    human: {
+      [ObjectType.LightTank]: 'Gauss Buggy',
+      [ObjectType.MiddleTank]: 'Coil Tank',
+      [ObjectType.HeavyTank]: 'Bastion',
+      [ObjectType.Defender]: 'Gauss Turret',
+    },
+    hover: {
+      [ObjectType.Harvester]: 'Collector',
+      [ObjectType.LightTank]: 'Skiff',
+      [ObjectType.MiddleTank]: 'Raider',
+      [ObjectType.HeavyTank]: 'Leviathan',
+      [ObjectType.Defender]: 'Plasma Spire',
+      [ObjectType.PlayerHQ]: 'Sanctum',
+      [ObjectType.EnemyHQ]: 'Sanctum',
+      [ObjectType.Silo]: 'Crystal Vault',
+      [ObjectType.TankFactory]: 'Hangar',
+      [ObjectType.Wall]: 'Barrier',
+      site: 'Projector',
+    },
+    walker: {
+      [ObjectType.Harvester]: 'Harvester',
+      [ObjectType.LightTank]: 'Tripod',
+      [ObjectType.MiddleTank]: 'Beetle',
+      [ObjectType.HeavyTank]: 'Shellback',
+      [ObjectType.Defender]: 'Spitter',
+      [ObjectType.PlayerHQ]: 'Hive',
+      [ObjectType.EnemyHQ]: 'Hive',
+      [ObjectType.Silo]: 'Larder',
+      [ObjectType.TankFactory]: 'Brood',
+      [ObjectType.Wall]: 'Thorns',
+      site: 'Nest',
+    },
   },
   order: { idle: 'waiting', move: 'moving', attackMove: 'attack-moving', attack: 'attacking', harvest: 'harvesting', defend: 'guarding' },
   phase: { toField: 'going to the field', loading: 'loading', toSilo: 'returning to silo', unloading: 'unloading' },
@@ -209,7 +288,8 @@ const EN: Strings = {
   moneyLabel: 'Money',
   race: { human: 'Humans', hover: 'Hovers', walker: 'Walkers' },
   raceOf: { human: 'humans', hover: 'hovers', walker: 'walkers' },
-  color: { olive: 'Olive', cyan: 'Cyan', red: 'Red', blue: 'Blue', violet: 'Violet', orange: 'Orange', pink: 'Pink', white: 'White' },
+  color: { olive: 'Olive', cyan: 'Cyan', red: 'Red', blue: 'Blue', violet: 'Violet', orange: 'Orange', pink: 'Pink', white: 'White', black: 'Black' },
+  color2Label: 'Second colour',
   you: 'You',
   computer: 'Computer',
   skirmishGoal: "Goal: destroy the computer's HQ. Both sides start even: an HQ, a harvester and the same money.",
@@ -244,6 +324,21 @@ export function getLang(): Lang {
 /** The interface strings in the current language. */
 export function t(): Strings {
   return STRINGS[lang];
+}
+
+/**
+ * The name of an object of `type` built by `race` (null for resource fields). The raider is its race's middle tank.
+ */
+export function objectName(race: Race | null, type: ObjectType): string {
+  const T = STRINGS[lang];
+  const as = type === ObjectType.EnemyTank ? ObjectType.MiddleTank : type;
+  return (race && T.raceNames[race][as]) ?? T.names[as]!;
+}
+
+/** What a building site of `race` is called while it goes up: its own name, or the generic "building". */
+export function siteName(race: Race): string {
+  const T = STRINGS[lang];
+  return T.raceNames[race].site ?? T.building;
 }
 
 export function mapName(mapIndex: number): string {

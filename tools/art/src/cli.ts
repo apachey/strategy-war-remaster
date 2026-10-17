@@ -10,7 +10,7 @@ import type { RawRender } from './browser/render';
 import { TEAM_COLORS } from '@sw/data';
 import { PALETTE, RAMPS, TEAM_RAMP, type Rgb } from './palette';
 import { colorize, flipRows, OUTLINE_WIDTH, recolor, reduce, type Reduced } from './pixel';
-import { forestTiles, plateTiles, sand, SAND_CELLS } from './terrain';
+import { forestTiles, PLATE_CELLS, plateEdges, plates, sand, SAND_CELLS } from './terrain';
 
 /**
  * pnpm sprites [--only name,name] [--out dir] [--preview file.png] [--outline px] [--check]
@@ -128,10 +128,10 @@ async function main(): Promise<void> {
     [join(outDir, 'sprites.json'), Buffer.from(JSON.stringify(atlas.json, null, 1) + '\n')],
   ];
   const ground = pack(
-    [sand(), ...forestTiles(), ...plateTiles()].map((t) => ({ ...t, ax: 0, ay: 0 })),
+    [sand(), plates(), ...forestTiles(), ...plateEdges()].map((t) => ({ ...t, ax: 0, ay: 0 })),
     512,
     'terrain.png',
-    { terrain: { pxPerCell: PX_PER_CELL, sandCells: SAND_CELLS, mask: 'forest/<mask> and plate/<mask>: N1 E2 S4 W8 = that neighbour is the same ground' } },
+    { terrain: { pxPerCell: PX_PER_CELL, sandCells: SAND_CELLS, plateCells: PLATE_CELLS, mask: 'forest/<mask>: N1 E2 S4 W8 = that neighbour is forest; plate-edge/<mask>: over sand, that neighbour is plated' } },
   );
   files.push(
     [join(outDir, 'terrain.png'), pngBytes(ground.w, ground.h, ground.rgba)],

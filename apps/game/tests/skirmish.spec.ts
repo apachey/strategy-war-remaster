@@ -96,7 +96,7 @@ test('the skirmish screen picks a map, an opponent and money, then plays', async
   expect(errors).toEqual([]);
 });
 
-test('each side picks its race and colour; the other side sees the race in the panel', async ({ page }) => {
+test('each side picks its race and colours; objects carry their race names', async ({ page }) => {
   const errors = await open(page, '?s=4&vs=hard');
   await page.locator('#modal [data-race0="walker"]').click();
   await page.waitForURL(/r=walker%2Chover|r=walker,hover/);
@@ -107,32 +107,66 @@ test('each side picks its race and colour; the other side sees the race in the p
   await page.locator('#modal [data-color1="red"]').click();
   await page.waitForURL(/c=blue%2Cred|c=blue,red/);
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  // Secondary colours: black accents for the first side, and red on red for the second (its own main colour).
+  await expect(page.locator('#modal')).toContainText('Другий колір');
+  await expect(page.locator('#modal [data-second0]')).toHaveCount(9);
+  await expect(page.locator('#modal [data-second0]:disabled, #modal [data-second1]:disabled')).toHaveCount(0);
+  await expect(page.locator('#modal [data-second0="white"]')).toHaveClass(/active/);
+  await page.locator('#modal [data-second0="black"]').click();
+  await page.waitForURL(/c2=black/);
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.locator('#modal [data-second1="red"]').click();
+  await page.waitForURL(/c2=black%2Cred|c2=black,red/);
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await expect(page.locator('#modal button.active')).toContainText(['Ходуни', 'Ховери']);
   await expect(page.locator('#modal [data-color1="blue"]')).toBeDisabled();
+  await expect(page.locator('#modal [data-color0="black"]')).toHaveAttribute('title', 'Чорний');
   await page.screenshot({ path: 'test-results/skirmish-setup-races.png' });
   await page.getByRole('button', { name: 'Почати' }).click();
   const sides = await page.evaluate(() => {
-    const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { race: string; color: string }> } } } }).__sw.game.world;
-    return { player: [w.sides.player!.race, w.sides.player!.color], enemy: [w.sides.enemy!.race, w.sides.enemy!.color] };
+    const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { race: string; color: string; color2: string }> } } } }).__sw.game.world;
+    return { player: [w.sides.player!.race, w.sides.player!.color, w.sides.player!.color2], enemy: [w.sides.enemy!.race, w.sides.enemy!.color, w.sides.enemy!.color2] };
   });
-  expect(sides).toEqual({ player: ['walker', 'blue'], enemy: ['hover', 'red'] });
-  // The computer's HQ, shown through the shroud, names its race.
+  expect(sides).toEqual({ player: ['walker', 'blue', 'black'], enemy: ['hover', 'red', 'red'] });
+  // The computer's HQ, shown through the shroud, has its race's own name.
   await page.evaluate(() => {
     const h = (window as unknown as { __sw: Hook & { players: Array<{ select(ids: number[]): void }>; game: { world: { sides: Record<string, { explored: Uint8Array }> } } } }).__sw;
     h.game.world.sides.player!.explored.fill(1);
     const hq = h.game.world.entities.find((e) => e.type === 4 && e.team === 'enemy')!;
     h.players[0]!.select([hq.id]);
   });
-  await expect(page.locator('#panel .title')).toHaveText('Штаб · ховери');
+  await expect(page.locator('#panel .title')).toHaveText('Святилище');
   // Zoomed out: blue walkers bottom left, red hovers top right.
   await page.keyboard.press('Minus');
   await page.waitForTimeout(300);
   await page.screenshot({ path: 'test-results/skirmish-walkers-blue.png' });
+  // The walker HQ builds walker buildings.
   await page.keyboard.press('KeyH');
-  await expect(page.locator('#panel .title')).toHaveText('Штаб');
+  await expect(page.locator('#panel .title')).toHaveText('Вулик');
+  await expect(page.locator('#panel button.build')).toContainText(['Запасник', 'Інкубатор', 'Плювач', 'Шипи']);
   // The choice is remembered for the Skirmish button.
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('sw.settings') ?? '{}').skirmish);
-  expect(stored).toMatchObject({ races: ['walker', 'hover'], colors: ['blue', 'red'] });
+  expect(stored).toMatchObject({ races: ['walker', 'hover'], colors: ['blue', 'red'], colors2: ['black', 'red'] });
+  expect(errors).toEqual([]);
+});
+
+test('a mirror match names the other side\'s race; English names follow the race', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('sw.settings', JSON.stringify({ lang: 'en', difficulty: 'normal' })));
+  const errors = await open(page, '?s=4&vs=hard&r=hover,hover&c=violet,orange&c2=white,black');
+  await expect(page.locator('#modal')).toContainText('Second colour');
+  await expect(page.locator('#modal [data-second1="black"]')).toHaveClass(/active/);
+  await expect(page.locator('#modal [data-color0="black"]')).toHaveAttribute('title', 'Black');
+  await page.getByRole('button', { name: 'Start' }).click();
+  await page.keyboard.press('KeyH');
+  await expect(page.locator('#panel .title')).toHaveText('Sanctum');
+  await expect(page.locator('#panel button.build')).toContainText(['Crystal Vault', 'Hangar', 'Plasma Spire', 'Barrier']);
+  await page.evaluate(() => {
+    const h = (window as unknown as { __sw: Hook & { players: Array<{ select(ids: number[]): void }>; game: { world: { sides: Record<string, { explored: Uint8Array }> } } } }).__sw;
+    h.game.world.sides.player!.explored.fill(1);
+    const hq = h.game.world.entities.find((e) => e.type === 4 && e.team === 'enemy')!;
+    h.players[0]!.select([hq.id]);
+  });
+  await expect(page.locator('#panel .title')).toHaveText('Sanctum · hovers');
   expect(errors).toEqual([]);
 });
 
@@ -153,6 +187,8 @@ test('the Skirmish button opens the last skirmish setup from the campaign', asyn
   // A stored setup with both sides in one colour gives the second side the next free colour.
   expect(decodeURIComponent(page.url())).toContain('r=hover,walker');
   expect(decodeURIComponent(page.url())).toContain('c=pink,white');
+  // No secondary colours stored (an older setting): both white.
+  expect(decodeURIComponent(page.url())).toContain('c2=white,white');
   await expect(page.locator('#modal h1')).toHaveText('Пошук бази');
 });
 
@@ -194,11 +230,12 @@ test('player 2 plays with a gamepad: cursor, select, build menu, pause', async (
   const after = (await sw(page)).players[1]!.cursor!;
   expect(after.x).toBeGreaterThan(before.x);
   // Y selects their HQ; RB moves the highlight to the factory, X starts placing it, B cancels.
+  // Player 2 plays the hovers, so the HQ is a sanctum and builds hover buildings.
   await press(page, PAD.Y);
-  await expect(page.locator('#panel-2')).toContainText('Штаб');
-  await expect(page.locator('#panel-2 button.pad-focus')).toContainText('Сховище');
+  await expect(page.locator('#panel-2')).toContainText('Святилище');
+  await expect(page.locator('#panel-2 button.pad-focus')).toContainText('Кристалосховище');
   await press(page, PAD.RB);
-  await expect(page.locator('#panel-2 button.pad-focus')).toContainText('Танковий завод');
+  await expect(page.locator('#panel-2 button.pad-focus')).toContainText('Ангар');
   await press(page, PAD.X);
   await expect.poll(async () => (await sw(page)).players[1]!.placing).toBe(2);
   await page.screenshot({ path: 'test-results/two-players-gamepad.png' });
@@ -222,9 +259,9 @@ test('with two gamepads player 1 gets the first and player 2 the second', async 
   await page.getByRole('button', { name: 'Почати' }).click();
   await press(page, PAD.Y, 0);
   await expect(page.locator('#panel')).toContainText('Штаб');
-  await expect(page.locator('#panel-2')).not.toContainText('Штаб');
+  await expect(page.locator('#panel-2')).not.toContainText('Святилище');
   await press(page, PAD.Y, 1);
-  await expect(page.locator('#panel-2')).toContainText('Штаб');
+  await expect(page.locator('#panel-2')).toContainText('Святилище');
 });
 
 test('destroying player 2\'s HQ shows player 1 as the winner', async ({ page }) => {

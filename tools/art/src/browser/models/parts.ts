@@ -23,18 +23,18 @@ function noShadow<T extends THREE.Object3D>(o: T): T {
 }
 
 /**
- * Shot of the humans' gauss guns: a white-hot slug leaving the muzzle through two rings of cyan light, stretched
- * along the barrel. Aimed north; `size` is about the radius of the burst.
+ * Shot of the humans' gauss guns: a yellow-hot slug leaving the muzzle through two orange rings, stretched along the
+ * barrel; warm colours keep it apart from the hovers' cyan and the walkers' green. Aimed north; `size` is about the radius of the burst.
  */
 export function gaussFlash(pos: Vec3, size: number): THREE.Group {
   const core = new THREE.OctahedronGeometry(size * 0.55, 0);
   core.scale(0.7, 0.7, 2.4);
-  const g = group(mesh(core, 'spark', [pos[0], pos[1], pos[2] - size * 0.6]));
+  const g = group(mesh(core, 'flash', [pos[0], pos[1], pos[2] - size * 0.6]));
   for (const [z, r] of [
     [size * 0.5, 0.75],
     [-size * 0.2, 0.55],
   ] as const) {
-    g.add(mesh(new THREE.TorusGeometry(size * r, size * 0.13, 4, 10), 'lamp', [pos[0], pos[1], pos[2] + z]));
+    g.add(mesh(new THREE.TorusGeometry(size * r, size * 0.13, 4, 10), 'ember', [pos[0], pos[1], pos[2] + z]));
   }
   return noShadow(g);
 }

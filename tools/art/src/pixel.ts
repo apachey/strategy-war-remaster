@@ -1,5 +1,5 @@
 import { GROUND_ID, materialById } from './materials';
-import { ramp, SHADOW_ALPHA, TEAM_RAMP, type Rgb } from './palette';
+import { ramp, SECOND_RAMP, SHADOW_ALPHA, TEAM_RAMP, type Rgb } from './palette';
 
 /**
  * Pure pixel steps of the pipeline, kept free of three.js and the browser so they run (and are tested) in Node.
@@ -108,6 +108,7 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
   const { w, h, mat, light, depth } = frame;
   const out = new Uint8ClampedArray(w * h * 4);
   const teamRamp = ramp(TEAM_RAMP);
+  const secondRamp = ramp(SECOND_RAMP);
   const isObjectAt = (i: number) => mat[i]! !== 0 && mat[i]! !== GROUND_ID;
   // Colour of every pixel: body colours first, then outline rings around them.
   const color: (Rgb | null)[] = new Array(w * h).fill(null);
@@ -119,7 +120,7 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
       if (id === 0 || id === GROUND_ID) continue;
       const def = materialById(id);
       if (!def) throw new Error(`unknown material id ${id}`);
-      const colors = def.ramp === 'team' ? teamRamp : ramp(def.ramp);
+      const colors = def.ramp === 'team' ? teamRamp : def.ramp === 'team2' ? secondRamp : ramp(def.ramp);
       const behind = (j: number) => j >= 0 && j < w * h && isObjectAt(j) && depth[j]! + INNER_LINE_DEPTH < depth[i]!;
       const edge = behind(i - w) || behind(i + w) || (x > 0 && behind(i - 1)) || (x < w - 1 && behind(i + 1));
       const step = def.emissive ? colors.length - 1 : rampStep(light[i]!, colors.length, (def.shift ?? 0) - (edge ? INNER_LINE_STEPS : 0));
@@ -189,19 +190,23 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
 }
 
 /**
- * Copy of a coloured frame with every TEAM_RAMP pixel swapped for the same step of `to` (five colours, dark to
- * light). Team outlines are team colours too, so they follow; nothing else in the palette shares those colours.
+ * Copy of a coloured frame with every TEAM_RAMP pixel swapped for the same step of `to` and every SECOND_RAMP pixel
+ * for the same step of `to2` (five colours each, dark to light; `to2` defaults to leaving the secondary as drawn).
+ * Team outlines are team colours too, so they follow; nothing else in the palette shares those colours.
  */
-export function recolor(rgba: Uint8ClampedArray, to: readonly Rgb[]): Uint8ClampedArray {
-  const from = ramp(TEAM_RAMP);
+export function recolor(rgba: Uint8ClampedArray, to: readonly Rgb[], to2: readonly Rgb[] = ramp(SECOND_RAMP)): Uint8ClampedArray {
+  const map = new Map<number, Rgb>();
+  const key = (r: number, g: number, b: number) => (r << 16) | (g << 8) | b;
+  ramp(TEAM_RAMP).forEach((c, k) => map.set(key(...c), to[k]!));
+  ramp(SECOND_RAMP).forEach((c, k) => map.set(key(...c), to2[k]!));
   const out = new Uint8ClampedArray(rgba);
   for (let i = 0; i < out.length; i += 4) {
     if (!out[i + 3]) continue;
-    const k = from.findIndex((c) => c[0] === out[i] && c[1] === out[i + 1] && c[2] === out[i + 2]);
-    if (k < 0) continue;
-    out[i] = to[k]![0];
-    out[i + 1] = to[k]![1];
-    out[i + 2] = to[k]![2];
+    const c = map.get(key(out[i]!, out[i + 1]!, out[i + 2]!));
+    if (!c) continue;
+    out[i] = c[0];
+    out[i + 1] = c[1];
+    out[i + 2] = c[2];
   }
   return out;
 }

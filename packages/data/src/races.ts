@@ -15,8 +15,10 @@ export const RACES: readonly Race[] = ['human', 'hover', 'walker'];
 export const RACE_GROUND: Record<Race, 'forest' | 'sand' | 'plate'> = { human: 'forest', hover: 'plate', walker: 'sand' };
 
 /**
- * Colours a side can wear. Each is a five-step ramp, dark to light, that replaces the team surfaces of every sprite.
- * Sprites are drawn once in the first ramp (olive) and recoloured to the side's ramp when loaded.
+ * Colours a side can wear. Each is a five-step ramp, dark to light. A side has a main colour for its team surfaces
+ * and a secondary colour for its accents (which parts those are depends on the race and the object). Sprites are
+ * drawn once with the main colour in olive and the secondary in red, and recoloured to the side's two colours when
+ * loaded. Shots and muzzle flashes keep their race's own colours whatever the side wears.
  */
 export const TEAM_COLORS = {
   olive: ['#333300', '#666600', '#999933', '#cccc66', '#ffff99'],
@@ -27,14 +29,18 @@ export const TEAM_COLORS = {
   orange: ['#4a2000', '#8a4200', '#cc6e12', '#f29c3a', '#ffd08a'],
   pink: ['#40102a', '#7a1e52', '#b83a80', '#e46cb0', '#ffb4dc'],
   white: ['#3a3e44', '#6c727a', '#a0a6ae', '#d0d4da', '#ffffff'],
+  black: ['#08080a', '#16161b', '#26262e', '#3a3a45', '#55555f'],
 } as const satisfies Record<string, readonly string[]>;
 export type TeamColor = keyof typeof TEAM_COLORS;
 export const TEAM_COLOR_NAMES = Object.keys(TEAM_COLORS) as TeamColor[];
-/** The ramp the sprites are drawn in. */
+/** The ramps the sprites are drawn in: main colour and secondary colour. */
 export const SPRITE_TEAM_COLOR: TeamColor = 'olive';
+export const SPRITE_SECOND_COLOR: TeamColor = 'red';
 
 /** As in the original: the first seat olive, the second cyan. */
 export const DEFAULT_COLORS: readonly [TeamColor, TeamColor] = ['olive', 'cyan'];
+/** Secondary colours by seat when none is chosen; any colour may be a secondary, also the other side's. */
+export const DEFAULT_SECOND_COLORS: readonly [TeamColor, TeamColor] = ['white', 'white'];
 /** The campaign is the original's war: humans against the hover race. */
 export const CAMPAIGN_RACES: readonly [Race, Race] = ['human', 'hover'];
 

@@ -6,7 +6,7 @@ import { chips, facing, gaussFlash, lightSlot, tube, WALL_ARMS, wreck, type Buil
 /**
  * The humans: the original's player side. Chunky chamfered blocks of team armour, dark grey running gear and cyan
  * light slots; buildings in white with dark bands, cyan panoramic glass and a team stripe. Their guns are human,
- * a little ahead of today: gauss rifles and coil cannons that fire white-hot slugs.
+ * a little ahead of today: gauss rifles and coil cannons that fire yellow-hot slugs.
  */
 
 /** Barrel(s) pointing north from the turret front, recoiled and flashing when firing. */
@@ -75,7 +75,7 @@ const lightTank: Builder = (view, frame) => {
   const turret = group(
     cyl(0.13, 0.13, 0.03, 'steelDark', [0, 0, 0], 10),
     slab(0.28, 0.13, 0.3, 'team', [0, 0.03, 0], 0.72),
-    box(0.1, 0.02, 0.09, 'teamLight', [0, 0.15, 0.03]),
+    box(0.1, 0.02, 0.09, 'team2', [0, 0.15, 0.03]),
     lightSlot(0.03, 0.025, 0.06, [0.125, 0.06, 0.02]),
     guns(1, 0.03, 0.36, 0.09, -0.13, 0, frame === 'fire'),
   );
@@ -89,8 +89,8 @@ const lightTank: Builder = (view, frame) => {
       // Wheel arches with pale armour caps.
       slab(0.13, 0.06, 0.2, 'team', [sx * 0.25, 0.22, -0.21], 0.8),
       slab(0.13, 0.06, 0.2, 'team', [sx * 0.25, 0.22, 0.22], 0.8),
-      box(0.09, 0.015, 0.12, 'teamLight', [sx * 0.25, 0.28, -0.21]),
-      box(0.09, 0.015, 0.12, 'teamLight', [sx * 0.25, 0.28, 0.22]),
+      box(0.09, 0.015, 0.12, 'team2', [sx * 0.25, 0.28, -0.21]),
+      box(0.09, 0.015, 0.12, 'team2', [sx * 0.25, 0.28, 0.22]),
     ]),
     box(0.16, 0.015, 0.1, 'teamLight', [0, 0.25, -0.22]),
     turret,
@@ -116,12 +116,12 @@ const middleTank: Builder = (view, frame) => {
   const recoil = fire ? 0.05 : 0;
   const turret = group(
     slab(0.3, 0.13, 0.36, 'team', [0, 0, 0.04], 0.72),
-    box(0.14, 0.04, 0.12, 'teamLight', [0, 0.13, 0.08]),
+    box(0.14, 0.04, 0.12, 'team2', [0, 0.13, 0.08]),
     lightSlot(0.012, 0.03, 0.08, [0.15, 0.06, 0.04]),
     lightSlot(0.012, 0.03, 0.08, [-0.15, 0.06, 0.04]),
     box(0.12, 0.1, 0.1, 'teamDark', [0, 0.02, -0.16]),
     barrel(0.03, 0.4, 'lamp', [0, 0.07, -0.18 + recoil]),
-    ...[0, 1, 2, 3].map((i) => barrel(0.048, 0.035, 'teamDark', [0, 0.07, -0.22 - i * 0.07 + recoil], 8)),
+    ...[0, 1, 2, 3].map((i) => barrel(0.048, 0.035, 'team2Dark', [0, 0.07, -0.22 - i * 0.07 + recoil], 8)),
     barrel(0.04, 0.06, 'steel', [0, 0.07, -0.52 + recoil], 8),
   );
   if (fire) turret.add(gaussFlash([0, 0.07, -0.66], 0.11));
@@ -150,7 +150,7 @@ const heavyTank: Builder = (view, frame) => {
   const turret = group(
     slab(0.36, 0.16, 0.42, 'team', [0, 0, 0.06], 0.84),
     slab(0.22, 0.07, 0.24, 'team', [0, 0.16, 0.1], 0.8),
-    cyl(0.06, 0.065, 0.03, 'teamLight', [0, 0.23, 0.08], 10),
+    cyl(0.06, 0.065, 0.03, 'team2', [0, 0.23, 0.08], 10),
     ...[-1, 1].map((sx) => slab(0.13, 0.17, 0.3, 'team', [sx * 0.23, -0.01, 0.0], 0.82)),
     ...[-1, 1].flatMap((sx) => [box(0.012, 0.07, 0.025, 'steelDark', [sx * 0.23 - 0.02, 0.05, -0.155]), box(0.012, 0.07, 0.025, 'steelDark', [sx * 0.23 + 0.02, 0.05, -0.155])]),
     ...[-1, 1].map((sx) => slab(0.14, 0.1, 0.2, 'team', [sx * 0.15, 0.0, 0.33], 0.8)),
@@ -158,7 +158,7 @@ const heavyTank: Builder = (view, frame) => {
   for (const x of [-0.065, 0.065]) {
     turret.add(box(0.07, 0.07, 0.07, 'steelDark', [x, 0.05, -0.17 + recoil]));
     turret.add(barrel(0.032, 0.42, 'team', [x, 0.085, -0.2 + recoil]));
-    for (const z of [-0.33, -0.41]) turret.add(barrel(0.036, 0.025, 'steelDark', [x, 0.085, z + recoil], 8));
+    for (const z of [-0.33, -0.41]) turret.add(barrel(0.036, 0.025, 'team2Dark', [x, 0.085, z + recoil], 8));
     turret.add(barrel(0.04, 0.06, 'steel', [x, 0.085, -0.56 + recoil], 8));
     if (fire) turret.add(gaussFlash([x, 0.085, -0.7], 0.09));
   }
@@ -194,12 +194,12 @@ const harvester: Builder = (view, frame) => {
   );
   if (harvest) {
     g.add(dome(0.15, 'gold', [0, top + 0.22, 0.2], 0.5, 6));
-    const lid = slab(0.4, 0.04, 0.3, 'teamLight', [0, 0, 0.15], 0.8);
+    const lid = slab(0.4, 0.04, 0.3, 'team2', [0, 0, 0.15], 0.8);
     const hinge = group(lid);
     hinge.position.set(0, top + 0.24, 0.05);
     hinge.rotation.x = -1.0;
     g.add(hinge, ...chips([0, 0.08, -0.52], [0, top + 0.36, 0.1], k, 0.05));
-  } else g.add(slab(0.4, 0.06, 0.3, 'teamLight', [0, top + 0.24, 0.2], 0.8));
+  } else g.add(slab(0.4, 0.06, 0.3, 'team2', [0, top + 0.24, 0.2], 0.8));
   // Cutter drum on two arms.
   const drumY = harvest ? 0.075 : 0.15;
   const drum = new THREE.CylinderGeometry(0.075, 0.075, 0.44, 8);
@@ -223,7 +223,7 @@ const harvester: Builder = (view, frame) => {
 const defender: Builder = (view, frame) => {
   const fire = frame === 'fire';
   const head = group(mesh(new THREE.IcosahedronGeometry(0.19, 1), 'team', [0, 0, 0]), box(0.05, 0.03, 0.03, 'lamp', [0, 0.07, -0.17]));
-  for (const x of [-0.16, 0.16]) head.add(mesh(new THREE.IcosahedronGeometry(0.08, 0), 'teamLight', [x, 0, -0.06]));
+  for (const x of [-0.16, 0.16]) head.add(mesh(new THREE.IcosahedronGeometry(0.08, 0), 'team2', [x, 0, -0.06]));
   for (const x of [-0.16, 0, 0.16]) {
     head.add(box(0.07, 0.07, 0.05, 'teamDark', [x, -0.035, -0.16]));
     head.add(barrel(0.022, 0.2, 'team', [x, 0, -0.18 + (fire ? 0.03 : 0)]));
@@ -303,7 +303,7 @@ function mushroom(x: number, z: number, h: number, r: number, spire = false): TH
       [x, h + 0.31, z],
       12,
     ),
-    cyl(r * 0.3, r * 0.32, 0.03, 'steelDark', [x, h + 0.46, z], 10),
+    cyl(r * 0.3, r * 0.32, 0.03, 'team2', [x, h + 0.46, z], 10),
   );
   if (spire) {
     g.add(cyl(0.025, 0.03, 0.3, 'steelDark', [x, h + 0.48, z], 6));
@@ -330,7 +330,7 @@ function drum(x: number, z: number, r: number, h: number, glassY: number): THREE
  */
 const hq: Builder = (_view, frame) => {
   const k = Number(frame.slice(-1)) || 0;
-  const dish = group(box(0.18, 0.03, 0.05, 'steelDark', [0, 0, 0]), box(0.04, 0.06, 0.04, 'steel', [0.08, 0.02, 0]));
+  const dish = group(box(0.18, 0.03, 0.05, 'team2', [0, 0, 0]), box(0.04, 0.06, 0.04, 'steel', [0.08, 0.02, 0]));
   dish.rotation.y = (k * Math.PI) / 4;
   dish.position.set(-0.55, 1.08, -0.2);
   return group(
@@ -403,7 +403,7 @@ const silo: Builder = () =>
     // Loading pad with team stripes along its edges.
     box(0.6, 0.05, 0.56, 'steelDark', [0.4, 0, 0.38]),
     box(0.52, 0.02, 0.48, 'steel', [0.4, 0.05, 0.38]),
-    ...[-1, 1].map((s) => box(0.52, 0.02, 0.05, 'team', [0.4, 0.06, 0.38 + s * 0.2])),
+    ...[-1, 1].map((s) => box(0.52, 0.02, 0.05, s < 0 ? 'team' : 'team2', [0.4, 0.06, 0.38 + s * 0.2])),
     ...[-1, 1].map((s) => slab(0.12, 0.1, 0.14, 'steelLight', [0.4 + s * 0.27, 0.0, 0.6], 0.8)),
   );
 
@@ -450,7 +450,7 @@ const factory: Builder = (_view, frame) => {
   const arm = group(
     box(0.16, 0.14, armLen, 'steelLight', [0, 0, 0]),
     box(0.165, 0.06, armLen * 0.55, 'glass', [0, 0.04, -armLen * 0.08]),
-    box(0.17, 0.02, armLen * 0.9, 'team', [0, 0.01, 0]),
+    box(0.17, 0.02, armLen * 0.9, 'team2', [0, 0.01, 0]),
     box(0.18, 0.18, 0.12, 'steelDark', [0, -0.02, armLen / 2]),
   );
   // The arm runs from the tower out over the pad.
@@ -483,7 +483,7 @@ const factory: Builder = (_view, frame) => {
 const construction: Builder = () => {
   const jib = group(
     box(0.06, 0.06, 0.9, 'steelLight', [0, 0, 0.45]),
-    box(0.065, 0.02, 0.8, 'team', [0, 0.03, 0.45]),
+    box(0.065, 0.02, 0.8, 'team2', [0, 0.03, 0.45]),
     box(0.015, 0.36, 0.015, 'steelDark', [0, -0.36, 0.86]),
     box(0.09, 0.06, 0.09, 'steelDark', [0, -0.42, 0.86]),
   );
@@ -548,7 +548,7 @@ const wall: Builder = (mask) => {
     const cz = dz * 0.25;
     g.add(box(dx ? len : t + 0.04, 0.05, dz ? len : t + 0.04, 'steelDark', [cx, 0, cz]));
     g.add(slab(w, h, d, 'steelLight', [cx, 0.04, cz], dx ? 0.9 : 0.75));
-    g.add(box(dx ? len : t + 0.005, 0.035, dz ? len : t + 0.005, 'steelDark', [cx, 0.13, cz]));
+    g.add(box(dx ? len : t + 0.005, 0.035, dz ? len : t + 0.005, 'team2Dark', [cx, 0.13, cz]));
     // Light slot on the faces that look south or east, where the camera sees them.
     if (dx) g.add(lightSlot(len * 0.5, 0.02, 0.01, [cx, 0.135, cz + t / 2 + 0.005]));
     else g.add(lightSlot(0.01, 0.02, len * 0.5, [cx + t / 2 + 0.005, 0.135, cz]));
@@ -556,14 +556,14 @@ const wall: Builder = (mask) => {
   return g;
 };
 
-/** Gauss slug in flight: a white-hot dart in a cyan ring, longer with a second ring for the cannon. */
+/** Gauss slug in flight: a yellow-hot dart in an orange ring, longer with a second ring for the cannon. */
 const shot: Builder = (view, frame) => {
   const big = frame === 'cannon';
   const r = big ? 0.035 : 0.022;
   const slug = new THREE.OctahedronGeometry(r, 0);
   slug.scale(1, 1, big ? 5 : 4);
-  const g = group(mesh(slug, 'spark', [0, 0.32, 0]), mesh(new THREE.TorusGeometry(r * 2.2, r * 0.4, 4, 8), 'lamp', [0, 0.32, r * 2.5]));
-  if (big) g.add(mesh(new THREE.TorusGeometry(r * 1.6, r * 0.35, 4, 8), 'lamp', [0, 0.32, r * 5]));
+  const g = group(mesh(slug, 'flash', [0, 0.32, 0]), mesh(new THREE.TorusGeometry(r * 2.2, r * 0.4, 4, 8), 'ember', [0, 0.32, r * 2.5]));
+  if (big) g.add(mesh(new THREE.TorusGeometry(r * 1.6, r * 0.35, 4, 8), 'ember', [0, 0.32, r * 5]));
   return facing(g, view);
 };
 

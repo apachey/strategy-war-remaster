@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { pack } from '../src/atlas';
 import { GROUND_ID, materialId } from '../src/materials';
-import { TEAM_COLORS, TEAM_COLOR_NAMES } from '@sw/data';
-import { PALETTE, ramp, RAMPS, TEAM_RAMP } from '../src/palette';
+import { SPRITE_SECOND_COLOR, TEAM_COLORS, TEAM_COLOR_NAMES } from '@sw/data';
+import { PALETTE, ramp, RAMPS, SECOND_RAMP, TEAM_RAMP } from '../src/palette';
 import { colorize, flipRows, rampStep, recolor, reduce } from '../src/pixel';
 
 /** A 4x4 art frame rendered at 2x: one 2x2 art-pixel block of material in the middle on a lit floor. */
@@ -22,13 +22,14 @@ function sample(mat = materialId('team'), light = 180) {
 }
 
 describe('palette', () => {
-  it('has 33 colours for objects and 15 for the ground, all different', () => {
-    expect(PALETTE).toHaveLength(48);
-    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(48);
+  it('has 38 colours for objects and 15 for the ground, all different', () => {
+    expect(PALETTE).toHaveLength(53);
+    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(53);
   });
 
   it('draws team surfaces in the first team colour of the game', () => {
     expect(TEAM_COLORS[TEAM_COLOR_NAMES[0]!]).toEqual(RAMPS[TEAM_RAMP]);
+    expect(TEAM_COLORS[SPRITE_SECOND_COLOR]).toEqual(RAMPS[SECOND_RAMP]);
     for (const name of TEAM_COLOR_NAMES) expect(TEAM_COLORS[name]).toHaveLength(5);
   });
 });
@@ -83,6 +84,16 @@ describe('colorize', () => {
     expect(blueRgba.subarray(20, 23)).not.toEqual(rgba.subarray(20, 23));
     const steel = colorize(sample(materialId('steel')));
     expect(recolor(steel, blue)).toEqual(steel);
+  });
+
+  it('recolours the secondary colour on its own', () => {
+    const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as unknown as [number, number, number];
+    const rgba = colorize(sample(materialId('team2')));
+    const second = ramp(SECOND_RAMP).map((c) => c.join());
+    const k = second.indexOf([...rgba.subarray(20, 23)].join());
+    expect(k).toBeGreaterThanOrEqual(0);
+    const out = recolor(rgba, TEAM_COLORS.olive.map(hex), TEAM_COLORS.black.map(hex));
+    expect([...out.subarray(20, 23)]).toEqual(hex(TEAM_COLORS.black[k]!));
   });
 
   it('lights emissive materials fully whatever the light', () => {

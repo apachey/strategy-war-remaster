@@ -3,6 +3,7 @@ import {
   CAMPAIGN_RACES,
   CELL,
   DEFAULT_COLORS,
+  DEFAULT_SECOND_COLORS,
   ObjectType,
   TILE_FOREST,
   type CampaignMap,
@@ -115,9 +116,10 @@ export type GameEvent =
   | { kind: 'completed'; id: number; type: ObjectType };
 
 export interface SideState {
-  /** How the side looks: its race and team colour. Neither changes any rule. */
+  /** How the side looks: its race, team colour and secondary (accent) colour. None of them changes any rule. */
   race: Race;
   color: TeamColor;
+  color2: TeamColor;
   money: number;
   /** 1 = cell has been seen. The original has a classic shroud: once seen, always shown. */
   explored: Uint8Array;
@@ -232,6 +234,8 @@ export interface WorldOptions {
   races?: readonly [Race, Race];
   /** Team colours of the two seats, [player, enemy]; they must differ. Default olive and cyan. */
   colors?: readonly [TeamColor, TeamColor];
+  /** Secondary colours of the two seats; they may match each other or a main colour. Default white and white. */
+  colors2?: readonly [TeamColor, TeamColor];
 }
 
 export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, options: WorldOptions = {}): World {
@@ -241,6 +245,7 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, op
   const [playerRace, enemyRace] = options.races ?? CAMPAIGN_RACES;
   const [playerColor, enemyColor] = options.colors ?? DEFAULT_COLORS;
   if (playerColor === enemyColor) throw new Error(`Both sides cannot wear ${playerColor}`);
+  const [playerColor2, enemyColor2] = options.colors2 ?? DEFAULT_SECOND_COLORS;
   const grid = buildBlockedGrid(map);
   const cells = grid.cols * grid.rows;
   const world: World = {
@@ -250,8 +255,8 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, op
     byId: new Map(),
     projectiles: [],
     sides: {
-      player: { race: playerRace, color: playerColor, money: mission.money, explored: new Uint8Array(cells) },
-      enemy: { race: enemyRace, color: enemyColor, money: 0, explored: new Uint8Array(cells) },
+      player: { race: playerRace, color: playerColor, color2: playerColor2, money: mission.money, explored: new Uint8Array(cells) },
+      enemy: { race: enemyRace, color: enemyColor, color2: enemyColor2, money: 0, explored: new Uint8Array(cells) },
     },
     tick: 0,
     rngState: seed >>> 0,

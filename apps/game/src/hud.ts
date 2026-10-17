@@ -19,7 +19,7 @@ import {
 } from '@sw/sim';
 import { hqType, nextMission, type Commander, type Game, type Setup } from './game';
 import { completed, markCompleted, readSave, SLOTS, type Slot } from './storage';
-import { getLang, mapName, missionBrief, missionTitle, t } from './text';
+import { getLang, mapName, missionBrief, missionTitle, objectName, siteName, t } from './text';
 
 const LANG_NAMES: Record<Lang, string> = { uk: 'Українська', en: 'English' };
 
@@ -169,6 +169,7 @@ export class Hud {
       const pair = <V>(list: [V, V], v: V): [V, V] => (i === 0 ? [v, list[1]] : [list[0], v]);
       m.querySelectorAll<HTMLButtonElement>(`[data-race${i}]`).forEach((b) => (b.onclick = () => change({ races: pair(s.races, b.dataset[`race${i}`] as Race) })));
       m.querySelectorAll<HTMLButtonElement>(`[data-color${i}]`).forEach((b) => (b.onclick = () => change({ colors: pair(s.colors, b.dataset[`color${i}`] as TeamColor) })));
+      m.querySelectorAll<HTMLButtonElement>(`[data-second${i}]`).forEach((b) => (b.onclick = () => change({ colors2: pair(s.colors2, b.dataset[`second${i}`] as TeamColor) })));
     }
     m.querySelectorAll<HTMLButtonElement>('[data-money]').forEach((b) => (b.onclick = () => change({ money: Number(b.dataset.money) })));
     m.querySelector<HTMLButtonElement>('[data-campaign]')!.onclick = () => this.showMissions();
@@ -298,20 +299,25 @@ function choice<V extends string>(attr: string, values: readonly V[], current: V
   return values.map((v) => `<button data-${attr}="${v}"${v === current ? ' class="active"' : ''}>${label(v)}</button>`).join('');
 }
 
+/** A row of colour swatches; `attr` names the data attribute, `taken` is a colour that cannot be picked. */
+function swatches(attr: string, current: TeamColor, taken: TeamColor | null): string {
+  const T = t();
+  return TEAM_COLOR_NAMES.map((c) => {
+    const ramp = TEAM_COLORS[c];
+    const cls = c === current ? 'swatch active' : 'swatch';
+    return `<button class="${cls}" data-${attr}="${c}" title="${T.color[c]}" aria-label="${T.color[c]}" style="--c: ${ramp[2]}; --c-edge: ${ramp[4]}"${c === taken ? ' disabled' : ''}></button>`;
+  }).join('');
+}
+
 /**
- * One side's race and team colour on the skirmish screen. The colour the other side wears cannot be picked, so the
- * two sides never look alike.
+ * One side's race, team colour and secondary colour on the skirmish screen. The colour the other side wears cannot be
+ * picked, so the two sides never look alike; any secondary colour can, also one already worn.
  */
 function sideOptions(s: Extract<Setup, { kind: 'skirmish' }>, i: number): string {
   const T = t();
   const who = s.opponent === 'human' ? T.playerName(i + 1) : i === 0 ? T.you : T.computer;
-  const taken = s.colors[1 - i];
-  const swatches = TEAM_COLOR_NAMES.map((c) => {
-    const ramp = TEAM_COLORS[c];
-    const cls = c === s.colors[i] ? 'swatch active' : 'swatch';
-    return `<button class="${cls}" data-color${i}="${c}" title="${T.color[c]}" aria-label="${T.color[c]}" style="--c: ${ramp[2]}; --c-edge: ${ramp[4]}"${c === taken ? ' disabled' : ''}></button>`;
-  }).join('');
-  return `<div class="option side"><span>${who}</span>${choice(`race${i}`, RACES, s.races[i]!, (r) => T.race[r])}<i class="gap"></i>${swatches}</div>`;
+  return `<div class="option side"><span>${who}</span>${choice(`race${i}`, RACES, s.races[i]!, (r) => T.race[r])}<i class="gap"></i>${swatches(`color${i}`, s.colors[i]!, s.colors[1 - i]!)}</div>
+    <div class="option side second"><span>${T.color2Label}</span>${swatches(`second${i}`, s.colors2[i]!, null)}</div>`;
 }
 
 /** A small map of the skirmish: forest, crystal fields and the two starts in their team colours. */
@@ -427,11 +433,19 @@ export class PlayerPanel {
     ]);
   }
 
-  /** The object's name; the other side's objects also name their race, as in "HQ · hovers". */
+  /**
+   * The object's name in its race's words. Races mostly name things differently; where the other side's name is the
+   * same as this person's own race would use (a mirror match, the shared harvester), it adds the race: "HQ · humans".
+   */
   private name(e: Entity): string {
-    const T = t();
-    const race = this.c.isFoe(e) ? raceOf(this.c.world, e.team) : null;
-    return race ? `${T.names[e.type]} · ${T.raceOf[race]}` : T.names[e.type]!;
+    const race = raceOf(this.c.world, e.team);
+    const name = objectName(race, e.type);
+    if (!race || !this.c.isFoe(e)) return name;
+    return name === objectName(this.ownRace, e.type) ? `${name} · ${t().raceOf[race]}` : name;
+  }
+
+  private get ownRace() {
+    return this.c.world.sides[this.c.side].race;
   }
 
   private html(sel: Entity[]): string {
@@ -439,9 +453,9 @@ export class PlayerPanel {
     const c = this.c;
     if (sel.length === 0) return `<div class="hint">${c.cursor ? T.padHint : T.hint}</div>`;
     if (sel.length > 1) {
-      const counts = new Map<number, number>();
-      for (const e of sel) counts.set(e.type, (counts.get(e.type) ?? 0) + 1);
-      const list = [...counts].map(([type, n]) => `${T.names[type]} ×${n}`).join(', ');
+      const counts = new Map<string, number>();
+      for (const e of sel) counts.set(this.name(e), (counts.get(this.name(e)) ?? 0) + 1);
+      const list = [...counts].map(([name, n]) => `${name} ×${n}`).join(', ');
       return `<div class="title">${T.squad}: ${sel.length}</div><div class="info">${list}</div>${this.unitButtons()}`;
     }
     const e = sel[0]!;
@@ -451,8 +465,8 @@ export class PlayerPanel {
     if (isUnit(e.type)) {
       status = e.type === ObjectType.Harvester && e.phase ? T.phase[e.phase] : T.order[e.order.kind];
       if (e.type === ObjectType.Harvester) status += ` · ${T.cargo} ${e.cargo}/50`;
-    } else if (!e.complete) status = `${T.building} ${Math.floor((e.buildElapsedMs / e.buildTotalMs) * 100)}%`;
-    else if (e.job?.kind === 'produce') status = `${T.producing}: ${T.names[e.job.unit]} ${Math.floor((e.job.elapsedMs / e.job.totalMs) * 100)}%`;
+    } else if (!e.complete) status = `${siteName(raceOf(this.c.world, e.team) ?? 'human')} ${Math.floor((e.buildElapsedMs / e.buildTotalMs) * 100)}%`;
+    else if (e.job?.kind === 'produce') status = `${T.producing}: ${objectName(raceOf(this.c.world, e.team), e.job.unit)} ${Math.floor((e.job.elapsedMs / e.job.totalMs) * 100)}%`;
     else if (e.job?.kind === 'construct') status = T.constructing;
     const team = e.team === 'neutral' ? '' : own ? 'own' : 'foe';
     let html = `<div class="title ${team}">${this.name(e)}</div><div class="info">${hp}${status ? ` · ${status}` : ''}</div>`;
@@ -478,13 +492,13 @@ export class PlayerPanel {
   private buildButton(type: BuildingType, price: number, busy: boolean): string {
     const active = this.c.placing?.type === type ? ' active' : '';
     const disabled = busy || price > this.c.money ? ' disabled' : '';
-    return `<button class="build${active}" data-action="place" data-type="${type}"${disabled}>${t().names[type]}<small>$${price}</small></button>`;
+    return `<button class="build${active}" data-action="place" data-type="${type}"${disabled}>${objectName(this.ownRace, type)}<small>$${price}</small></button>`;
   }
 
   private produceButton(type: UnitType, factory: Entity): string {
     const price = UNIT_RULES[type].price;
     const disabled = factory.job || price > this.c.money ? ' disabled' : '';
-    return `<button class="build" data-action="produce" data-type="${type}" data-id="${factory.id}"${disabled}>${t().names[type]}<small>$${price}</small></button>`;
+    return `<button class="build" data-action="produce" data-type="${type}" data-id="${factory.id}"${disabled}>${objectName(this.ownRace, type)}<small>$${price}</small></button>`;
   }
 
   private unitButtons(): string {

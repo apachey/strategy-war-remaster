@@ -164,70 +164,102 @@ export function forestTiles(): Tile[] {
   return tiles;
 }
 
+/** The plate texture covers this many cells each way before it repeats. */
+export const PLATE_CELLS = 8;
+
+const mix = (a: Rgb, b: Rgb, t: number): Rgb => [0, 1, 2].map((k) => Math.round(a[k]! * (1 - t) + b[k]! * t)) as unknown as Rgb;
+
 /**
- * The hover race's ground: pale floor plates, four panels to a cell, with dark seams, a lit top-left edge on each
- * panel, a cyan light where seams cross in the middle of the cell, and slight differences in tone between panels.
- * Tiles come per neighbour mask (N1 E2 S4 W8 set = that neighbour is plated too): towards the sand the plating
- * ends in a dark rim with chamfered corners and a soft shadow on the sand.
+ * The hover race's ground, seen at the same low angle as the sprites: a seamless texture (PLATE_CELLS cells each
+ * way) of pale floor plates cut at random into sizes from half a cell to three cells, laid without regard to the
+ * cell grid. Each plate stands a little proud of its neighbours by its own height, so its lit north rim, its top and
+ * its dark south face (two to five pixels: deeper the higher it stands) all show, and dark seams run between plates.
+ * Plates differ in tone and height, some are worn darker, cracked or carry a cyan light. Draw it by world position in
+ * every plated cell, then `plate-edge/<mask>` over the sand cells next to the plating.
  */
-export function plateTiles(): Tile[] {
-  const C = PX_PER_CELL;
-  const P = C / 2;
+export function plates(): Tile {
+  const S = PLATE_CELLS * PX_PER_CELL;
   const colors = ramp('plate');
   const lamp = ramp('cyan');
+  const seam = mix(colors[0]!, OUTLINE, 0.45);
+  const face = [mix(colors[0]!, OUTLINE, 0.2), colors[0]!, colors[1]!];
+  const rnd = rng(77);
+  const list: [number, number, number, number][] = [];
+  const split = (x0: number, y0: number, x1: number, y1: number, depth: number) => {
+    const w = x1 - x0;
+    const h = y1 - y0;
+    const big = Math.max(w, h);
+    if (depth > 2 && (big < 22 || (big < 60 && rnd() < 0.4) || (big < 100 && rnd() < 0.12))) {
+      list.push([x0, y0, x1, y1]);
+      return;
+    }
+    const t = 0.25 + rnd() * 0.5;
+    if (w > h * (0.7 + rnd() * 0.6)) {
+      const m = x0 + Math.round(w * t);
+      split(x0, y0, m, y1, depth + 1);
+      split(m, y0, x1, y1, depth + 1);
+    } else {
+      const m = y0 + Math.round(h * t);
+      split(x0, y0, x1, m, depth + 1);
+      split(x0, m, x1, y1, depth + 1);
+    }
+  };
+  split(0, 0, S, S, 0);
+  const rgba = new Uint8ClampedArray(S * S * 4);
+  for (const [x0, y0, x1, y1] of list) {
+    const tall = 2 + Math.floor(rnd() * 4);
+    const tone = rnd() < 0.15 ? 1 : 2 + Math.floor(rnd() * 3);
+    const top = y1 - 1 - tall;
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        let c: Rgb;
+        if (x === x1 - 1 || y === y1 - 1) c = seam;
+        else if (y >= top) c = face[Math.min(2, Math.floor(((y - top) / tall) * 3) === 0 ? 2 : y === y1 - 2 ? 0 : 1)]!;
+        else if (y === y0) c = colors[4]!;
+        else if (x === x0) c = colors[Math.min(4, tone + 1)]!;
+        else if (x === x1 - 2) c = colors[Math.max(1, tone - 1)]!;
+        else c = colors[dither(tone - 0.35 + ((y - y0) / Math.max(1, top - y0)) * 0.7, x, y, colors.length)]!;
+        put(rgba, y * S + x, c);
+      }
+    }
+    // Wear: a crack wandering down a big plate, or a cyan light near its corner.
+    if (rnd() < 0.3 && x1 - x0 > 10 && top - y0 > 8) {
+      let x = x0 + 3 + Math.floor(rnd() * (x1 - x0 - 7));
+      for (let y = y0 + 2; y < top - 1; y++) {
+        put(rgba, y * S + x, colors[Math.max(0, tone - 2)]!);
+        if (rnd() < 0.45) x = Math.min(x1 - 3, Math.max(x0 + 2, x + (rnd() < 0.5 ? -1 : 1)));
+      }
+    } else if (rnd() < 0.15 && x1 - x0 > 8 && top - y0 > 6) {
+      put(rgba, (y0 + 2) * S + x0 + 3, lamp[4]!);
+      put(rgba, (y0 + 2) * S + x0 + 4, lamp[3]!);
+    }
+  }
+  return { name: 'plates', w: S, h: S, rgba };
+}
+
+/**
+ * Edges of the plating, drawn over a sand cell next to plated cells (mask N1 E2 S4 W8 set = that neighbour is
+ * plated): under a plated north neighbour hangs the front face of the raised floor and its shadow; a plated west
+ * neighbour throws a shadow on the sand; plated east and south neighbours get a lit rim along this cell's border.
+ */
+export function plateEdges(): Tile[] {
+  const C = PX_PER_CELL;
+  const colors = ramp('plate');
   const tiles: Tile[] = [];
   for (let mask = 0; mask < 16; mask++) {
     const rgba = new Uint8ClampedArray(C * C * 4);
-    const open = (bit: number) => !(mask & bit);
-    // Distance inside the plating along each open side, with 3 px chamfers where two open sides meet.
-    const depth = (x: number, y: number) => {
-      let d = Infinity;
-      if (open(1)) d = Math.min(d, y - 1);
-      if (open(2)) d = Math.min(d, C - 2 - x);
-      if (open(4)) d = Math.min(d, C - 2 - y);
-      if (open(8)) d = Math.min(d, x - 1);
-      const corner = (cx: number, cy: number) => Math.abs(x - cx) + Math.abs(y - cy) - 4;
-      if (open(1) && open(8)) d = Math.min(d, corner(0, 0));
-      if (open(1) && open(2)) d = Math.min(d, corner(C - 1, 0));
-      if (open(4) && open(2)) d = Math.min(d, corner(C - 1, C - 1));
-      if (open(4) && open(8)) d = Math.min(d, corner(0, C - 1));
-      return d;
-    };
+    const shade = (i: number, k: number) => put(rgba, i, OUTLINE, Math.round(SHADOW_ALPHA * 255 * k));
     for (let y = 0; y < C; y++) {
       for (let x = 0; x < C; x++) {
         const i = y * C + x;
-        const d = depth(x, y);
-        if (d < 0) {
-          if (d >= -2) put(rgba, i, OUTLINE, Math.round(SHADOW_ALPHA * 255 * (d >= -1 ? 1 : 0.5)));
-          continue;
-        }
-        if (d < 1) {
-          put(rgba, i, colors[0]!);
-          continue;
-        }
-        const px = x % P;
-        const py = y % P;
-        const panel = (y >= P ? 2 : 0) + (x >= P ? 1 : 0);
-        let step = panel === 1 || panel === 2 ? 2 : 3;
-        if (px === P - 1 || py === P - 1) step = 0;
-        else if (px === 0 || py === 0) step = 4;
-        // A shallow inset square in each panel.
-        else if ((px === 4 || px === P - 5) && py >= 4 && py <= P - 5) step -= 1;
-        else if ((py === 4 || py === P - 5) && px >= 4 && px <= P - 5) step -= 1;
-        put(rgba, i, colors[step]!);
+        if (mask & 1 && y < 4) put(rgba, i, y === 3 ? mix(colors[0]!, OUTLINE, 0.45) : y === 0 ? colors[1]! : colors[0]!);
+        else if (mask & 1 && y < 7) shade(i, y < 6 ? 1 : 0.5);
+        else if (mask & 8 && x < 3) shade(i, x < 2 ? 1 : 0.5);
+        else if (mask & 2 && x === C - 1) put(rgba, i, colors[3]!);
+        else if (mask & 4 && y === C - 1) put(rgba, i, colors[4]!);
       }
     }
-    // Light where the seams cross in the middle of the cell.
-    for (const [x, y, c] of [
-      [P - 1, P - 1, 4],
-      [P - 2, P - 1, 3],
-      [P, P - 1, 3],
-      [P - 1, P - 2, 3],
-      [P - 1, P, 3],
-    ] as const) {
-      put(rgba, y * C + x, lamp[c]!);
-    }
-    tiles.push({ name: `plate/${mask}`, w: C, h: C, rgba });
+    tiles.push({ name: `plate-edge/${mask}`, w: C, h: C, rgba });
   }
   return tiles;
 }

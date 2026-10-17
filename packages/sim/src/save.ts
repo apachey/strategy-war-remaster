@@ -1,7 +1,7 @@
 import type { SideState, World } from './world';
 
 /** Bumped whenever the World shape changes; older saves are refused rather than loaded wrong. */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 /** A world as plain JSON: everything the simulation needs to continue exactly where it stopped. */
 export interface WorldSave {

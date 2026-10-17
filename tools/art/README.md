@@ -16,13 +16,15 @@ pnpm sprites:check                 # CI: fail if assets/sprites is stale
    original's sprites. Each view and frame is rendered 8x larger in three
    passes: material id, light (white surfaces, sun from the north-west with shadows, sky and a weak fill), depth.
 3. **Pixels** (`src/pixel.ts`, pure and unit-tested): each 8x8 block becomes one art pixel by majority; the light
-   picks a step in the material's colour ramp (`src/palette.ts`, 33 colours for objects and
+   picks a step in the material's colour ramp (`src/palette.ts`, 38 colours for objects and
    15 for the ground); surfaces that pass behind a nearer
    one get an inner line two steps darker; a 2 px outline, two ramp steps darker than the body it touches, goes round the silhouette and the floor shadow becomes a
    38% dark overlay.
 4. **Team colours**: `team` surfaces are drawn once, in olive. `recolor` (and the game, when it loads the atlas)
    swaps those five colours for the ramp of the colour a side wears, any of `TEAM_COLORS` in `@sw/data`; the
-   atlas meta lists `teamRamp` and `teamColors`. Nothing else in the palette uses the olive colours.
+   atlas meta lists `teamRamp` and `teamColors`. `team2` surfaces are the secondary colour, drawn in the red
+   `accent` ramp and swapped the same way (each race and object decides which parts carry it). Nothing else in the
+   palette uses those ten colours; shots and muzzle flashes keep their race's fixed colours.
 5. **Atlas** (`src/atlas.ts`): frames are trimmed and shelf-packed into `assets/sprites/sprites.png` with a
    PixiJS spritesheet `sprites.json`.
 
@@ -43,7 +45,7 @@ defender) or at the centre of its 2x2 cells (buildings) lines up with the map. A
 Each race (`human`, `hover`, `walker`) has the same roster, `<race>_<kind>`: `harvester`, `light_tank`,
 `middle_tank`, `heavy_tank`, `defender`, `hq`, `silo`, `factory`, `construction`, `wall`, and `shot`
 (frames `gun` and `cannon`, 8 directions: the projectile in flight).
-- humans: tracks and wheels, white buildings with cyan glass; gauss guns fire white-hot slugs through cyan rings;
+- humans: tracks and wheels, white buildings with cyan glass; gauss guns fire yellow-hot slugs through orange rings;
 - hovers (the original's enemy): floating oval shells, monolithic pale vaults on four legs with team crystals
   inside; cyan plasma;
 - walkers: jointed many-legged creatures, hive mounds, sacs and a brood shell; green acid spit.
@@ -64,8 +66,11 @@ per forest cell with a little jitter.
 - `forest/<mask>`: a 32 px forest floor tile per neighbour mask (N1 E2 S4 W8 set = that neighbour is forest too).
   Sides facing sand get a jagged edge, a black rim and a soft shadow on the sand outside; draw it over the sand
   in every forest cell, then the firs on top. Humans are at home here.
-- `plate/<mask>`: the hover race's pale floor plates, four panels a cell with seams and a cyan light, chamfered
-  where they end at the sand. Walkers live on the open sand.
+- `plates`: the hover race's ground, one seamless 256 px texture of pale floor plates seen at the sprites' low
+  angle: random sizes laid across the cell grid, each with a lit rim, its top and a dark south face as deep as it
+  stands high; some worn, cracked or lit. Draw it by world position in plated cells, then `plate-edge/<mask>` over
+  each sand cell beside them (N1 E2 S4 W8 set = that neighbour is plated): the front face of the raised floor and
+  its shadow. Walkers live on the open sand.
 
 Everything is quantised to the palette's sand, pine and plate ramps with ordered dithering, and `pnpm sprites:check`
 covers the terrain files too.

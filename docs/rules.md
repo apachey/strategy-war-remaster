@@ -92,14 +92,15 @@ Start starts or pauses. Self-destruct stays mouse-only.
 The remaster has three races: humans, hovers (the original's enemy hover tanks) and walkers (jointed alien
 creatures). Races are cosmetic: every race uses the original's numbers and the race only changes how a side looks
 (`Race`, `TEAM_COLORS` and `spriteName` in `packages/data/src/races.ts`). The campaign is humans (olive) against
-hovers (cyan), as in the original; a skirmish lets each side pick any race and one of 8 team colours, never both the
-same colour. The original's raider (type 100) is drawn as the hover race's middle tank.
+hovers (cyan), as in the original; a skirmish lets each side pick any race and one of 9 team colours, never both the
+same colour, plus a secondary colour for accents (white by default), which may be any colour, also the other side's
+or the side's own. Neither colour changes shots or muzzle flashes. The original's raider (type 100) is drawn as the hover race's middle tank.
 
 ## Saves
 
 `saveWorld()` turns the whole world (RNG state and the computer players included) into plain JSON and `loadWorld()`
 restores it; the game continues tick for tick as if it had never stopped. Saves carry a version and older versions
-are refused (version 2 added the skirmish mode, version 3 each side's race and colour). Skirmishes save like missions. The game keeps a quick slot (F5 saves, F9 loads) and three slots in localStorage.
+are refused (version 2 added the skirmish mode, version 3 each side's race and colour, version 4 the secondary colour). Skirmishes save like missions. The game keeps a quick slot (F5 saves, F9 loads) and three slots in localStorage.
 
 ## Cheats
 

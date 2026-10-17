@@ -5,8 +5,8 @@ import type { RampName } from './palette';
  * another; the pixel step turns (material, light) into a palette colour. Ids start at 1; 0 means empty.
  */
 export interface MaterialDef {
-  /** 'team' is replaced by the team's ramp when the sprite is coloured. */
-  ramp: RampName | 'team';
+  /** 'team' and 'team2' are the side's main and secondary colours (see palette.ts). */
+  ramp: RampName | 'team' | 'team2';
   /** Moves the light level up or down the ramp (in steps), to tell apart surfaces that share a ramp. */
   shift?: number;
   /** Ignores lighting and always uses the brightest step (lamps, muzzle flash). */
@@ -17,6 +17,10 @@ export const MATERIALS = {
   team: { ramp: 'team' },
   teamDark: { ramp: 'team', shift: -1 },
   teamLight: { ramp: 'team', shift: 1 },
+  // The side's secondary colour: accents whose place depends on the race and the object.
+  team2: { ramp: 'team2' },
+  team2Dark: { ramp: 'team2', shift: -1 },
+  team2Light: { ramp: 'team2', shift: 1 },
   steel: { ramp: 'steel' },
   steelLight: { ramp: 'steel', shift: 1 },
   steelDark: { ramp: 'steel', shift: -1 },
@@ -32,8 +36,8 @@ export const MATERIALS = {
   crystal: { ramp: 'gold', shift: -1 },
   signal: { ramp: 'signal', emissive: true },
   flash: { ramp: 'fire', emissive: true },
-  // White-hot core of a gauss slug.
-  spark: { ramp: 'steel', emissive: true },
+  // Orange of the humans' shots, lit, so it shades from orange into pale yellow.
+  ember: { ramp: 'fire' },
   // The walkers' acid: dull wet green, a lighter tip, and a glow for charged muzzles and seams.
   bile: { ramp: 'bile' },
   bileLight: { ramp: 'bile', shift: 1 },

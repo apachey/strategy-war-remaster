@@ -1,5 +1,5 @@
 /**
- * The shared palette of style B: 33 colours for units and buildings plus 15 for the ground (fir trees, sand and the
+ * The shared palette of style B: 38 colours for units and buildings plus 15 for the ground (fir trees, sand and the
  * hover race's plates).
  * Every sprite and tile is quantised to these colours, so units, buildings and terrain always sit together.
  * Colours are grouped into ramps, dark to light; a 3D material picks a ramp and the lighting picks the step inside
@@ -16,6 +16,8 @@ export const RAMPS = {
   steel: ['#333333', '#666666', '#999999', '#cccccc', '#f4f4ec'],
   olive: ['#333300', '#666600', '#999933', '#cccc66', '#ffff99'],
   cyan: ['#003333', '#006666', '#009999', '#33cccc', '#99ffff'],
+  // Secondary team colour as drawn (the game recolours it): red, which nothing else uses.
+  accent: ['#4a0c0a', '#8a1c16', '#c4362a', '#ee6a4e', '#ffae8e'],
   gold: ['#996600', '#cc9933', '#ffcc00', '#ffff33'],
   concrete: ['#4d4a3c', '#7a7660', '#a8a388', '#d4cfb2'],
   fire: ['#ff8a1c', '#ffffcc'],
@@ -41,6 +43,8 @@ export const ramp = (name: RampName): Rgb[] => RAMPS[name].map(hex);
  * (TEAM_COLORS in @sw/data, whose first entry is this same ramp), so any number of colours costs no atlas space.
  */
 export const TEAM_RAMP = 'olive' satisfies RampName;
+/** Every "team2" (secondary colour) surface is drawn in this ramp: TEAM_COLORS.red. */
+export const SECOND_RAMP = 'accent' satisfies RampName;
 
 /** Shadow under objects: the outline colour at this opacity. */
 export const SHADOW_ALPHA = 0.38;

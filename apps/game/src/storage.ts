@@ -48,7 +48,7 @@ export function loadSettings(): Settings {
       mapIndex: k && k.mapIndex >= 0 && k.mapIndex < campaign.maps.length ? k.mapIndex : 3,
       opponent: k && OPPONENTS.includes(k.opponent) ? k.opponent : 'normal',
       money: k && (SKIRMISH_MONEY as readonly number[]).includes(k.money) ? k.money : DEFAULT_SKIRMISH_MONEY,
-      ...sidesLook(k?.races, k?.colors),
+      ...sidesLook(k?.races, k?.colors, k?.colors2),
     },
   };
 }

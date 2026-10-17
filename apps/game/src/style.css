@@ -91,6 +91,10 @@ body.duo .toast.side-2 { left: 75%; }
 #modal .options .option + .option { margin-top: 6px; }
 #modal .options .option.side { margin-top: 10px; }
 #modal .option.side .gap { width: 8px; }
+/* The secondary colour: a smaller row under the side's race and main colour. */
+#modal .options .option.side.second { margin-top: 4px; }
+#modal .option.side.second span { font-size: 12px; }
+#modal .option.side.second button.swatch { width: 18px; height: 18px; border-radius: 4px; }
 #modal button.swatch {
   width: 24px; height: 24px; padding: 0; border-radius: 5px; background: var(--c); border: 2px solid var(--c-edge);
 }

@@ -46,11 +46,25 @@ describe('races', () => {
     expect(() => createWorld(campaign.maps[0]!, 0, 1, { colors: ['olive', 'olive'] })).toThrow();
   });
 
-  it('a save keeps each side race and colour', () => {
-    const w = createSkirmish(2, { opponent: 'normal', races: ['hover', 'walker'], colors: ['pink', 'white'] });
+  it('secondary colours default to white and may repeat any colour', () => {
+    const c = createWorld(campaign.maps[0]!, 0);
+    expect([c.sides.player.color2, c.sides.enemy.color2]).toEqual(['white', 'white']);
+    const d = createSkirmish(3, { opponent: 'human' });
+    expect([d.sides.player.color2, d.sides.enemy.color2]).toEqual(['white', 'white']);
+    // Both sides in black accents, and the second side's accent equal to its own main colour.
+    const w = createSkirmish(3, { opponent: 'hard', colors: ['blue', 'red'], colors2: ['black', 'red'] });
+    expect(w.sides.player).toMatchObject({ color: 'blue', color2: 'black' });
+    expect(w.sides.enemy).toMatchObject({ color: 'red', color2: 'red' });
+    const same = createWorld(campaign.maps[0]!, 0, 1, { colors2: ['olive', 'olive'] });
+    expect([same.sides.player.color2, same.sides.enemy.color2]).toEqual(['olive', 'olive']);
+  });
+
+  it('a save keeps each side race and colours', () => {
+    const w = createSkirmish(2, { opponent: 'normal', races: ['hover', 'walker'], colors: ['pink', 'white'], colors2: ['black', 'pink'] });
     const l = loadWorld(saveWorld(w));
-    expect(l.sides.player).toMatchObject({ race: 'hover', color: 'pink' });
-    expect(l.sides.enemy).toMatchObject({ race: 'walker', color: 'white' });
+    expect(l.sides.player).toMatchObject({ race: 'hover', color: 'pink', color2: 'black' });
+    expect(l.sides.enemy).toMatchObject({ race: 'walker', color: 'white', color2: 'pink' });
+    expect(hashWorld(l)).toBe(hashWorld(w));
   });
 
   it('a race changes no rule: a walker light tank costs and holds what a human one does', () => {

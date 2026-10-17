@@ -67,7 +67,7 @@ test('click selects the tank and right click sends it', async ({ page }) => {
   // On a slow CI runner the first frames can lag behind the click, so retry the click until it registers.
   await expect(async () => {
     await page.mouse.click(tank.x, tank.y);
-    await expect(page.locator('#panel')).toContainText('Легкий танк', { timeout: 1000 });
+    await expect(page.locator('#panel')).toContainText('Гаусс-багі', { timeout: 1000 });
   }).toPass({ timeout: 15_000 });
   await page.mouse.click(tank.x + 90, tank.y + 20, { button: 'right' });
   await expect(page.locator('#panel')).toContainText('їде');
