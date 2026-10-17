@@ -1,0 +1,6 @@
+body.studio { overflow: auto; height: auto; }
+#studio { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; }
+#studio section { width: 100%; }
+#studio .demo { width: 380px; }
+#studio .demo .buttons { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+#studio img.cur { width: 64px; height: 64px; image-rendering: pixelated; background: #c9b27a; margin: 2px; }

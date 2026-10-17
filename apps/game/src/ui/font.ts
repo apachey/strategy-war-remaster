@@ -212,7 +212,8 @@ export function glyph(ch: string, bold = false): Bitmap | null {
   if (!spec) return null;
   const [top, body] = spec.split(' ') as [string, string];
   let rows = body.split('/');
-  if (bold) rows = rows.map((r) => [...`${r}.`].map((c, i) => (c === '#' || r[i - 1] === '#' ? '#' : '.')).join(''));
+  // Bold: every stroke one pixel wider to the right, except where that would close a one-pixel gap (Ш, м, ж).
+  if (bold) rows = rows.map((r) => [...`${r}.`].map((c, i) => (c === '#' || (r[i - 1] === '#' && r[i + 1] !== '#') ? '#' : '.')).join(''));
   return { top: Number(top), rows, width: Math.max(...rows.map((r) => r.length)) };
 }
 

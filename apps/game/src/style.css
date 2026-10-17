@@ -1,144 +1,178 @@
+/*
+ * The pixel interface. Frames and buttons are 9-slice images drawn per race in ui/skin.ts and handed down as custom
+ * properties (--frame, --btn-*); one art pixel of them is --u. Text is the Shardfall pixel font from ui/font.ts at
+ * --k CSS pixels per font pixel (1.5 on Retina screens, 2 elsewhere), so every glyph pixel lands on the screen grid.
+ */
 :root {
   --ink: #efe3c2;
   --muted: #a99d7f;
-  --panel: rgba(20, 17, 12, 0.88);
   --line: #4a4234;
+  --gold: #f0c43a;
   --accent: #f0c43a;
+  --accent2: #efe3c2;
   --player: #49b3c7;
   --enemy: #e0614f;
-  font: 13px/1.4 -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --u: 2px;
+  --k: 1.5;
+  --t: calc(12px * var(--k));
+  --t2: calc(24px * var(--k));
+  font: var(--t) / 1.34 Shardfall, Menlo, monospace;
   color: var(--ink);
+  -webkit-font-smoothing: none;
+  font-smooth: never;
 }
 html, body { margin: 0; height: 100%; background: #14110c; overflow: hidden; user-select: none; }
 #stage { position: fixed; inset: 0; }
-button {
-  font: inherit; color: var(--ink); background: #2b2519; border: 1px solid var(--line); border-radius: 6px;
-  padding: 6px 10px; cursor: pointer;
+h1, h2, b, strong, .title { font-weight: 700; }
+
+/* Pixel frame: panels, dialogs, the top bar. */
+.frame, .panel, #modal .card, #topbar, .badge, #help, .toast {
+  border: calc(6 * var(--u)) solid transparent;
+  border-image: var(--frame) 24 fill / calc(6 * var(--u)) repeat;
+  background: none;
+  image-rendering: pixelated;
 }
-button:hover:not(:disabled) { border-color: var(--accent); }
-button:disabled { opacity: 0.4; cursor: default; }
-button.primary { background: var(--accent); color: #1d1608; border-color: var(--accent); font-weight: 600; }
+
+button {
+  font: inherit; color: var(--ink); cursor: pointer; padding: calc(1 * var(--u)) calc(3 * var(--u));
+  border: calc(3 * var(--u)) solid transparent; border-radius: 0; background: none;
+  border-image: var(--btn-normal) 12 fill / calc(3 * var(--u)) repeat; image-rendering: pixelated;
+  position: relative;
+}
+button:hover:not(:disabled) { border-image-source: var(--btn-hover); }
+button:active:not(:disabled) { border-image-source: var(--btn-down); }
+button.active { border-image-source: var(--btn-on); color: #fff; }
+button.primary { border-image-source: var(--btn-primary); color: var(--ink-primary); font-weight: 700; }
+button.primary:hover:not(:disabled) { border-image-source: var(--btn-on); color: #fff; }
+button:disabled { border-image-source: var(--btn-disabled); color: #6c6450; cursor: default; }
 button.danger { color: #ffb4a6; }
-button.active { border-color: var(--accent); background: #4a3d16; }
-button small { display: block; color: var(--muted); font-size: 11px; }
+button small { display: block; color: var(--muted); }
+button:disabled small { color: #5a5444; }
+/* The hotkey letter in a button's top-right corner. */
+button kbd {
+  position: absolute; right: 0; top: calc(-1 * var(--u)); font: inherit; font-size: var(--t); color: var(--accent); opacity: 0.85;
+}
+button:disabled kbd { color: #5a5444; }
+.crystal { color: var(--gold); }
 
 #topbar {
-  position: fixed; left: 0; right: 0; top: 0; height: 40px; display: flex; align-items: center; gap: 12px;
-  padding: 0 12px; background: var(--panel); border-bottom: 1px solid var(--line);
+  position: fixed; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: calc(4 * var(--u));
+  padding: 0 calc(2 * var(--u));
 }
 #topbar .spacer { flex: 1; }
-#hud { font-weight: 600; }
-#money { color: var(--accent); font: 600 15px ui-monospace, Menlo, monospace; }
+#hud { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#money { color: var(--gold); font-weight: 700; }
 body.paused #topbar::after {
-  content: 'ПАУЗА'; position: fixed; left: 50%; top: 56px; transform: translateX(-50%); padding: 4px 12px;
-  background: var(--panel); border: 1px solid var(--accent); border-radius: 6px; color: var(--accent); font-weight: 700;
+  content: attr(data-paused); position: fixed; left: 50%; top: calc(36 * var(--u)); transform: translateX(-50%);
+  padding: var(--u) calc(4 * var(--u)); background: #14110c; color: var(--accent); font-weight: 700; font-size: var(--t2);
 }
 
-.panel {
-  position: fixed; left: 12px; bottom: 12px; min-width: 260px; max-width: 520px; padding: 10px 12px;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-}
-.panel .title { font-weight: 700; font-size: 14px; }
-.panel .title.own { color: var(--player); }
+.panel { position: fixed; left: calc(4 * var(--u)); bottom: calc(4 * var(--u)); min-width: 300px; max-width: 560px; padding: var(--u) calc(2 * var(--u)); }
+.panel .sel { display: flex; gap: calc(4 * var(--u)); align-items: flex-start; }
+.panel .portrait { flex: none; width: calc(32 * var(--u)); height: calc(32 * var(--u)); image-rendering: pixelated; }
+.panel .title { color: var(--accent); }
 .panel .title.foe { color: var(--enemy); }
-.panel.side-2 .title.own { color: var(--enemy); }
-.panel.side-2 .title.foe { color: var(--player); }
+.panel .title.neutral { color: var(--gold); }
 .panel .info, .panel .hint { color: var(--muted); }
-.panel .buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.panel .build { min-width: 104px; text-align: left; }
-.panel button.pad-focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.panel .buttons { display: flex; flex-wrap: wrap; gap: calc(2 * var(--u)); margin-top: calc(3 * var(--u)); }
+.panel .build { min-width: 120px; text-align: left; display: grid; grid-template-columns: auto 1fr; column-gap: calc(2 * var(--u)); align-items: center; }
+.panel .build img { grid-row: span 2; width: calc(16 * var(--u)); height: calc(16 * var(--u)); image-rendering: pixelated; }
+.panel button.pad-focus { outline: var(--u) solid var(--accent); outline-offset: var(--u); }
+/* The factory's queue: a portrait per tank, a progress bar on the one being built. */
+.panel .queue { display: flex; gap: var(--u); margin-top: calc(2 * var(--u)); }
+.panel .queue button { padding: 0; width: calc(22 * var(--u)); height: calc(22 * var(--u)); }
+.panel .queue img { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+.panel .queue i { position: absolute; left: 0; bottom: 0; height: var(--u); background: var(--accent); }
 
 /* Two players: each half of the screen has its own panel, money badge and toasts. */
 body.duo .panel { max-width: calc(50vw - 36px); }
-body.duo .panel.side-2 { left: calc(50% + 12px); }
-.badge {
-  position: fixed; top: 48px; left: 12px; padding: 4px 10px; border-radius: 6px; background: var(--panel);
-  border: 1px solid var(--player); color: var(--accent); font: 600 14px ui-monospace, Menlo, monospace;
-}
-.badge.side-2 { left: calc(50% + 12px); border-color: var(--enemy); }
+body.duo .panel.side-2 { left: calc(50% + 4 * var(--u)); }
+.badge { position: fixed; top: calc(26 * var(--u)); left: calc(4 * var(--u)); padding: 0 calc(2 * var(--u)); color: var(--gold); font-weight: 700; }
+.badge.side-2 { left: calc(50% + 4 * var(--u)); }
 body.duo #help { display: none; }
-body.duo.paused #help { display: block; left: 50%; right: auto; transform: translateX(-50%); bottom: 50%; max-width: 560px; text-align: center; padding: 10px 14px; background: var(--panel); border-radius: 8px; color: var(--ink); font-size: 12px; }
+body.duo.paused #help { display: block; left: 50%; right: auto; transform: translateX(-50%); bottom: 50%; max-width: 640px; text-align: center; color: var(--ink); }
 
-#help {
-  position: fixed; right: 12px; bottom: 12px; max-width: 320px; padding: 6px 10px; border-radius: 8px;
-  background: var(--panel); color: var(--muted); font-size: 11px; text-align: right;
-}
+#help { position: fixed; right: calc(4 * var(--u)); bottom: calc(4 * var(--u)); max-width: 380px; padding: 0 var(--u); color: var(--muted); text-align: right; }
 
-.toast {
-  position: fixed; left: 50%; top: 52px; transform: translateX(-50%); padding: 6px 14px; border-radius: 6px;
-  background: #5a1e16; color: #ffd9d0; opacity: 0; transition: opacity 0.2s; pointer-events: none;
-}
+.toast { position: fixed; left: 50%; top: calc(30 * var(--u)); transform: translateX(-50%); padding: 0 calc(2 * var(--u)); color: #ffd9d0; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
 .toast.show { opacity: 1; }
-body.duo .toast { top: 88px; left: 25%; }
+body.duo .toast { top: calc(48 * var(--u)); left: 25%; }
 body.duo .toast.side-2 { left: 75%; }
 
 #modal { position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.55); }
 #modal.show { display: flex; }
-#modal .card {
-  width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto; padding: 20px 22px;
-  background: #1d1912; border: 1px solid var(--line); border-radius: 12px;
-}
-#modal .card.wide { width: min(640px, calc(100vw - 32px)); }
-#modal h1 { margin: 0 0 8px; font-size: 22px; }
-#modal .kicker { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
-#modal .brief { font-size: 15px; }
+#modal .card { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto; padding: calc(2 * var(--u)) calc(4 * var(--u)); }
+#modal .card.wide { width: min(700px, calc(100vw - 32px)); }
+#modal h1 { margin: 0 0 calc(3 * var(--u)); font-size: var(--t2); line-height: 1.1; color: var(--accent); }
+#modal h2 { margin: calc(6 * var(--u)) 0 calc(2 * var(--u)); font-size: var(--t); color: var(--accent); }
+#modal p { margin: calc(2 * var(--u)) 0; }
+#modal .kicker { color: var(--gold); }
 #modal .goal { color: var(--muted); }
-#modal .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-#modal .missions { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-#modal .map { display: flex; flex-direction: column; gap: 4px; }
+#modal .row { display: flex; justify-content: flex-end; gap: calc(3 * var(--u)); margin-top: calc(5 * var(--u)); }
+#modal .missions { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: calc(3 * var(--u)); }
+#modal .map { display: flex; flex-direction: column; gap: var(--u); }
 #modal .map button { text-align: left; }
-#modal .options { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
-#modal .option { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-#modal .option span { min-width: 90px; color: var(--muted); }
-#modal .options .hint { margin: 6px 0 12px 96px; color: var(--muted); font-size: 12px; }
-#modal .options .option + .option { margin-top: 6px; }
+#modal .options { margin-top: calc(4 * var(--u)); padding-top: calc(3 * var(--u)); border-top: var(--u) solid var(--line); }
+#modal .option { display: flex; flex-wrap: wrap; align-items: center; gap: calc(2 * var(--u)); }
+#modal .option > span { min-width: 100px; color: var(--muted); }
+#modal .options .hint { margin: calc(2 * var(--u)) 0 calc(4 * var(--u)) 108px; color: var(--muted); }
+#modal .options .option + .option { margin-top: calc(2 * var(--u)); }
+/* Difficulty and opponent: big buttons with skulls. */
+#modal button.level { min-width: 92px; text-align: center; }
+#modal button.level .icons { display: block; color: var(--accent); letter-spacing: var(--u); min-height: 1.34em; }
+#modal button.level.active .icons { color: #fff; }
+/* Language: a waving flag next to the name. */
+#modal button .flag, .lang .flag { display: inline-block; vertical-align: middle; margin-right: calc(2 * var(--u)); width: calc(16 * var(--u)); height: calc(11 * var(--u)); image-rendering: pixelated; background-size: 600% 100%; animation: wave 0.9s steps(6) infinite; }
+@keyframes wave { to { background-position: 120% 0; } }
 /* The skirmish setup: both sides next to each other, each with its race and two colour grids. */
-#modal .card.setup { width: min(860px, calc(100vw - 32px)); }
-#modal .setup .head { display: flex; align-items: flex-start; gap: 16px; }
+#modal .card.setup { width: min(900px, calc(100vw - 32px)); }
+#modal .setup .head { display: flex; align-items: flex-start; gap: calc(5 * var(--u)); }
 #modal .setup .head .preview { flex: none; margin: 0; }
-#modal .setup .head .goal { margin: 0 0 10px; }
-#modal .setup .head .option + .option { margin-top: 6px; }
-#modal .setup .options { margin-top: 10px; padding-top: 10px; }
-#modal .sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 8px; margin: 8px 0; }
-#modal .side { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #241f16; }
-#modal .side .who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+#modal .setup .head .goal { margin: 0 0 calc(3 * var(--u)); }
+#modal .setup .options { margin-top: calc(3 * var(--u)); padding-top: calc(3 * var(--u)); }
+#modal .sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: calc(3 * var(--u)); margin: calc(3 * var(--u)) 0; }
+#modal .side { padding: 0 var(--u); }
+#modal .side .who { display: flex; flex-wrap: wrap; align-items: center; gap: calc(2 * var(--u)); margin-bottom: calc(2 * var(--u)); }
 #modal .side .who b { min-width: 84px; }
-#modal .side .palettes { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; }
-#modal .colors span { display: block; margin-bottom: 3px; color: var(--muted); font-size: 12px; }
+#modal .side .palettes { display: flex; flex-wrap: wrap; align-items: flex-end; gap: calc(5 * var(--u)); }
+#modal .colors span { display: block; margin-bottom: var(--u); color: var(--muted); }
 /* Eight hues across, three shades down: light on top, dark at the bottom. */
-#modal .colors .grid { display: grid; grid-template-columns: repeat(8, 22px); grid-auto-rows: 22px; gap: 3px; }
-#modal .colors.small .grid { grid-template-columns: repeat(8, 15px); grid-auto-rows: 15px; gap: 2px; }
-#modal button.swatch {
-  width: 100%; height: 100%; padding: 0; border-radius: 4px; background: var(--c); border: 2px solid var(--c-edge);
-}
-#modal .colors.small button.swatch { border-width: 1px; border-radius: 3px; }
-#modal button.swatch.active {
-  position: relative; z-index: 1; background: var(--c); border-color: var(--ink); box-shadow: 0 0 0 2px var(--accent);
-}
+#modal .colors .grid { display: grid; grid-template-columns: repeat(8, 22px); grid-auto-rows: 22px; gap: 2px; }
+#modal .colors.small .grid { grid-template-columns: repeat(8, 16px); grid-auto-rows: 16px; }
+#modal button.swatch { width: 100%; height: 100%; padding: 0; border: var(--u) solid var(--c-edge); border-image: none; background: var(--c); }
+#modal button.swatch.active { z-index: 1; border-color: #fff; outline: var(--u) solid #000; }
 /* The other side's colour: crossed out. */
-#modal button.swatch:disabled {
-  opacity: 0.45; background: linear-gradient(to top right, transparent 44%, var(--ink) 44% 56%, transparent 56%), var(--c);
-}
-#modal .preview { display: block; max-width: 100%; margin: 4px 0 8px; image-rendering: pixelated; border: 1px solid var(--line); border-radius: 4px; }
-#modal .slots { display: flex; flex-direction: column; gap: 8px; }
-#modal .slot { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 8px; align-items: center; }
+#modal button.swatch:disabled { opacity: 0.45; background: linear-gradient(to top right, transparent 44%, var(--ink) 44% 56%, transparent 56%), var(--c); }
+#modal .preview { display: block; max-width: 100%; margin: var(--u) 0 calc(3 * var(--u)); image-rendering: pixelated; border: var(--u) solid #000; }
+#modal .slots { display: flex; flex-direction: column; gap: calc(3 * var(--u)); }
+#modal .slot { display: grid; grid-template-columns: 1fr auto auto; gap: var(--u) calc(3 * var(--u)); align-items: center; }
 #modal .slot b { grid-column: 1; }
-#modal .slot span { grid-column: 1; grid-row: 2; color: var(--muted); font-size: 12px; }
+#modal .slot span { grid-column: 1; grid-row: 2; color: var(--muted); }
 #modal .slot button { grid-row: 1 / span 2; }
 
 /* The minimap, top right of each view. */
-.minimap {
-  position: fixed; top: 52px; border: 1px solid var(--line); border-radius: 4px; background: #0b0a08;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); cursor: pointer; touch-action: none;
-}
+.minimap { position: fixed; top: calc(26 * var(--u)); border: var(--u) solid #000; outline: var(--u) solid var(--line); background: #0b0a08; cursor: pointer; touch-action: none; image-rendering: pixelated; }
 .minimap.side-2 { cursor: default; }
 
 /* Settings: volume sliders and the about box. */
-#topbar #btn-settings { font-size: 16px; line-height: 1; padding: 5px 9px; }
-#modal h2 { margin: 18px 0 6px; font-size: 15px; }
-#modal .about { margin: 0 0 4px; font-weight: 600; }
-#modal p.hint { color: var(--muted); font-size: 12px; margin: 0; }
-#modal .volume { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-#modal .volume span { min-width: 90px; color: var(--muted); }
+#modal .about { margin: 0 0 var(--u); font-weight: 700; }
+#modal p.hint { color: var(--muted); margin: 0; }
+#modal .volume { display: flex; align-items: center; gap: calc(3 * var(--u)); margin-bottom: calc(3 * var(--u)); }
+#modal .volume span { min-width: 100px; color: var(--muted); }
 #modal .volume input { flex: 1; accent-color: var(--accent); }
-#modal .volume output { min-width: 40px; text-align: right; font: 12px ui-monospace, Menlo, monospace; }
+#modal .volume output { min-width: 48px; text-align: right; }
+
+/* Main screen, victory and defeat: a low-resolution 3D scene behind a pixel card. */
+#scene { position: fixed; inset: 0; z-index: 9; display: none; width: 100vw; height: 100vh; image-rendering: pixelated; background: #0b0a08; }
+body.menu #scene, body.outcome #scene { display: block; }
+body.menu #topbar, body.menu #help, body.menu .panel, body.menu .minimap, body.menu #stage { display: none; }
+#modal.over-scene { background: none; }
+#modal .card.menu { width: auto; min-width: 340px; text-align: center; padding: calc(4 * var(--u)) calc(8 * var(--u)); }
+#modal .logo { display: block; margin: 0 auto calc(2 * var(--u)); image-rendering: pixelated; }
+#modal .subtitle { color: var(--muted); margin: 0 0 calc(6 * var(--u)); }
+#modal .menu-buttons { display: flex; flex-direction: column; gap: calc(2 * var(--u)); }
+#modal .menu-buttons button { font-size: var(--t); padding: calc(2 * var(--u)) calc(6 * var(--u)); }
+#modal .card.outcome { width: min(520px, calc(100vw - 32px)); position: absolute; right: 6vw; bottom: 8vh; }
+#modal .stats { display: grid; grid-template-columns: 1fr auto; gap: var(--u) calc(8 * var(--u)); margin: calc(3 * var(--u)) 0; }
+#modal .stats span:nth-child(odd) { color: var(--muted); }
+#modal .stats span:nth-child(even) { text-align: right; font-weight: 700; }
