@@ -215,7 +215,7 @@ test('a mirror match names the other side\'s race; English names follow the race
   expect(errors).toEqual([]);
 });
 
-test('the Skirmish button opens the last skirmish setup from the campaign', async ({ page }) => {
+test('the Skirmish button on the main screen opens the last skirmish setup', async ({ page }) => {
   await page.addInitScript(() =>
     localStorage.setItem('sw.settings', JSON.stringify({
         lang: 'uk',
@@ -223,8 +223,7 @@ test('the Skirmish button opens the last skirmish setup from the campaign', asyn
         skirmish: { kind: 'skirmish', mapIndex: 1, opponent: 'easy', money: 6000, races: ['hover', 'walker'], colors: ['pink', 'pink'], colors2: ['magenta', 'lime'] },
       })),
   );
-  await open(page, '?m=1.1');
-  await page.getByRole('button', { name: 'Почати' }).click();
+  await open(page, '');
   await page.getByRole('button', { name: 'Скірміш' }).click();
   await page.waitForURL(/s=2/);
   expect(page.url()).toContain('vs=easy');

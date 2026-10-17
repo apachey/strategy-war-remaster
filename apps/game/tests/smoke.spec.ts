@@ -105,15 +105,32 @@ test('opens a later mission by URL', async ({ page }) => {
 test('the mission list opens missions in order and jumps to another mission', async ({ page }) => {
   // Maps 1 and 2 already won.
   await page.addInitScript(() => localStorage.setItem('sw.completed', JSON.stringify(['1.1', '1.2', '1.3', '1.4', '2.1', '2.2', '2.3'])));
-  await open(page, '?m=1.1');
-  await page.getByRole('button', { name: 'Почати' }).click();
-  await page.getByRole('button', { name: 'Місії' }).click();
+  // The main screen: the name over a live battle, its way into the campaign.
+  const errors = await open(page, '');
+  await expect(page.locator('#modal h1')).toHaveText('SHARDFALL');
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: 'test-results/main-menu.png' });
+  await page.getByRole('button', { name: 'Кампанія' }).click();
   await expect(page.getByRole('button', { name: '1. Перші кроки ✓' })).toBeEnabled();
   await expect(page.getByRole('button', { name: '2. Операція X' })).toBeDisabled();
   await page.screenshot({ path: 'test-results/missions.png' });
   await page.getByRole('button', { name: '1. Пошук', exact: true }).click();
   await expect(page.locator('#modal')).toContainText('Пошук');
   expect(page.url()).toContain('m=3.1');
+  expect(errors).toEqual([]);
+});
+
+test('victory shows its scene and the match numbers', async ({ page }) => {
+  const errors = await open(page, '?m=1.1');
+  await page.getByRole('button', { name: 'Почати' }).click();
+  await page.evaluate(() => {
+    const h = (window as unknown as { __sw: { game: { world: { outcome: string } } } }).__sw;
+    h.game.world.outcome = 'won';
+  });
+  await expect(page.locator('#modal .stats')).toContainText('Зібрано кристалів');
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: 'test-results/victory.png' });
+  expect(errors).toEqual([]);
 });
 
 test('difficulty and language are chosen on the briefing and remembered', async ({ page }) => {

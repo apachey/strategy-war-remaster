@@ -1,6 +1,6 @@
 import { Container, Graphics, Sprite, type Spritesheet, type Texture } from 'pixi.js';
 import { CELL, ObjectType, spriteName, TEAM_COLORS, type Race } from '@sw/data';
-import { isUnit, TICK_MS, UNIT_RULES, BUILDING_RULES, type Entity, type GameEvent, type Side, type UnitType, type BuildingType, type World } from '@sw/sim';
+import { isUnit, TICK_MS, BUILDING_RULES, type Entity, type GameEvent, type Side, type World } from '@sw/sim';
 import { ART_PX_PER_CELL, groundPiece, type Art } from './assets';
 import type { Commander } from './game';
 import { Marks } from './ui/marks';
@@ -13,9 +13,6 @@ const DIRS = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] as const;
 const C = {
   shroud: 0x0b0a08,
   select: 0x9dff7a,
-  field: 0xf0c43a,
-  hpGood: 0x6ee06e,
-  hpBad: 0xe05a3a,
   ghostOk: 0x6ee06e,
   ghostBad: 0xe05a3a,
 };

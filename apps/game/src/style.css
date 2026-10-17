@@ -125,11 +125,16 @@ body.duo .toast.side-2 { left: 75%; }
 #modal button .flag, .lang .flag { display: inline-block; vertical-align: middle; margin-right: calc(2 * var(--u)); width: calc(16 * var(--u)); height: calc(11 * var(--u)); image-rendering: pixelated; background-size: 600% 100%; animation: wave 0.9s steps(6) infinite; }
 @keyframes wave { to { background-position: 120% 0; } }
 /* The skirmish setup: both sides next to each other, each with its race and two colour grids. */
-#modal .card.setup { width: min(900px, calc(100vw - 32px)); }
+#modal .card.setup { width: min(900px, calc(100vw - 32px)); max-height: calc(100vh - 24px); }
 #modal .setup .head { display: flex; align-items: flex-start; gap: calc(5 * var(--u)); }
 #modal .setup .head .preview { flex: none; margin: 0; }
 #modal .setup .head .goal { margin: 0 0 calc(3 * var(--u)); }
 #modal .setup .options { margin-top: calc(3 * var(--u)); padding-top: calc(3 * var(--u)); }
+/* The setup has to fit a 1280×720 window: the opponent's icons sit next to its name, not above it. */
+#modal .setup button.level { min-width: 0; }
+#modal .setup button.level .icons { display: inline; margin-right: calc(2 * var(--u)); min-height: 0; }
+#modal .setup .options .option + .option { margin-top: var(--u); }
+#modal .setup .options .hint { margin: var(--u) 0 calc(2 * var(--u)) 108px; }
 #modal .sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: calc(3 * var(--u)); margin: calc(3 * var(--u)) 0; }
 #modal .side { padding: 0 var(--u); }
 #modal .side .who { display: flex; flex-wrap: wrap; align-items: center; gap: calc(2 * var(--u)); margin-bottom: calc(2 * var(--u)); }
