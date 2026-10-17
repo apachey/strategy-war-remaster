@@ -1,4 +1,4 @@
-import { campaign, CELL, ObjectType, type CampaignMap, type MapObject } from '@sw/data';
+import { campaign, CELL, ObjectType, type CampaignMap, type MapObject, type Race, type TeamColor } from '@sw/data';
 import { findPath, type Cell } from './path';
 import { buildBlockedGrid, createWorld, spawnUnit, type World } from './world';
 import { BUILDING_RULES, type AiBrainName } from './rules';
@@ -32,6 +32,12 @@ export interface SkirmishOptions {
   seed?: number;
   /** Hand the first side to a computer brain too (tests and demos). */
   playerAi?: AiBrainName;
+  /** Races of the two sides, [first, second]. Default humans against hovers. Races only change looks. */
+  races?: readonly [Race, Race];
+  /** Team colours of the two sides; they must differ (other shades of one hue may meet). Default white and cyan. */
+  colors?: readonly [TeamColor, TeamColor];
+  /** Secondary colours of the two sides; any pair, also the same. Default olive and white. */
+  colors2?: readonly [TeamColor, TeamColor];
 }
 
 export interface SkirmishLayout {
@@ -138,6 +144,9 @@ export function createSkirmish(mapIndex: number, options: SkirmishOptions): Worl
     mode: 'skirmish',
     difficulty: options.opponent === 'human' ? 'classic' : options.opponent,
     playerAi: options.playerAi,
+    races: options.races,
+    colors: options.colors,
+    colors2: options.colors2,
   });
   // The computer gets the same money as the person; its difficulty only adds the income bonus.
   world.sides.enemy.money = money;

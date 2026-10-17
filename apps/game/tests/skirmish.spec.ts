@@ -71,7 +71,13 @@ test('the skirmish screen picks a map, an opponent and money, then plays', async
   const errors = await open(page, '?s=4');
   await expect(page.locator('#modal')).toContainText('Скірміш');
   await expect(page.locator('#modal h1')).toHaveText('Арена');
-  await expect(page.locator('#modal button.active')).toContainText(['4. Арена', 'Нормальний ШІ', '$3000', 'Українська']);
+  await expect(page.locator('#modal button.active')).toContainText(['$3000', 'Українська', '4. Арена', 'Нормальний ШІ', 'Хюмани', 'Ховери']);
+  await expect(page.locator('#modal')).toContainText('Ви');
+  await expect(page.locator('#modal')).toContainText('Компʼютер');
+  // Each side wears a colour the other one cannot pick.
+  await expect(page.locator('#modal [data-color0="white"]')).toHaveClass(/active/);
+  await expect(page.locator('#modal [data-color0="cyan"]')).toBeDisabled();
+  await expect(page.locator('#modal [data-color1="white"]')).toBeDisabled();
   await page.screenshot({ path: 'test-results/skirmish-setup.png' });
   await page.getByRole('button', { name: 'Важкий ШІ' }).click();
   await page.waitForURL(/vs=hard/);
@@ -90,9 +96,132 @@ test('the skirmish screen picks a map, an opponent and money, then plays', async
   expect(errors).toEqual([]);
 });
 
+test('each side picks its race and colours; objects carry their race names', async ({ page }) => {
+  const errors = await open(page, '?s=4&vs=hard');
+  await page.locator('#modal [data-race0="walker"]').click();
+  await page.waitForURL(/r=walker%2Chover|r=walker,hover/);
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.locator('#modal [data-color0="blue"]').click();
+  await page.waitForURL(/c=blue/);
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.locator('#modal [data-color1="red"]').click();
+  await page.waitForURL(/c=blue%2Cred|c=blue,red/);
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  // Secondary colours: black accents for the first side, and red on red for the second (its own main colour).
+  await expect(page.locator('#modal')).toContainText('Другий колір');
+  await expect(page.locator('#modal [data-second0]')).toHaveCount(24);
+  await expect(page.locator('#modal [data-second0]:disabled, #modal [data-second1]:disabled')).toHaveCount(0);
+  await expect(page.locator('#modal [data-second0="olive"]')).toHaveClass(/active/);
+  await page.locator('#modal [data-second0="black"]').click();
+  await page.waitForURL(/c2=black/);
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.locator('#modal [data-second1="red"]').click();
+  await page.waitForURL(/c2=black%2Cred|c2=black,red/);
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('#modal button.active')).toContainText(['Ходуни', 'Ховери']);
+  await expect(page.locator('#modal [data-color1="blue"]')).toBeDisabled();
+  await expect(page.locator('#modal [data-color0="black"]')).toHaveAttribute('title', 'Чорний');
+  await page.screenshot({ path: 'test-results/skirmish-setup-races.png' });
+  await page.getByRole('button', { name: 'Почати' }).click();
+  const sides = await page.evaluate(() => {
+    const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { race: string; color: string; color2: string }> } } } }).__sw.game.world;
+    return { player: [w.sides.player!.race, w.sides.player!.color, w.sides.player!.color2], enemy: [w.sides.enemy!.race, w.sides.enemy!.color, w.sides.enemy!.color2] };
+  });
+  expect(sides).toEqual({ player: ['walker', 'blue', 'black'], enemy: ['hover', 'red', 'red'] });
+  // The computer's HQ, shown through the shroud, has its race's own name.
+  await page.evaluate(() => {
+    const h = (window as unknown as { __sw: Hook & { players: Array<{ select(ids: number[]): void }>; game: { world: { sides: Record<string, { explored: Uint8Array }> } } } }).__sw;
+    h.game.world.sides.player!.explored.fill(1);
+    const hq = h.game.world.entities.find((e) => e.type === 4 && e.team === 'enemy')!;
+    h.players[0]!.select([hq.id]);
+  });
+  await expect(page.locator('#panel .title')).toHaveText('Святилище');
+  // Zoomed out: blue walkers bottom left, red hovers top right.
+  await page.keyboard.press('Minus');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: 'test-results/skirmish-walkers-blue.png' });
+  // The walker HQ builds walker buildings.
+  await page.keyboard.press('KeyH');
+  await expect(page.locator('#panel .title')).toHaveText('Вулик');
+  await expect(page.locator('#panel button.build')).toContainText(['Запасник', 'Інкубатор', 'Плювач', 'Шипи']);
+  // The choice is remembered for the Skirmish button.
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('sw.settings') ?? '{}').skirmish);
+  expect(stored).toMatchObject({ races: ['walker', 'hover'], colors: ['blue', 'red'], colors2: ['black', 'red'] });
+  expect(errors).toEqual([]);
+});
+
+test('the colour grids pick dark and light shades and fit a 1280×720 window', async ({ page }) => {
+  const errors = await open(page, '?s=4&vs=hard');
+  // Each side has a main grid and a smaller secondary grid: 8 hues across, light, base and dark shades down.
+  for (const attr of ['color0', 'second0', 'color1', 'second1']) await expect(page.locator(`#modal [data-${attr}]`)).toHaveCount(24);
+  const grid = page.locator('#modal [data-side="0"] .colors').first().locator('button');
+  const hues = await grid.evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.color0));
+  expect(hues.slice(0, 8)).toEqual(['pink', 'peach', 'sunny', 'lime', 'sky', 'lightblue', 'lilac', 'white']);
+  expect(hues.slice(16)).toEqual(['crimson', 'brown', 'olive', 'forest', 'cyan', 'indigo', 'purple', 'black']);
+  const pick = async (attr: string, color: string, url: RegExp) => {
+    await page.locator(`#modal [data-${attr}="${color}"]`).click();
+    await page.waitForURL(url);
+    await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+    await expect(page.locator(`#modal [data-${attr}="${color}"]`)).toHaveClass(/active/);
+  };
+  // A dark main colour and a light accent for the first side, a light main colour and a dark accent for the second.
+  await pick('color0', 'crimson', /c=crimson/);
+  await pick('second0', 'sky', /c2=sky/);
+  await pick('color1', 'pink', /c=crimson%2Cpink|c=crimson,pink/);
+  await pick('second1', 'indigo', /c2=sky%2Cindigo|c2=sky,indigo/);
+  // Only the other side's exact colour is taken; the other shades of its hue stay free.
+  await expect(page.locator('#modal [data-color1="crimson"]')).toBeDisabled();
+  await expect(page.locator('#modal [data-color0="pink"]')).toBeDisabled();
+  await expect(page.locator('#modal [data-color0="red"]')).toBeEnabled();
+  await expect(page.locator('#modal [data-color0]:disabled, #modal [data-color1]:disabled')).toHaveCount(2);
+  await expect(page.locator('#modal [data-color0="lightblue"]')).toHaveAttribute('title', 'Світло-синій');
+  await expect(page.locator('#modal [data-second1="purple"]')).toHaveAttribute('aria-label', 'Глибокий фіолетовий');
+  // The whole setup, Start included, fits the window without scrolling.
+  const card = page.locator('#modal .card');
+  expect(await card.evaluate((c) => c.scrollHeight <= c.clientHeight)).toBe(true);
+  const start = await page.getByRole('button', { name: 'Почати' }).boundingBox();
+  expect(start).not.toBeNull();
+  expect(start!.x).toBeGreaterThanOrEqual(0);
+  expect(start!.y).toBeGreaterThanOrEqual(0);
+  expect(start!.x + start!.width).toBeLessThanOrEqual(1280);
+  expect(start!.y + start!.height).toBeLessThanOrEqual(720);
+  await page.screenshot({ path: 'test-results/skirmish-setup-grid.png' });
+  await page.getByRole('button', { name: 'Почати' }).click();
+  const sides = await page.evaluate(() => {
+    const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { color: string; color2: string }> } } } }).__sw.game.world;
+    return [w.sides.player!.color, w.sides.player!.color2, w.sides.enemy!.color, w.sides.enemy!.color2];
+  });
+  expect(sides).toEqual(['crimson', 'sky', 'pink', 'indigo']);
+  expect(errors).toEqual([]);
+});
+
+test('a mirror match names the other side\'s race; English names follow the race', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('sw.settings', JSON.stringify({ lang: 'en', difficulty: 'normal' })));
+  const errors = await open(page, '?s=4&vs=hard&r=hover,hover&c=violet,orange&c2=white,black');
+  await expect(page.locator('#modal')).toContainText('Second colour');
+  await expect(page.locator('#modal [data-second1="black"]')).toHaveClass(/active/);
+  await expect(page.locator('#modal [data-color0="black"]')).toHaveAttribute('title', 'Black');
+  await page.getByRole('button', { name: 'Start' }).click();
+  await page.keyboard.press('KeyH');
+  await expect(page.locator('#panel .title')).toHaveText('Sanctum');
+  await expect(page.locator('#panel button.build')).toContainText(['Crystal Vault', 'Hangar', 'Plasma Spire', 'Barrier']);
+  await page.evaluate(() => {
+    const h = (window as unknown as { __sw: Hook & { players: Array<{ select(ids: number[]): void }>; game: { world: { sides: Record<string, { explored: Uint8Array }> } } } }).__sw;
+    h.game.world.sides.player!.explored.fill(1);
+    const hq = h.game.world.entities.find((e) => e.type === 4 && e.team === 'enemy')!;
+    h.players[0]!.select([hq.id]);
+  });
+  await expect(page.locator('#panel .title')).toHaveText('Sanctum · hovers');
+  expect(errors).toEqual([]);
+});
+
 test('the Skirmish button opens the last skirmish setup from the campaign', async ({ page }) => {
   await page.addInitScript(() =>
-    localStorage.setItem('sw.settings', JSON.stringify({ lang: 'uk', difficulty: 'normal', skirmish: { kind: 'skirmish', mapIndex: 1, opponent: 'easy', money: 6000 } })),
+    localStorage.setItem('sw.settings', JSON.stringify({
+        lang: 'uk',
+        difficulty: 'normal',
+        skirmish: { kind: 'skirmish', mapIndex: 1, opponent: 'easy', money: 6000, races: ['hover', 'walker'], colors: ['pink', 'pink'], colors2: ['magenta', 'lime'] },
+      })),
   );
   await open(page, '?m=1.1');
   await page.getByRole('button', { name: 'Почати' }).click();
@@ -100,6 +229,11 @@ test('the Skirmish button opens the last skirmish setup from the campaign', asyn
   await page.waitForURL(/s=2/);
   expect(page.url()).toContain('vs=easy');
   expect(page.url()).toContain('money=6000');
+  // A stored setup with both sides in one colour gives the second side the next free colour in the list.
+  expect(decodeURIComponent(page.url())).toContain('r=hover,walker');
+  expect(decodeURIComponent(page.url())).toContain('c=pink,brown');
+  // An unknown colour falls back to the side's default secondary colour (olive); a known one stays.
+  expect(decodeURIComponent(page.url())).toContain('c2=olive,lime');
   await expect(page.locator('#modal h1')).toHaveText('Пошук бази');
 });
 
@@ -141,11 +275,12 @@ test('player 2 plays with a gamepad: cursor, select, build menu, pause', async (
   const after = (await sw(page)).players[1]!.cursor!;
   expect(after.x).toBeGreaterThan(before.x);
   // Y selects their HQ; RB moves the highlight to the factory, X starts placing it, B cancels.
+  // Player 2 plays the hovers, so the HQ is a sanctum and builds hover buildings.
   await press(page, PAD.Y);
-  await expect(page.locator('#panel-2')).toContainText('Штаб');
-  await expect(page.locator('#panel-2 button.pad-focus')).toContainText('Сховище');
+  await expect(page.locator('#panel-2')).toContainText('Святилище');
+  await expect(page.locator('#panel-2 button.pad-focus')).toContainText('Кристалосховище');
   await press(page, PAD.RB);
-  await expect(page.locator('#panel-2 button.pad-focus')).toContainText('Танковий завод');
+  await expect(page.locator('#panel-2 button.pad-focus')).toContainText('Ангар');
   await press(page, PAD.X);
   await expect.poll(async () => (await sw(page)).players[1]!.placing).toBe(2);
   await page.screenshot({ path: 'test-results/two-players-gamepad.png' });
@@ -169,9 +304,9 @@ test('with two gamepads player 1 gets the first and player 2 the second', async 
   await page.getByRole('button', { name: 'Почати' }).click();
   await press(page, PAD.Y, 0);
   await expect(page.locator('#panel')).toContainText('Штаб');
-  await expect(page.locator('#panel-2')).not.toContainText('Штаб');
+  await expect(page.locator('#panel-2')).not.toContainText('Святилище');
   await press(page, PAD.Y, 1);
-  await expect(page.locator('#panel-2')).toContainText('Штаб');
+  await expect(page.locator('#panel-2')).toContainText('Святилище');
 });
 
 test('destroying player 2\'s HQ shows player 1 as the winner', async ({ page }) => {

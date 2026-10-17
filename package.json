@@ -13,7 +13,11 @@
     "e2e": "pnpm --filter @sw/game e2e",
     "desktop:dev": "pnpm --filter @sw/desktop tauri dev",
     "desktop:build": "pnpm --filter @sw/desktop tauri build",
-    "extract": "node tools/extract/extract-campaign.mjs"
+    "extract": "node tools/extract/extract-campaign.mjs",
+    "sprites": "pnpm --filter @sw/art sprites",
+    "sprites:check": "pnpm --filter @sw/art sprites --check",
+    "music": "pnpm --filter @sw/music music",
+    "sfx": "pnpm --filter @sw/music sfx"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

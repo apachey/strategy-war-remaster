@@ -1,4 +1,4 @@
-import { campaign, LANGS, ObjectType, type Lang } from '@sw/data';
+import { campaign, LANGS, ObjectType, RACES, TEAM_COLOR_GRID, TEAM_COLORS, TEAM_HUES, type Lang, type Race, type TeamColor } from '@sw/data';
 import {
   BUILDING_RULES,
   buildBlockedGrid,
@@ -7,6 +7,7 @@ import {
   HQ_BUILDS,
   isUnit,
   OPPONENTS,
+  raceOf,
   SKIRMISH_MONEY,
   skirmishLayout,
   UNIT_RULES,
@@ -18,7 +19,7 @@ import {
 } from '@sw/sim';
 import { hqType, nextMission, type Commander, type Game, type Setup } from './game';
 import { completed, markCompleted, readSave, SLOTS, type Slot } from './storage';
-import { getLang, mapName, missionBrief, missionTitle, t } from './text';
+import { getLang, mapName, missionBrief, missionTitle, objectName, siteName, t } from './text';
 
 const LANG_NAMES: Record<Lang, string> = { uk: 'Українська', en: 'English' };
 
@@ -46,6 +47,9 @@ export class Hud {
     private readonly actions: HudActions,
   ) {
     document.body.classList.toggle('duo', game.twoPlayers);
+    // Panel titles and money badges in the sides' team colours, a light step so they read on the dark panels.
+    document.body.style.setProperty('--player', TEAM_COLORS[game.world.sides.player.color][3]);
+    document.body.style.setProperty('--enemy', TEAM_COLORS[game.world.sides.enemy.color][3]);
     this.panels = game.commanders.map((c) => new PlayerPanel(c, game.twoPlayers));
     $('btn-pause').onclick = () => this.togglePause();
     $('btn-missions').onclick = () => this.showMissions();
@@ -135,30 +139,43 @@ export class Hud {
     this.bindGo(m);
   }
 
-  /** The skirmish start screen: map with a preview, opponent, starting money. Any change reopens the game. */
+  /**
+   * The skirmish start screen: map preview with the goal, money and language beside it, then map, opponent and both
+   * sides next to each other (race, main colour grid, secondary colour grid). It fits a 1280×720 window without
+   * scrolling. Any change reopens the game.
+   */
   private showSkirmishSetup(): void {
     const s = this.game.setup as Extract<Setup, { kind: 'skirmish' }>;
     const T = t();
     const maps = campaign.maps.map((_, i) => i);
     const m = this.modal(
-      `<div class="kicker">${T.skirmish}</div>
+      `<div class="head"><canvas class="preview" width="1" height="1"></canvas><div>
+       <div class="kicker">${T.skirmish}</div>
        <h1>${mapName(s.mapIndex)}</h1>
-       <canvas class="preview" width="1" height="1"></canvas>
        <p class="goal">${s.opponent === 'human' ? T.duoGoal : T.skirmishGoal}</p>
+       <div class="option"><span>${T.moneyLabel}</span>${choice('money', SKIRMISH_MONEY.map(String), String(s.money), (v) => `$${v}`)}</div>
+       <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => LANG_NAMES[l])}</div>
+       </div></div>
        <div class="options">
          <div class="option"><span>${T.mapLabel}</span>${choice('map', maps.map(String), String(s.mapIndex), (i) => `${Number(i) + 1}. ${mapName(Number(i))}`)}</div>
          <div class="option"><span>${T.opponentLabel}</span>${choice('opponent', OPPONENTS, s.opponent, (o) => T.opponent[o])}</div>
          <p class="hint">${T.opponentHint[s.opponent]}</p>
          ${s.opponent === 'human' ? `<p class="hint pads">${T.helpDuo}</p>` : ''}
-         <div class="option"><span>${T.moneyLabel}</span>${choice('money', SKIRMISH_MONEY.map(String), String(s.money), (v) => `$${v}`)}</div>
-         <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => LANG_NAMES[l])}</div>
+         <div class="sides">${[0, 1].map((i) => sideOptions(s, i)).join('')}</div>
        </div>
        <div class="row"><button data-campaign>${T.campaign}</button><button class="primary" data-go>${T.start}</button></div>`,
     );
-    drawPreview(m.querySelector('canvas')!, s.mapIndex);
+    m.querySelector('.card')!.classList.add('wide', 'setup');
+    drawPreview(m.querySelector('canvas')!, s.mapIndex, s.colors);
     const change = (patch: Partial<typeof s>) => this.actions.open({ ...s, ...patch });
     m.querySelectorAll<HTMLButtonElement>('[data-map]').forEach((b) => (b.onclick = () => change({ mapIndex: Number(b.dataset.map) })));
     m.querySelectorAll<HTMLButtonElement>('[data-opponent]').forEach((b) => (b.onclick = () => change({ opponent: b.dataset.opponent as Opponent })));
+    for (const i of [0, 1] as const) {
+      const pair = <V>(list: [V, V], v: V): [V, V] => (i === 0 ? [v, list[1]] : [list[0], v]);
+      m.querySelectorAll<HTMLButtonElement>(`[data-race${i}]`).forEach((b) => (b.onclick = () => change({ races: pair(s.races, b.dataset[`race${i}`] as Race) })));
+      m.querySelectorAll<HTMLButtonElement>(`[data-color${i}]`).forEach((b) => (b.onclick = () => change({ colors: pair(s.colors, b.dataset[`color${i}`] as TeamColor) })));
+      m.querySelectorAll<HTMLButtonElement>(`[data-second${i}]`).forEach((b) => (b.onclick = () => change({ colors2: pair(s.colors2, b.dataset[`second${i}`] as TeamColor) })));
+    }
     m.querySelectorAll<HTMLButtonElement>('[data-money]').forEach((b) => (b.onclick = () => change({ money: Number(b.dataset.money) })));
     m.querySelector<HTMLButtonElement>('[data-campaign]')!.onclick = () => this.showMissions();
     this.bindLang(m);
@@ -287,8 +304,36 @@ function choice<V extends string>(attr: string, values: readonly V[], current: V
   return values.map((v) => `<button data-${attr}="${v}"${v === current ? ' class="active"' : ''}>${label(v)}</button>`).join('');
 }
 
+/** Rows of the colour grid, top to bottom: light shades, base colours, dark shades (index into TEAM_COLOR_GRID). */
+const GRID_ROWS = [2, 1, 0] as const;
+
+/**
+ * A grid of colour swatches, a column per hue in rainbow order and a row per shade (light on top, dark at the bottom);
+ * `attr` names the data attribute, `taken` is a colour that cannot be picked.
+ */
+function swatches(attr: string, label: string, current: TeamColor, taken: TeamColor | null, small = false): string {
+  const T = t();
+  const cells = GRID_ROWS.flatMap((row) => TEAM_HUES.map((hue) => TEAM_COLOR_GRID[hue][row])).map((c) => {
+    const ramp = TEAM_COLORS[c];
+    const cls = c === current ? 'swatch active' : 'swatch';
+    return `<button class="${cls}" data-${attr}="${c}" title="${T.color[c]}" aria-label="${T.color[c]}" aria-pressed="${c === current}" style="--c: ${ramp[2]}; --c-edge: ${ramp[4]}"${c === taken ? ' disabled' : ''}></button>`;
+  });
+  return `<div class="colors${small ? ' small' : ''}"><span>${label}</span><div class="grid" role="group" aria-label="${label}">${cells.join('')}</div></div>`;
+}
+
+/**
+ * One side's race, team colour and secondary colour on the skirmish screen. The colour the other side wears cannot be
+ * picked, so the two sides never look alike (other shades of its hue can); any secondary colour can, also one already worn.
+ */
+function sideOptions(s: Extract<Setup, { kind: 'skirmish' }>, i: number): string {
+  const T = t();
+  const who = s.opponent === 'human' ? T.playerName(i + 1) : i === 0 ? T.you : T.computer;
+  return `<div class="side" data-side="${i}"><div class="who"><b>${who}</b>${choice(`race${i}`, RACES, s.races[i]!, (r) => T.race[r])}</div>
+    <div class="palettes">${swatches(`color${i}`, T.colorLabel, s.colors[i]!, s.colors[1 - i]!)}${swatches(`second${i}`, T.color2Label, s.colors2[i]!, null, true)}</div></div>`;
+}
+
 /** A small map of the skirmish: forest, crystal fields and the two starts in their team colours. */
-function drawPreview(canvas: HTMLCanvasElement, mapIndex: number): void {
+function drawPreview(canvas: HTMLCanvasElement, mapIndex: number, colors: readonly [TeamColor, TeamColor]): void {
   const map = campaign.maps[mapIndex]!;
   const { cols, rows, blocked } = buildBlockedGrid(map);
   const layout = skirmishLayout(map);
@@ -304,7 +349,7 @@ function drawPreview(canvas: HTMLCanvasElement, mapIndex: number): void {
   g.fillStyle = '#f0c43a';
   for (const f of layout.fields) g.fillRect(f.cx * px, f.cy * px, 2 * px, 2 * px);
   layout.starts.forEach((s, i) => {
-    g.fillStyle = i === 0 ? '#2c8fa3' : '#b8372a';
+    g.fillStyle = TEAM_COLORS[colors[i]!][2];
     g.fillRect(s.cx * px, s.cy * px, 2 * px, 2 * px);
     g.fillStyle = '#ffffff';
     g.font = `bold ${Math.max(9, px * 2)}px Menlo, monospace`;
@@ -400,9 +445,19 @@ export class PlayerPanel {
     ]);
   }
 
+  /**
+   * The object's name in its race's words. Races mostly name things differently; where the other side's name is the
+   * same as this person's own race would use (a mirror match, the shared harvester), it adds the race: "HQ · humans".
+   */
   private name(e: Entity): string {
-    // A person playing the second side calls their own HQ just "HQ".
-    return t().names[e.type === ObjectType.EnemyHQ && this.c.isOwn(e) ? ObjectType.PlayerHQ : e.type]!;
+    const race = raceOf(this.c.world, e.team);
+    const name = objectName(race, e.type);
+    if (!race || !this.c.isFoe(e)) return name;
+    return name === objectName(this.ownRace, e.type) ? `${name} · ${t().raceOf[race]}` : name;
+  }
+
+  private get ownRace() {
+    return this.c.world.sides[this.c.side].race;
   }
 
   private html(sel: Entity[]): string {
@@ -410,9 +465,9 @@ export class PlayerPanel {
     const c = this.c;
     if (sel.length === 0) return `<div class="hint">${c.cursor ? T.padHint : T.hint}</div>`;
     if (sel.length > 1) {
-      const counts = new Map<number, number>();
-      for (const e of sel) counts.set(e.type, (counts.get(e.type) ?? 0) + 1);
-      const list = [...counts].map(([type, n]) => `${T.names[type]} ×${n}`).join(', ');
+      const counts = new Map<string, number>();
+      for (const e of sel) counts.set(this.name(e), (counts.get(this.name(e)) ?? 0) + 1);
+      const list = [...counts].map(([name, n]) => `${name} ×${n}`).join(', ');
       return `<div class="title">${T.squad}: ${sel.length}</div><div class="info">${list}</div>${this.unitButtons()}`;
     }
     const e = sel[0]!;
@@ -422,8 +477,8 @@ export class PlayerPanel {
     if (isUnit(e.type)) {
       status = e.type === ObjectType.Harvester && e.phase ? T.phase[e.phase] : T.order[e.order.kind];
       if (e.type === ObjectType.Harvester) status += ` · ${T.cargo} ${e.cargo}/50`;
-    } else if (!e.complete) status = `${T.building} ${Math.floor((e.buildElapsedMs / e.buildTotalMs) * 100)}%`;
-    else if (e.job?.kind === 'produce') status = `${T.producing}: ${T.names[e.job.unit]} ${Math.floor((e.job.elapsedMs / e.job.totalMs) * 100)}%`;
+    } else if (!e.complete) status = `${siteName(raceOf(this.c.world, e.team) ?? 'human')} ${Math.floor((e.buildElapsedMs / e.buildTotalMs) * 100)}%`;
+    else if (e.job?.kind === 'produce') status = `${T.producing}: ${objectName(raceOf(this.c.world, e.team), e.job.unit)} ${Math.floor((e.job.elapsedMs / e.job.totalMs) * 100)}%`;
     else if (e.job?.kind === 'construct') status = T.constructing;
     const team = e.team === 'neutral' ? '' : own ? 'own' : 'foe';
     let html = `<div class="title ${team}">${this.name(e)}</div><div class="info">${hp}${status ? ` · ${status}` : ''}</div>`;
@@ -449,13 +504,13 @@ export class PlayerPanel {
   private buildButton(type: BuildingType, price: number, busy: boolean): string {
     const active = this.c.placing?.type === type ? ' active' : '';
     const disabled = busy || price > this.c.money ? ' disabled' : '';
-    return `<button class="build${active}" data-action="place" data-type="${type}"${disabled}>${t().names[type]}<small>$${price}</small></button>`;
+    return `<button class="build${active}" data-action="place" data-type="${type}"${disabled}>${objectName(this.ownRace, type)}<small>$${price}</small></button>`;
   }
 
   private produceButton(type: UnitType, factory: Entity): string {
     const price = UNIT_RULES[type].price;
     const disabled = factory.job || price > this.c.money ? ' disabled' : '';
-    return `<button class="build" data-action="produce" data-type="${type}" data-id="${factory.id}"${disabled}>${t().names[type]}<small>$${price}</small></button>`;
+    return `<button class="build" data-action="produce" data-type="${type}" data-id="${factory.id}"${disabled}>${objectName(this.ownRace, type)}<small>$${price}</small></button>`;
   }
 
   private unitButtons(): string {

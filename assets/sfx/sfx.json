@@ -1,0 +1,149 @@
+[
+  {
+    "name": "shot_light",
+    "seconds": 0.35,
+    "channels": 1,
+    "gain": 0.55,
+    "description": "Light trike-tank cannon: a snappy dry crack with a small thump."
+  },
+  {
+    "name": "shot_middle",
+    "seconds": 0.6,
+    "channels": 1,
+    "gain": 0.65,
+    "description": "Middle tank cannon: a crack over a round boom, the barrel ringing low."
+  },
+  {
+    "name": "shot_heavy",
+    "seconds": 1.1,
+    "channels": 1,
+    "gain": 0.75,
+    "description": "Heavy tank cannon: a deep chesty blast with a sub drop and a long rumble."
+  },
+  {
+    "name": "shot_defender",
+    "seconds": 0.5,
+    "channels": 1,
+    "gain": 0.6,
+    "description": "Defender turret: a clanking mechanical double tap."
+  },
+  {
+    "name": "shot_alien",
+    "seconds": 0.7,
+    "channels": 1,
+    "gain": 0.6,
+    "description": "Alien energy weapon: a falling, beating, ring-modulated plasma bolt."
+  },
+  {
+    "name": "impact",
+    "seconds": 0.5,
+    "channels": 1,
+    "gain": 0.55,
+    "description": "Shell hitting armour: a hard click, a thud and a clank of plate."
+  },
+  {
+    "name": "explosion_small",
+    "seconds": 1.6,
+    "channels": 1,
+    "gain": 0.8,
+    "description": "Unit destroyed: a boom with a falling dusty roar and bits of metal."
+  },
+  {
+    "name": "explosion_big",
+    "seconds": 3,
+    "channels": 1,
+    "gain": 0.9,
+    "description": "Building destroyed: a deep double blast, debris and a rolling sub rumble."
+  },
+  {
+    "name": "harvest",
+    "seconds": 0.9,
+    "channels": 1,
+    "gain": 0.45,
+    "description": "Harvester scooping crystals: a gritty scrape with glassy tinkles."
+  },
+  {
+    "name": "unload",
+    "seconds": 1.45,
+    "channels": 1,
+    "gain": 0.55,
+    "description": "Crystals delivered: a glassy cascade, then a low D to A bell for the credits."
+  },
+  {
+    "name": "build_start",
+    "seconds": 0.7,
+    "channels": 1,
+    "gain": 0.5,
+    "description": "Construction starts: a clamp clunk and a servo winding up."
+  },
+  {
+    "name": "build_done",
+    "seconds": 1.3,
+    "channels": 1,
+    "gain": 0.6,
+    "description": "Building or unit finished: a pneumatic release and a dark D bell chord."
+  },
+  {
+    "name": "unit_ready",
+    "seconds": 1.3,
+    "channels": 1,
+    "gain": 0.6,
+    "description": "New tank out of the factory: an engine rev under a short low brass call."
+  },
+  {
+    "name": "select",
+    "seconds": 0.14,
+    "channels": 1,
+    "gain": 0.35,
+    "description": "Unit selected: a soft low blip."
+  },
+  {
+    "name": "order",
+    "seconds": 0.22,
+    "channels": 1,
+    "gain": 0.35,
+    "description": "Order acknowledged: two quick muted notes rising A to D."
+  },
+  {
+    "name": "error",
+    "seconds": 0.36,
+    "channels": 1,
+    "gain": 0.25,
+    "description": "Can't do that: a dull buzzy double bzz on a clashing semitone."
+  },
+  {
+    "name": "click",
+    "seconds": 0.06,
+    "channels": 1,
+    "gain": 0.3,
+    "description": "UI button: a tiny dark tick."
+  },
+  {
+    "name": "alert",
+    "seconds": 1.45,
+    "channels": 1,
+    "gain": 0.5,
+    "description": "Base under attack: a dark D/Eb alarm over a low pulse."
+  },
+  {
+    "name": "self_destruct",
+    "seconds": 1.5,
+    "channels": 1,
+    "gain": 0.6,
+    "description": "Autodestruct armed: a rising saw beeping faster, cut off at the top."
+  },
+  {
+    "name": "victory",
+    "seconds": 3.6,
+    "channels": 2,
+    "gain": 0.8,
+    "description": "Victory stinger: taiko and brass climbing Bb, C to an open D major chord."
+  },
+  {
+    "name": "defeat",
+    "seconds": 3.8,
+    "channels": 2,
+    "gain": 0.8,
+    "description": "Defeat stinger: brass falling Eb to D minor, a throat voice and a last boom."
+  }
+]

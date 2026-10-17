@@ -1,19 +1,15 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { CELL, ObjectType, TILE } from '@sw/data';
-import { isUnit, TICK_MS, UNIT_RULES, BUILDING_RULES, type Entity, type GameEvent, type UnitType, type BuildingType } from '@sw/sim';
+import { CELL, ObjectType, TEAM_COLORS, TILE } from '@sw/data';
+import { isUnit, TICK_MS, UNIT_RULES, BUILDING_RULES, type Entity, type GameEvent, type Side, type UnitType, type BuildingType } from '@sw/sim';
 import type { Commander } from './game';
 import { SHORT } from './text';
 
-/** Grey-box palette: readable shapes only, the real art arrives in phase 2. */
+/** Grey-box palette: readable shapes only, the real art arrives in phase 2. Team colours come from each side's ramp. */
 const C = {
   sand: 0xd8c491,
   sandLine: 0xcbb57f,
   forest: 0x2f6b3d,
   forestEdge: 0x24552f,
-  player: 0x2c8fa3,
-  playerDark: 0x1b5f6e,
-  enemy: 0xb8372a,
-  enemyDark: 0x7a2018,
   field: 0xf0c43a,
   fieldDark: 0xc79a1c,
   wall: 0x8d9497,
@@ -158,9 +154,20 @@ export class Renderer {
     }
   }
 
+  /** A side's team colour: the middle of its ramp, or the step below for outlines and barrels. */
+  private sideColor(side: Side, dark = false): number {
+    const ramp = TEAM_COLORS[this.game.world.sides[side].color];
+    return Number.parseInt(ramp[dark ? 1 : 2].slice(1), 16);
+  }
+
   private teamColor(e: Entity, dark = false): number {
-    if (e.team === 'enemy') return dark ? C.enemyDark : C.enemy;
-    return dark ? C.playerDark : C.player;
+    return this.sideColor(e.team === 'enemy' ? 'enemy' : 'player', dark);
+  }
+
+  /** The object's accent in its side's secondary colour: step 3 of the ramp, so dark and light accents both show. */
+  private accent(e: Entity): number {
+    const ramp = TEAM_COLORS[this.game.world.sides[e.team === 'enemy' ? 'enemy' : 'player'].color2];
+    return Number.parseInt(ramp[3].slice(1), 16);
   }
 
   private drawField(e: Entity, x: number, y: number): void {
@@ -180,11 +187,16 @@ export class Renderer {
     g.roundRect(x + inset, y + inset, e.size - inset * 2, e.size - inset * 2, 3)
       .fill({ color: this.teamColor(e), alpha })
       .stroke({ width: 1, color: this.teamColor(e, true) });
+    // An inner frame in the secondary colour, around the label; a defender carries it on its turret instead.
+    if (e.type !== ObjectType.Defender) {
+      const k = inset + 3;
+      g.rect(x + k, y + k, e.size - 2 * k, e.size - 2 * k).stroke({ width: 1.5, color: this.accent(e), alpha });
+    }
     if (e.type === ObjectType.Defender && e.complete) {
       const [dx, dy] = DIR_VEC[e.dir]!;
       const cx = x + e.size / 2;
       const cy = y + e.size / 2;
-      g.circle(cx, cy, 3.5).fill(this.teamColor(e, true));
+      g.circle(cx, cy, 3.5).fill(this.accent(e)).stroke({ width: 1, color: this.teamColor(e, true) });
       g.moveTo(cx, cy).lineTo(cx + dx * 7, cy + dy * 7).stroke({ width: 2, color: this.teamColor(e, true) });
     }
     if (e.type === ObjectType.Silo && e.dockedId) g.rect(x + 9, y + 9, 12, 12).fill({ color: 0xffffff, alpha: 0.5 });
@@ -199,14 +211,14 @@ export class Renderer {
     const [dx, dy] = DIR_VEC[e.dir]!;
     if (e.type === ObjectType.Harvester) {
       g.rect(x + 2, y + 2, 11, 11).fill(color).stroke({ width: 1, color: dark });
-      g.rect(x + 4, y + 4, 7, 7).fill(e.cargo > 0 ? C.field : dark);
+      g.rect(x + 4, y + 4, 7, 7).fill(e.cargo > 0 ? C.field : this.accent(e));
       return;
     }
     const r = e.type === ObjectType.HeavyTank ? 6.5 : e.type === ObjectType.MiddleTank ? 5.8 : 5;
     g.roundRect(cx - r, cy - r, r * 2, r * 2, 2).fill(color).stroke({ width: 1, color: dark });
     const barrel = e.type === ObjectType.LightTank || e.type === ObjectType.EnemyTank ? 6 : 8;
     g.moveTo(cx, cy).lineTo(cx + dx * barrel, cy + dy * barrel).stroke({ width: e.type === ObjectType.HeavyTank ? 2.5 : 1.8, color: dark });
-    g.circle(cx, cy, 2.2).fill(dark);
+    g.circle(cx, cy, 2.2).fill(this.accent(e)).stroke({ width: 0.8, color: dark });
   }
 
   private label(e: Entity, x: number, y: number): void {
@@ -284,7 +296,7 @@ export class Renderer {
   private drawCursor(c: { x: number; y: number }): void {
     const w = 1.5 / this.camera.scale.x;
     const r = 5;
-    const color = this.game.side === 'player' ? C.player : C.enemy;
+    const color = this.sideColor(this.game.side);
     for (const stroke of [{ width: w * 3, color: 0x000000, alpha: 0.6 }, { width: w, color: 0xffffff }]) {
       this.ui.circle(c.x, c.y, r).stroke(stroke);
       this.ui.moveTo(c.x - r * 1.8, c.y).lineTo(c.x - r * 0.6, c.y).moveTo(c.x + r * 0.6, c.y).lineTo(c.x + r * 1.8, c.y).stroke(stroke);

@@ -87,11 +87,23 @@ panel and money. Gamepad: left stick moves a cursor (pushing the camera at the e
 down stops, LB/RB move a highlight over the panel buttons and X presses it, LT/RT zoom, Back centres on the HQ,
 Start starts or pauses. Self-destruct stays mouse-only.
 
+## Races and team colours
+
+The remaster has three races: humans, hovers (the original's enemy hover tanks) and walkers (jointed alien
+creatures). Races are cosmetic: every race uses the original's numbers and the race only changes how a side looks
+(`Race`, `TEAM_COLORS` and `spriteName` in `packages/data/src/races.ts`). The campaign is white humans with olive
+accents (close to the original's olive army and white base) against cyan hovers with white accents. A skirmish lets
+each side pick any race and one of 24 team colours (8 hues, each in a dark, a base and a light shade), never both the
+exact same colour (two shades of one hue are fine), plus a secondary colour for accents (olive for the first side and
+white for the second by default), which may be any colour, also the other side's or the side's own. Shots and
+muzzle flashes keep their race's own colours, except the walkers', which glow in the side's colours (`glowRamp`). The
+original's raider (type 100) is drawn as the hover race's middle tank.
+
 ## Saves
 
 `saveWorld()` turns the whole world (RNG state and the computer players included) into plain JSON and `loadWorld()`
 restores it; the game continues tick for tick as if it had never stopped. Saves carry a version and older versions
-are refused (version 2 added the skirmish mode). Skirmishes save like missions. The game keeps a quick slot (F5 saves, F9 loads) and three slots in localStorage.
+are refused (version 2 added the skirmish mode, version 3 each side's race and colour, version 4 the secondary colour). Skirmishes save like missions. The game keeps a quick slot (F5 saves, F9 loads) and three slots in localStorage.
 
 ## Cheats
 
