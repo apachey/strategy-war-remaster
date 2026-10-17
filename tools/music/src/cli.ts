@@ -6,7 +6,7 @@ import { master, mixInto, pingPong, reverb, wav } from './effects';
 import { braam, darkPad, drone, lowStrings, throat, wail, warDrums, wind } from './instruments';
 import { parseMidi, type Note, type Song } from './midi';
 import { SAMPLE_RATE, Stereo } from './synth';
-import { battle, tension, type Arrangement, type Part } from './tracks';
+import { battle, battle2, battle3, defeatTrack, tension, tension2, tension3, victoryTrack, type Arrangement, type Part } from './tracks';
 
 /**
  * pnpm music [--midi path/to/intro.mid] [--out dir] [--only name]
@@ -129,6 +129,12 @@ function main(): void {
     }],
     ['battle', battle],
     ['tension', tension],
+    ['tension-2', tension2],
+    ['tension-3', tension3],
+    ['battle-2', battle2],
+    ['battle-3', battle3],
+    ['victory', victoryTrack],
+    ['defeat', defeatTrack],
   ];
   mkdirSync(outDir, { recursive: true });
   for (const [name, make] of jobs) {

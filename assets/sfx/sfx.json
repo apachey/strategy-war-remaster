@@ -56,20 +56,6 @@
     "description": "Building destroyed: a deep double blast, debris and a rolling sub rumble."
   },
   {
-    "name": "harvest",
-    "seconds": 0.9,
-    "channels": 1,
-    "gain": 0.45,
-    "description": "Harvester scooping crystals: a gritty scrape with glassy tinkles."
-  },
-  {
-    "name": "unload",
-    "seconds": 1.45,
-    "channels": 1,
-    "gain": 0.55,
-    "description": "Crystals delivered: a glassy cascade, then a low D to A bell for the credits."
-  },
-  {
     "name": "build_start",
     "seconds": 0.7,
     "channels": 1,
@@ -145,5 +131,825 @@
     "channels": 2,
     "gain": 0.8,
     "description": "Defeat stinger: brass falling Eb to D minor, a throat voice and a last boom."
+  },
+  {
+    "name": "harvest_human",
+    "seconds": 2.4,
+    "channels": 1,
+    "gain": 0.2,
+    "description": "Human harvester at work (loop): a motor and a chattering drill on crystal.",
+    "loop": true
+  },
+  {
+    "name": "harvest_hover",
+    "seconds": 2.4,
+    "channels": 1,
+    "gain": 0.2,
+    "description": "Hover harvester at work (loop): a suction hum and intake rush, crystals popping up.",
+    "loop": true
+  },
+  {
+    "name": "harvest_walker",
+    "seconds": 2.4,
+    "channels": 1,
+    "gain": 0.3,
+    "description": "Walker harvester at work (loop): biting jaws, crunching, clicking mandibles.",
+    "loop": true
+  },
+  {
+    "name": "amb_wind",
+    "seconds": 8,
+    "channels": 1,
+    "gain": 0.2,
+    "description": "Map ambience (loop): wind over the sand, rising and falling.",
+    "loop": true
+  },
+  {
+    "name": "amb_forest",
+    "seconds": 6,
+    "channels": 1,
+    "gain": 0.16,
+    "description": "Map ambience near firs (loop): rustling needles, a creaking trunk.",
+    "loop": true
+  },
+  {
+    "name": "amb_crystals",
+    "seconds": 6,
+    "channels": 1,
+    "gain": 0.12,
+    "description": "Map ambience near crystal fields (loop): a slow glassy beating shimmer.",
+    "loop": true
+  },
+  {
+    "name": "amb_base",
+    "seconds": 4,
+    "channels": 1,
+    "gain": 0.14,
+    "description": "Map ambience over your base (loop): hum, vents, a servo.",
+    "loop": true
+  },
+  {
+    "name": "amb_factory",
+    "seconds": 2,
+    "channels": 1,
+    "gain": 0.2,
+    "description": "A working factory (loop): a press stamping on steel, pneumatic hiss.",
+    "loop": true
+  },
+  {
+    "name": "voice_human_harvester_ready_0",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human harvester acknowledges \"ready\" (variant 1)."
+  },
+  {
+    "name": "voice_human_harvester_ready_1",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human harvester acknowledges \"ready\" (variant 2)."
+  },
+  {
+    "name": "voice_human_harvester_ready_2",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human harvester acknowledges \"ready\" (variant 3)."
+  },
+  {
+    "name": "voice_human_harvester_move_0",
+    "seconds": 0.424,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human harvester acknowledges \"move\" (variant 1)."
+  },
+  {
+    "name": "voice_human_harvester_move_1",
+    "seconds": 0.424,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human harvester acknowledges \"move\" (variant 2)."
+  },
+  {
+    "name": "voice_human_harvester_move_2",
+    "seconds": 0.424,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human harvester acknowledges \"move\" (variant 3)."
+  },
+  {
+    "name": "voice_human_harvester_harvest_0",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human harvester acknowledges \"harvest\" (variant 1)."
+  },
+  {
+    "name": "voice_human_harvester_harvest_1",
+    "seconds": 0.424,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human harvester acknowledges \"harvest\" (variant 2)."
+  },
+  {
+    "name": "voice_human_harvester_harvest_2",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human harvester acknowledges \"harvest\" (variant 3)."
+  },
+  {
+    "name": "voice_human_light_ready_0",
+    "seconds": 0.421,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human light acknowledges \"ready\" (variant 1)."
+  },
+  {
+    "name": "voice_human_light_ready_1",
+    "seconds": 0.421,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human light acknowledges \"ready\" (variant 2)."
+  },
+  {
+    "name": "voice_human_light_ready_2",
+    "seconds": 0.421,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human light acknowledges \"ready\" (variant 3)."
+  },
+  {
+    "name": "voice_human_light_move_0",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human light acknowledges \"move\" (variant 1)."
+  },
+  {
+    "name": "voice_human_light_move_1",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human light acknowledges \"move\" (variant 2)."
+  },
+  {
+    "name": "voice_human_light_move_2",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human light acknowledges \"move\" (variant 3)."
+  },
+  {
+    "name": "voice_human_light_attack_0",
+    "seconds": 0.421,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human light acknowledges \"attack\" (variant 1)."
+  },
+  {
+    "name": "voice_human_light_attack_1",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human light acknowledges \"attack\" (variant 2)."
+  },
+  {
+    "name": "voice_human_light_attack_2",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human light acknowledges \"attack\" (variant 3)."
+  },
+  {
+    "name": "voice_human_middle_ready_0",
+    "seconds": 0.46,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human middle acknowledges \"ready\" (variant 1)."
+  },
+  {
+    "name": "voice_human_middle_ready_1",
+    "seconds": 0.46,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human middle acknowledges \"ready\" (variant 2)."
+  },
+  {
+    "name": "voice_human_middle_ready_2",
+    "seconds": 0.46,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human middle acknowledges \"ready\" (variant 3)."
+  },
+  {
+    "name": "voice_human_middle_move_0",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human middle acknowledges \"move\" (variant 1)."
+  },
+  {
+    "name": "voice_human_middle_move_1",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human middle acknowledges \"move\" (variant 2)."
+  },
+  {
+    "name": "voice_human_middle_move_2",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human middle acknowledges \"move\" (variant 3)."
+  },
+  {
+    "name": "voice_human_middle_attack_0",
+    "seconds": 0.46,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human middle acknowledges \"attack\" (variant 1)."
+  },
+  {
+    "name": "voice_human_middle_attack_1",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human middle acknowledges \"attack\" (variant 2)."
+  },
+  {
+    "name": "voice_human_middle_attack_2",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human middle acknowledges \"attack\" (variant 3)."
+  },
+  {
+    "name": "voice_human_heavy_ready_0",
+    "seconds": 0.538,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human heavy acknowledges \"ready\" (variant 1)."
+  },
+  {
+    "name": "voice_human_heavy_ready_1",
+    "seconds": 0.538,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human heavy acknowledges \"ready\" (variant 2)."
+  },
+  {
+    "name": "voice_human_heavy_ready_2",
+    "seconds": 0.538,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human heavy acknowledges \"ready\" (variant 3)."
+  },
+  {
+    "name": "voice_human_heavy_move_0",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human heavy acknowledges \"move\" (variant 1)."
+  },
+  {
+    "name": "voice_human_heavy_move_1",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human heavy acknowledges \"move\" (variant 2)."
+  },
+  {
+    "name": "voice_human_heavy_move_2",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human heavy acknowledges \"move\" (variant 3)."
+  },
+  {
+    "name": "voice_human_heavy_attack_0",
+    "seconds": 0.538,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human heavy acknowledges \"attack\" (variant 1)."
+  },
+  {
+    "name": "voice_human_heavy_attack_1",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human heavy acknowledges \"attack\" (variant 2)."
+  },
+  {
+    "name": "voice_human_heavy_attack_2",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "human heavy acknowledges \"attack\" (variant 3)."
+  },
+  {
+    "name": "voice_hover_harvester_ready_0",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover harvester acknowledges \"ready\" (variant 1)."
+  },
+  {
+    "name": "voice_hover_harvester_ready_1",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover harvester acknowledges \"ready\" (variant 2)."
+  },
+  {
+    "name": "voice_hover_harvester_ready_2",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover harvester acknowledges \"ready\" (variant 3)."
+  },
+  {
+    "name": "voice_hover_harvester_move_0",
+    "seconds": 0.424,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover harvester acknowledges \"move\" (variant 1)."
+  },
+  {
+    "name": "voice_hover_harvester_move_1",
+    "seconds": 0.424,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover harvester acknowledges \"move\" (variant 2)."
+  },
+  {
+    "name": "voice_hover_harvester_move_2",
+    "seconds": 0.424,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover harvester acknowledges \"move\" (variant 3)."
+  },
+  {
+    "name": "voice_hover_harvester_harvest_0",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover harvester acknowledges \"harvest\" (variant 1)."
+  },
+  {
+    "name": "voice_hover_harvester_harvest_1",
+    "seconds": 0.424,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover harvester acknowledges \"harvest\" (variant 2)."
+  },
+  {
+    "name": "voice_hover_harvester_harvest_2",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover harvester acknowledges \"harvest\" (variant 3)."
+  },
+  {
+    "name": "voice_hover_light_ready_0",
+    "seconds": 0.421,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover light acknowledges \"ready\" (variant 1)."
+  },
+  {
+    "name": "voice_hover_light_ready_1",
+    "seconds": 0.421,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover light acknowledges \"ready\" (variant 2)."
+  },
+  {
+    "name": "voice_hover_light_ready_2",
+    "seconds": 0.421,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover light acknowledges \"ready\" (variant 3)."
+  },
+  {
+    "name": "voice_hover_light_move_0",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover light acknowledges \"move\" (variant 1)."
+  },
+  {
+    "name": "voice_hover_light_move_1",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover light acknowledges \"move\" (variant 2)."
+  },
+  {
+    "name": "voice_hover_light_move_2",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover light acknowledges \"move\" (variant 3)."
+  },
+  {
+    "name": "voice_hover_light_attack_0",
+    "seconds": 0.421,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover light acknowledges \"attack\" (variant 1)."
+  },
+  {
+    "name": "voice_hover_light_attack_1",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover light acknowledges \"attack\" (variant 2)."
+  },
+  {
+    "name": "voice_hover_light_attack_2",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover light acknowledges \"attack\" (variant 3)."
+  },
+  {
+    "name": "voice_hover_middle_ready_0",
+    "seconds": 0.46,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover middle acknowledges \"ready\" (variant 1)."
+  },
+  {
+    "name": "voice_hover_middle_ready_1",
+    "seconds": 0.46,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover middle acknowledges \"ready\" (variant 2)."
+  },
+  {
+    "name": "voice_hover_middle_ready_2",
+    "seconds": 0.46,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover middle acknowledges \"ready\" (variant 3)."
+  },
+  {
+    "name": "voice_hover_middle_move_0",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover middle acknowledges \"move\" (variant 1)."
+  },
+  {
+    "name": "voice_hover_middle_move_1",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover middle acknowledges \"move\" (variant 2)."
+  },
+  {
+    "name": "voice_hover_middle_move_2",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover middle acknowledges \"move\" (variant 3)."
+  },
+  {
+    "name": "voice_hover_middle_attack_0",
+    "seconds": 0.46,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover middle acknowledges \"attack\" (variant 1)."
+  },
+  {
+    "name": "voice_hover_middle_attack_1",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover middle acknowledges \"attack\" (variant 2)."
+  },
+  {
+    "name": "voice_hover_middle_attack_2",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover middle acknowledges \"attack\" (variant 3)."
+  },
+  {
+    "name": "voice_hover_heavy_ready_0",
+    "seconds": 0.538,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover heavy acknowledges \"ready\" (variant 1)."
+  },
+  {
+    "name": "voice_hover_heavy_ready_1",
+    "seconds": 0.538,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover heavy acknowledges \"ready\" (variant 2)."
+  },
+  {
+    "name": "voice_hover_heavy_ready_2",
+    "seconds": 0.538,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover heavy acknowledges \"ready\" (variant 3)."
+  },
+  {
+    "name": "voice_hover_heavy_move_0",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover heavy acknowledges \"move\" (variant 1)."
+  },
+  {
+    "name": "voice_hover_heavy_move_1",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover heavy acknowledges \"move\" (variant 2)."
+  },
+  {
+    "name": "voice_hover_heavy_move_2",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover heavy acknowledges \"move\" (variant 3)."
+  },
+  {
+    "name": "voice_hover_heavy_attack_0",
+    "seconds": 0.538,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover heavy acknowledges \"attack\" (variant 1)."
+  },
+  {
+    "name": "voice_hover_heavy_attack_1",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover heavy acknowledges \"attack\" (variant 2)."
+  },
+  {
+    "name": "voice_hover_heavy_attack_2",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "hover heavy acknowledges \"attack\" (variant 3)."
+  },
+  {
+    "name": "voice_walker_harvester_ready_0",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker harvester acknowledges \"ready\" (variant 1)."
+  },
+  {
+    "name": "voice_walker_harvester_ready_1",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker harvester acknowledges \"ready\" (variant 2)."
+  },
+  {
+    "name": "voice_walker_harvester_ready_2",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker harvester acknowledges \"ready\" (variant 3)."
+  },
+  {
+    "name": "voice_walker_harvester_move_0",
+    "seconds": 0.424,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker harvester acknowledges \"move\" (variant 1)."
+  },
+  {
+    "name": "voice_walker_harvester_move_1",
+    "seconds": 0.424,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker harvester acknowledges \"move\" (variant 2)."
+  },
+  {
+    "name": "voice_walker_harvester_move_2",
+    "seconds": 0.424,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker harvester acknowledges \"move\" (variant 3)."
+  },
+  {
+    "name": "voice_walker_harvester_harvest_0",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker harvester acknowledges \"harvest\" (variant 1)."
+  },
+  {
+    "name": "voice_walker_harvester_harvest_1",
+    "seconds": 0.424,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker harvester acknowledges \"harvest\" (variant 2)."
+  },
+  {
+    "name": "voice_walker_harvester_harvest_2",
+    "seconds": 0.499,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker harvester acknowledges \"harvest\" (variant 3)."
+  },
+  {
+    "name": "voice_walker_light_ready_0",
+    "seconds": 0.421,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker light acknowledges \"ready\" (variant 1)."
+  },
+  {
+    "name": "voice_walker_light_ready_1",
+    "seconds": 0.421,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker light acknowledges \"ready\" (variant 2)."
+  },
+  {
+    "name": "voice_walker_light_ready_2",
+    "seconds": 0.421,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker light acknowledges \"ready\" (variant 3)."
+  },
+  {
+    "name": "voice_walker_light_move_0",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker light acknowledges \"move\" (variant 1)."
+  },
+  {
+    "name": "voice_walker_light_move_1",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker light acknowledges \"move\" (variant 2)."
+  },
+  {
+    "name": "voice_walker_light_move_2",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker light acknowledges \"move\" (variant 3)."
+  },
+  {
+    "name": "voice_walker_light_attack_0",
+    "seconds": 0.421,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker light acknowledges \"attack\" (variant 1)."
+  },
+  {
+    "name": "voice_walker_light_attack_1",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker light acknowledges \"attack\" (variant 2)."
+  },
+  {
+    "name": "voice_walker_light_attack_2",
+    "seconds": 0.366,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker light acknowledges \"attack\" (variant 3)."
+  },
+  {
+    "name": "voice_walker_middle_ready_0",
+    "seconds": 0.46,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker middle acknowledges \"ready\" (variant 1)."
+  },
+  {
+    "name": "voice_walker_middle_ready_1",
+    "seconds": 0.46,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker middle acknowledges \"ready\" (variant 2)."
+  },
+  {
+    "name": "voice_walker_middle_ready_2",
+    "seconds": 0.46,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker middle acknowledges \"ready\" (variant 3)."
+  },
+  {
+    "name": "voice_walker_middle_move_0",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker middle acknowledges \"move\" (variant 1)."
+  },
+  {
+    "name": "voice_walker_middle_move_1",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker middle acknowledges \"move\" (variant 2)."
+  },
+  {
+    "name": "voice_walker_middle_move_2",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker middle acknowledges \"move\" (variant 3)."
+  },
+  {
+    "name": "voice_walker_middle_attack_0",
+    "seconds": 0.46,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker middle acknowledges \"attack\" (variant 1)."
+  },
+  {
+    "name": "voice_walker_middle_attack_1",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker middle acknowledges \"attack\" (variant 2)."
+  },
+  {
+    "name": "voice_walker_middle_attack_2",
+    "seconds": 0.395,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker middle acknowledges \"attack\" (variant 3)."
+  },
+  {
+    "name": "voice_walker_heavy_ready_0",
+    "seconds": 0.538,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker heavy acknowledges \"ready\" (variant 1)."
+  },
+  {
+    "name": "voice_walker_heavy_ready_1",
+    "seconds": 0.538,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker heavy acknowledges \"ready\" (variant 2)."
+  },
+  {
+    "name": "voice_walker_heavy_ready_2",
+    "seconds": 0.538,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker heavy acknowledges \"ready\" (variant 3)."
+  },
+  {
+    "name": "voice_walker_heavy_move_0",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker heavy acknowledges \"move\" (variant 1)."
+  },
+  {
+    "name": "voice_walker_heavy_move_1",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker heavy acknowledges \"move\" (variant 2)."
+  },
+  {
+    "name": "voice_walker_heavy_move_2",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker heavy acknowledges \"move\" (variant 3)."
+  },
+  {
+    "name": "voice_walker_heavy_attack_0",
+    "seconds": 0.538,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker heavy acknowledges \"attack\" (variant 1)."
+  },
+  {
+    "name": "voice_walker_heavy_attack_1",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker heavy acknowledges \"attack\" (variant 2)."
+  },
+  {
+    "name": "voice_walker_heavy_attack_2",
+    "seconds": 0.453,
+    "channels": 1,
+    "gain": 0.4,
+    "description": "walker heavy acknowledges \"attack\" (variant 3)."
   }
 ]
