@@ -75,7 +75,7 @@ body.paused #topbar::after {
 .panel .title.neutral { color: var(--gold); }
 .panel .info, .panel .hint { color: var(--muted); }
 .panel .buttons { display: flex; flex-wrap: wrap; gap: calc(2 * var(--u)); margin-top: calc(3 * var(--u)); }
-.panel .build { min-width: 120px; text-align: left; display: grid; grid-template-columns: auto 1fr; column-gap: calc(2 * var(--u)); align-items: center; }
+.panel .build { padding-right: calc(7 * var(--u)); min-width: 120px; text-align: left; display: grid; grid-template-columns: auto 1fr; column-gap: calc(2 * var(--u)); align-items: center; }
 .panel .build img { grid-row: span 2; width: calc(16 * var(--u)); height: calc(16 * var(--u)); image-rendering: pixelated; }
 .panel button.pad-focus { outline: var(--u) solid var(--accent); outline-offset: var(--u); }
 /* The factory's queue: a portrait per tank, a progress bar on the one being built. */
@@ -168,7 +168,7 @@ body.menu #scene, body.outcome #scene { display: block; }
 body.menu #topbar, body.menu #help, body.menu .panel, body.menu .minimap, body.menu #stage { display: none; }
 #modal.over-scene { background: none; }
 #modal .card.menu { width: auto; min-width: 340px; text-align: center; padding: calc(4 * var(--u)) calc(8 * var(--u)); }
-#modal .logo { display: block; margin: 0 auto calc(2 * var(--u)); image-rendering: pixelated; }
+#modal h1.logo { margin: 0 0 var(--u); font-size: calc(36px * var(--k)); line-height: 1; color: var(--gold); text-shadow: calc(var(--k) * 1px) calc(var(--k) * 1px) 0 #a87a12, calc(var(--k) * 2px) calc(var(--k) * 2px) 0 #0a0806; letter-spacing: calc(var(--k) * 1px); }
 #modal .subtitle { color: var(--muted); margin: 0 0 calc(6 * var(--u)); }
 #modal .menu-buttons { display: flex; flex-direction: column; gap: calc(2 * var(--u)); }
 #modal .menu-buttons button { font-size: var(--t); padding: calc(2 * var(--u)) calc(6 * var(--u)); }

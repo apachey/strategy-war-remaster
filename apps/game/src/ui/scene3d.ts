@@ -171,7 +171,7 @@ async function groundMesh(kind: Ground, size: number): Promise<THREE.Mesh> {
 function shadow(r: number, x: number, z: number): THREE.Mesh {
   const m = new THREE.Mesh(
     new THREE.CircleGeometry(r, 10).rotateX(-Math.PI / 2),
-    new THREE.ShaderMaterial({ fragmentShader: 'void main() { gl_FragColor = vec4(0.05, 0.04, 0.03, 0.5); }', vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', transparent: true }),
+    new THREE.ShaderMaterial({ fragmentShader: 'void main() { gl_FragColor = vec4(0.03, 0.02, 0.02, 0.38); }', vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', transparent: true }),
   );
   m.position.set(x + 0.08, 0.005, z + 0.08);
   return m;
@@ -301,8 +301,8 @@ function fire(dress: Dress, x: number, y: number, z: number, size: number): { gr
     });
     puffs.forEach((p, i) => {
       const k = (t * 0.35 + i / puffs.length) % 1;
-      p.position.set(x + k * size * 3 + Math.sin(i) * size * 0.4, y + size + k * size * 7, z - k * size);
-      p.scale.setScalar(0.5 + k * 1.6);
+      p.position.set(x + k * size * 2.5 + Math.sin(i) * size * 0.4, y + size + k * size * 6, z - k * size);
+      p.scale.setScalar(0.4 + k * 1.1);
     });
   };
   return { group, tick };
@@ -376,8 +376,9 @@ export async function outcomeScene(canvas: HTMLCanvasElement, o: OutcomeScene, w
         const step = Math.floor(t * 7) % 2;
         c.show(Math.floor(t * 0.8 + i) % 5 === 0 && i % 2 === 0 ? 2 : step);
       });
-      s.camera.position.set(Math.sin(t * 0.12) * 1.2, 0.35, 3.2);
-      s.camera.lookAt(0, 0.85, -1.5);
+      // Low and looking up, the scene kept to the left of the screen: the card with the numbers sits on the right.
+      s.camera.position.set(2.2 + Math.sin(t * 0.12) * 0.8, 0.45, 5.6);
+      s.camera.lookAt(2.2, 1.0, -1.5);
     };
   } else {
     const ruin = model(sprite(o.own.race, 'hq'), o.own, 0, 'idle0', true);
@@ -399,8 +400,8 @@ export async function outcomeScene(canvas: HTMLCanvasElement, o: OutcomeScene, w
     s.update = (t) => {
       for (const tk of ticks) tk(t);
       const a = t * 0.08;
-      s.camera.position.set(Math.sin(a) * 4.2, 5.4, Math.cos(a) * 4.2);
-      s.camera.lookAt(0, 0.2, 0);
+      s.camera.position.set(1.4 + Math.sin(a) * 5, 6.2, Math.cos(a) * 5);
+      s.camera.lookAt(1.4, 0.2, 0);
     };
   }
   s.render(0);
@@ -430,7 +431,7 @@ export async function battleScene(canvas: HTMLCanvasElement, a: Dress, b: Dress,
   scenery(scene, a, true, [[-8, 1], [-7.2, -2.5], [8.5, 2.2], [7.8, 0.4], [-2.5, -5], [3, 5.5]]);
   s.update = (t) => {
     for (const u of units) u.show((t * 0.9 + u.phase) % 1 < 0.12 ? 1 : 0);
-    s.camera.position.set(Math.sin(t * 0.07) * 3, 3.2, 7.5);
+    s.camera.position.set(Math.sin(t * 0.07) * 3, 4.6, 11);
     s.camera.lookAt(Math.sin(t * 0.07) * 2.4, 0, 0);
   };
   s.render(0);

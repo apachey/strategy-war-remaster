@@ -1,4 +1,4 @@
-import { campaign, LANGS, ObjectType, RACES, TEAM_COLOR_GRID, TEAM_COLORS, TEAM_HUES, type Lang, type Race, type TeamColor } from '@sw/data';
+import { campaign, LANGS, ObjectType, RACES, spriteName, TEAM_COLOR_GRID, TEAM_COLORS, TEAM_HUES, type Lang, type Race, type TeamColor } from '@sw/data';
 import {
   BUILDING_RULES,
   buildBlockedGrid,
@@ -10,20 +10,48 @@ import {
   raceOf,
   SKIRMISH_MONEY,
   skirmishLayout,
+  TICKS_PER_SECOND,
   UNIT_RULES,
   type BuildingType,
   type Difficulty,
   type Entity,
   type Opponent,
+  type SideState,
+  type Team,
   type UnitType,
 } from '@sw/sim';
 import { hqType, nextMission, type Commander, type Game, type Setup } from './game';
-import { completed, markCompleted, readSave, SLOTS, type Slot } from './storage';
+import { completed, markCompleted, readSave, SLOTS, type SelectionStyle, type Slot } from './storage';
+import { flagHtml } from './ui/flags';
+import type { Dress, PixelScene } from './ui/scene3d';
+import { applySkin, skin } from './ui/skin';
 import { getLang, mapName, missionBrief, missionTitle, objectName, siteName, t } from './text';
 
 const LANG_NAMES: Record<Lang, string> = { uk: 'Українська', en: 'English' };
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+/** The 3D models (three.js) load on their own, after the game is up: portraits appear once they are in. */
+let scene3d: typeof import('./ui/scene3d') | null = null;
+const scene3dReady = import('./ui/scene3d').then((m) => (scene3d = m));
+
+const dress = (s: SideState): Dress => ({ race: s.race, color: s.color, color2: s.color2 });
+
+/** A portrait of an object type as a side would build it, `size` art pixels; empty until the models have loaded. */
+function portraitOf(s: SideState, type: ObjectType, size = 40): string {
+  if (!scene3d) return '';
+  const name = spriteName(s.race, type === ObjectType.EnemyTank ? ObjectType.MiddleTank : type);
+  return scene3d.portrait(dress(s), name.startsWith(`${s.race}_`) ? name.slice(s.race.length + 1) : name, size);
+}
+
+const img = (src: string, cls = '') => (src ? `<img${cls ? ` class="${cls}"` : ''} src="${src}" alt="">` : '');
+
+/** Skull counts on the difficulty and opponent buttons; the original's own pace gets a star. */
+const DIFFICULTY_ICONS: Record<Difficulty, string> = { classic: '★', easy: '☠', normal: '☠☠', hard: '☠☠☠' };
+const OPPONENT_ICONS: Record<Opponent, string> = { easy: '☠', normal: '☠☠', hard: '☠☠☠', human: '⚔' };
+
+/** Is this the desktop app (Tauri), where the main menu can quit? */
+const inApp = () => '__TAURI_INTERNALS__' in window;
 
 export interface HudActions {
   /** Opens another setup (a mission or a skirmish); `load` continues a save. */
@@ -38,6 +66,10 @@ export interface HudActions {
   /** Music and effects volume, 0..1. */
   volumes(): { music: number; sfx: number };
   setVolumes(music: number, sfx: number): void;
+  selection(): SelectionStyle;
+  setSelection(style: SelectionStyle): void;
+  /** Back to the main screen. */
+  toMenu(): void;
 }
 
 /** The game's version, from apps/desktop/package.json. */
@@ -46,31 +78,40 @@ declare const __APP_VERSION__: string;
 /** DOM interface over the canvas: top bar, one panel per player, toasts and dialogs. */
 export class Hud {
   private shownOutcome = false;
+  private scene: PixelScene | null = null;
   readonly panels: PlayerPanel[];
 
   constructor(
     private readonly game: Game,
     private readonly actions: HudActions,
+    /** Opened on the main screen rather than a mission or skirmish. */
+    private readonly menu = false,
   ) {
     document.body.classList.toggle('duo', game.twoPlayers);
+    document.body.classList.toggle('menu', menu);
+    // The interface wears player 1's race and colours; in a split screen each panel wears its own player's.
+    const p1 = game.world.sides[game.commanders[0]!.side];
+    applySkin(document.body, skin(p1.race, p1.color, p1.color2));
     // Panel titles and money badges in the sides' team colours, a light step so they read on the dark panels.
     document.body.style.setProperty('--player', TEAM_COLORS[game.world.sides.player.color][3]);
     document.body.style.setProperty('--enemy', TEAM_COLORS[game.world.sides.enemy.color][3]);
     this.panels = game.commanders.map((c) => new PlayerPanel(c, game.twoPlayers));
     $('btn-pause').onclick = () => this.togglePause();
-    $('btn-missions').onclick = () => this.showMissions();
-    $('btn-skirmish').onclick = () => this.actions.open(this.actions.lastSkirmish());
+    $('btn-menu').onclick = () => this.actions.toMenu();
     $('btn-saves').onclick = () => this.showSaves();
     $('btn-settings').onclick = () => this.showSettings();
     this.applyLang();
     if (game.loaded) game.started = true;
     else this.showBriefing();
+    void scene3dReady.then(() => {
+      for (const p of this.panels) p.refresh();
+    });
   }
 
   /** Fills the static page text in the current language. */
   applyLang(): void {
-    $('btn-missions').textContent = t().missions;
-    $('btn-skirmish').textContent = t().skirmish;
+    $('btn-menu').textContent = `☰ ${t().menu}`;
+    $('topbar').dataset.paused = t().paused;
     $('btn-saves').textContent = t().saves;
     $('btn-settings').title = t().settings;
     $('btn-settings').setAttribute('aria-label', t().settings);
@@ -113,6 +154,7 @@ export class Hud {
 
   private modal(html: string): HTMLElement {
     const m = $('modal');
+    m.classList.remove('over-scene');
     m.innerHTML = `<div class="card">${html}</div>`;
     m.classList.add('show');
     return m;
@@ -123,6 +165,7 @@ export class Hud {
   }
 
   showBriefing(): void {
+    if (this.menu) return this.showMenu();
     if (this.game.setup.kind === 'skirmish') return this.showSkirmishSetup();
     const g = this.game;
     const T = t();
@@ -132,9 +175,9 @@ export class Hud {
        <p class="brief">${missionBrief(g.mapIndex, g.missionIndex)}</p>
        <p class="goal">${T.goal}</p>
        <div class="options">
-         <div class="option"><span>${T.difficultyLabel}</span>${choice('difficulty', DIFFICULTIES, g.difficulty, (d) => T.difficulty[d])}</div>
+         <div class="option"><span>${T.difficultyLabel}</span>${levels('difficulty', DIFFICULTIES, g.difficulty, (d) => T.difficulty[d], DIFFICULTY_ICONS)}</div>
          <p class="hint">${T.difficultyHint[g.difficulty]}</p>
-         <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => LANG_NAMES[l])}</div>
+         <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}${LANG_NAMES[l]}`)}</div>
        </div>
        <div class="row"><button class="primary" data-go>${T.start}</button></div>`,
     );
@@ -163,11 +206,11 @@ export class Hud {
        <h1>${mapName(s.mapIndex)}</h1>
        <p class="goal">${s.opponent === 'human' ? T.duoGoal : T.skirmishGoal}</p>
        <div class="option"><span>${T.moneyLabel}</span>${choice('money', SKIRMISH_MONEY.map(String), String(s.money), (v) => `$${v}`)}</div>
-       <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => LANG_NAMES[l])}</div>
+       <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}${LANG_NAMES[l]}`)}</div>
        </div></div>
        <div class="options">
          <div class="option"><span>${T.mapLabel}</span>${choice('map', maps.map(String), String(s.mapIndex), (i) => `${Number(i) + 1}. ${mapName(Number(i))}`)}</div>
-         <div class="option"><span>${T.opponentLabel}</span>${choice('opponent', OPPONENTS, s.opponent, (o) => T.opponent[o])}</div>
+         <div class="option"><span>${T.opponentLabel}</span>${levels('opponent', OPPONENTS, s.opponent, (o) => T.opponent[o], OPPONENT_ICONS)}</div>
          <p class="hint">${T.opponentHint[s.opponent]}</p>
          ${s.opponent === 'human' ? `<p class="hint pads">${T.helpDuo}</p>` : ''}
          <div class="sides">${[0, 1].map((i) => sideOptions(s, i)).join('')}</div>
@@ -208,17 +251,98 @@ export class Hud {
     };
   }
 
+  /** A live 3D scene behind the dialogs: the main screen's battle, or the end of a match. */
+  private async showScene(make: (m: typeof import('./ui/scene3d'), canvas: HTMLCanvasElement) => Promise<PixelScene>): Promise<void> {
+    const m = await scene3dReady;
+    let canvas = document.getElementById('scene') as HTMLCanvasElement | null;
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.id = 'scene';
+      document.body.appendChild(canvas);
+    }
+    this.scene?.dispose();
+    this.scene = await make(m, canvas);
+    this.scene.start();
+  }
+
+  /**
+   * The main screen: the name over a slow battle between the campaign's humans and hovers, and the way into every
+   * part of the game.
+   */
+  showMenu(): void {
+    const T = t();
+    const last = this.actions.lastSkirmish();
+    const m = this.modal(
+      `<h1 class="logo">${T.title.toUpperCase()}</h1>
+       <p class="subtitle">${T.subtitle}</p>
+       <div class="menu-buttons">
+         ${readSave('quick') ? `<button class="primary" data-continue>${T.continueGame}</button>` : ''}
+         <button data-campaign>${T.campaign}</button>
+         <button data-skirmish>${T.skirmish}</button>
+         <button data-duo>${T.duo}</button>
+         <button data-saves>${T.load}</button>
+         <button data-settings>${T.settings}</button>
+         ${inApp() ? `<button data-exit>${T.exit}</button>` : ''}
+       </div>
+       <div class="option lang">${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}${LANG_NAMES[l]}`)}</div>`,
+    );
+    m.classList.add('over-scene');
+    m.querySelector('.card')!.classList.add('menu');
+    const on = (attr: string, f: () => void) => m.querySelector<HTMLButtonElement>(`[data-${attr}]`)?.addEventListener('click', f);
+    on('continue', () => this.actions.load('quick'));
+    on('campaign', () => this.showMissions());
+    on('skirmish', () => this.actions.open({ ...last, opponent: last.opponent === 'human' ? 'normal' : last.opponent }));
+    on('duo', () => this.actions.open({ ...last, opponent: 'human' }));
+    on('saves', () => this.showSaves());
+    on('settings', () => this.showSettings());
+    on('exit', () => {
+      const tauri = (window as unknown as { __TAURI_INTERNALS__?: { invoke(cmd: string, args?: unknown): Promise<unknown> } }).__TAURI_INTERNALS__;
+      void tauri?.invoke('plugin:window|close', { label: 'main' }).catch(() => window.close());
+    });
+    this.bindLang(m);
+    if (!this.scene) {
+      const { player, enemy } = this.game.world.sides;
+      void this.showScene((s3, canvas) => s3.battleScene(canvas, dress(player), dress(enemy)));
+    }
+  }
+
+  /**
+   * Victory or defeat: a live scene in the winner's or loser's race on the map's ground, the match's numbers and
+   * the ways on. In a two-player game the scene is the winner's.
+   */
   private showOutcome(): void {
     const g = this.game;
     const T = t();
     const won = g.world.outcome === 'won';
+    const sides = g.world.sides;
+    const own = g.twoPlayers && !won ? sides.enemy : sides.player;
+    const foe = own === sides.player ? sides.enemy : sides.player;
+    const forest = g.world.blocked.reduce((n, b) => n + b, 0) > g.world.blocked.length * 0.05;
+    document.body.classList.add('outcome');
+    void this.showScene((s3, canvas) =>
+      s3.outcomeScene(canvas, { won: won || g.twoPlayers, own: dress(own), foe: dress(foe), ground: own.race === 'hover' ? 'plates' : 'sand', forest }),
+    );
+    const secs = Math.floor(g.world.tick / TICKS_PER_SECOND);
+    const st = own.stats;
+    const stats = `<div class="stats">
+      <span>${T.stats.time}</span><span>${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</span>
+      <span>${T.stats.harvested}</span><span>$ ${st.harvested}</span>
+      <span>${T.stats.built}</span><span>${st.built}</span>
+      <span>${T.stats.killed}</span><span>${st.killed}</span>
+      <span>${T.stats.lost}</span><span>${st.lost}</span>
+      <span>${T.stats.buildingsLost}</span><span>${st.buildingsLost}</span>
+    </div>`;
+    const card = (title: string, text: string, buttons: string) => {
+      const m = this.modal(`<h1>${title}</h1><p>${text}</p>${stats}<div class="row"><button data-menu>${T.toMenu}</button>${buttons}</div>`);
+      m.classList.add('over-scene');
+      m.querySelector('.card')!.classList.add('outcome');
+      m.querySelector<HTMLButtonElement>('[data-menu]')!.onclick = () => this.actions.toMenu();
+      return m;
+    };
     if (g.setup.kind === 'skirmish') {
       const title = g.twoPlayers ? T.playerWins(won ? 1 : 2) : won ? T.victory : T.lost;
       const text = g.twoPlayers ? T.duoWinText : won ? T.wonText : T.lostText;
-      const m = this.modal(
-        `<h1>${title}</h1><p>${text}</p>
-         <div class="row"><button data-setup>${T.newSkirmish}</button><button class="primary" data-restart>${T.again}</button></div>`,
-      );
+      const m = card(title, text, `<button data-setup>${T.newSkirmish}</button><button class="primary" data-restart>${T.again}</button>`);
       m.querySelector<HTMLButtonElement>('[data-restart]')!.onclick = () => this.actions.restart();
       m.querySelector<HTMLButtonElement>('[data-setup]')!.onclick = () => this.actions.open(g.setup);
       return;
@@ -226,13 +350,10 @@ export class Hud {
     if (won) markCompleted(g.mapIndex, g.missionIndex);
     const next = won ? nextMission(g.mapIndex, g.missionIndex) : null;
     const last = won && !next;
-    const m = this.modal(
-      `<h1>${won ? T.won : T.lost}</h1>
-       <p>${last ? T.campaignDone : won ? T.wonText : T.lostText}</p>
-       <div class="row">
-         <button data-restart>${T.retry}</button>
-         ${next ? `<button class="primary" data-next>${T.next}</button>` : ''}
-       </div>`,
+    const m = card(
+      won ? T.won : T.lost,
+      last ? T.campaignDone : won ? T.wonText : T.lostText,
+      `<button data-restart${next ? '' : ' class="primary"'}>${T.retry}</button>${next ? `<button class="primary" data-next>${T.next}</button>` : ''}`,
     );
     m.querySelector<HTMLButtonElement>('[data-restart]')!.onclick = () => this.actions.restart();
     m.querySelector<HTMLButtonElement>('[data-next]')?.addEventListener('click', () =>
@@ -287,10 +408,11 @@ export class Hud {
        <div class="options">
          ${slider('music', T.musicLabel, v.music)}
          ${slider('sfx', T.sfxLabel, v.sfx)}
-         <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => LANG_NAMES[l])}</div>
+         <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}${LANG_NAMES[l]}`)}</div>
+         <div class="option"><span>${T.selectionLabel}</span>${choice('selection', ['corners', 'ellipse'] as const, this.actions.selection(), (v) => T.selection[v])}</div>
        </div>
        <h2>${T.about}</h2>
-       <p class="about">Strategy War Remaster · ${T.version(__APP_VERSION__)}</p>
+       <p class="about">${T.title} · ${T.subtitle} · ${T.version(__APP_VERSION__)}</p>
        <p class="hint">${T.credits}</p>
        <div class="row"><button data-close>${T.close}</button></div>`,
     );
@@ -305,6 +427,13 @@ export class Hud {
       b.onclick = () => {
         this.actions.setLang(b.dataset.lang as Lang);
         this.applyLang();
+        close();
+        this.showSettings();
+      };
+    });
+    m.querySelectorAll<HTMLButtonElement>('[data-selection]').forEach((b) => {
+      b.onclick = () => {
+        this.actions.setSelection(b.dataset.selection as SelectionStyle);
         close();
         this.showSettings();
       };
@@ -348,6 +477,13 @@ export class Hud {
 
 function choice<V extends string>(attr: string, values: readonly V[], current: V, label: (v: V) => string): string {
   return values.map((v) => `<button data-${attr}="${v}"${v === current ? ' class="active"' : ''}>${label(v)}</button>`).join('');
+}
+
+/** Big buttons with an icon line (skulls) over the name, for difficulty and opponent. */
+function levels<V extends string>(attr: string, values: readonly V[], current: V, label: (v: V) => string, icons: Record<V, string>): string {
+  return values
+    .map((v) => `<button class="level${v === current ? ' active' : ''}" data-${attr}="${v}"><span class="icons">${icons[v]}</span>${label(v)}</button>`)
+    .join('');
 }
 
 /** Rows of the colour grid, top to bottom: light shades, base colours, dark shades (index into TEAM_COLOR_GRID). */
@@ -428,6 +564,15 @@ export class PlayerPanel {
     $('money').hidden = duo;
     c.onToast = (text) => this.toast(text);
     this.panel.onclick = (ev) => this.onClick(ev);
+    this.panel.oncontextmenu = (ev) => this.onRightClick(ev);
+    if (duo) {
+      const look = skin(this.own.race, this.own.color, this.own.color2);
+      for (const el of [this.panel, this.money, this.toastEl]) applySkin(el, look);
+    }
+  }
+
+  private get own(): SideState {
+    return this.c.world.sides[this.c.side];
   }
 
   get element(): HTMLElement {
@@ -455,8 +600,38 @@ export class PlayerPanel {
     if (key === this.key) return;
     this.key = key;
     this.panel.innerHTML = this.html(sel);
+    this.assignKeys();
     const buttons = this.focusable();
     buttons.forEach((b, i) => b.classList.toggle('pad-focus', c.cursor !== null && i === c.focus % buttons.length));
+  }
+
+  /**
+   * Hotkeys by place, not by name: the first row of buttons is Q W E R T, the second A S D F G, so the hand never
+   * hunts for a letter. Stop is always X. Self-destruct has none. Only the keyboard player's panel shows them.
+   */
+  private assignKeys(): void {
+    if (this.c.number !== 1) return;
+    const letters = ['QWERT', 'ASDFG'];
+    let row = 0;
+    for (const group of this.panel.querySelectorAll('.buttons')) {
+      const buttons = [...group.querySelectorAll<HTMLButtonElement>('button:not(.danger)')];
+      if (buttons.length === 0) continue;
+      buttons.forEach((b, i) => {
+        const key = b.dataset.action === 'stop' ? 'X' : letters[row]?.[i];
+        if (!key) return;
+        b.dataset.key = key;
+        b.insertAdjacentHTML('beforeend', `<kbd>${key}</kbd>`);
+      });
+      if (buttons.some((b) => b.dataset.action !== 'stop')) row++;
+    }
+  }
+
+  /** Presses the panel button bound to a letter key; true when the key belongs to a button (even a disabled one). */
+  pressKey(letter: string): boolean {
+    const b = this.panel.querySelector<HTMLButtonElement>(`button[data-key="${letter}"]`);
+    if (!b) return false;
+    if (!b.disabled) b.click();
+    return true;
   }
 
   /** Buttons a gamepad can reach; self-destruct needs the mouse, to rule out accidents. */
@@ -526,8 +701,9 @@ export class PlayerPanel {
     } else if (!e.complete) status = `${siteName(raceOf(this.c.world, e.team) ?? 'human')} ${Math.floor((e.buildElapsedMs / e.buildTotalMs) * 100)}%`;
     else if (e.job?.kind === 'produce') status = `${T.producing}: ${objectName(raceOf(this.c.world, e.team), e.job.unit)} ${Math.floor((e.job.elapsedMs / e.job.totalMs) * 100)}%`;
     else if (e.job?.kind === 'construct') status = T.constructing;
-    const team = e.team === 'neutral' ? '' : own ? 'own' : 'foe';
-    let html = `<div class="title ${team}">${this.name(e)}</div><div class="info">${hp}${status ? ` · ${status}` : ''}</div>`;
+    const team = e.team === 'neutral' ? 'neutral' : own ? 'own' : 'foe';
+    const face = img(portraitOf(this.sideOf(e.team), e.type), 'portrait');
+    let html = `<div class="sel">${face}<div><div class="title ${team}">${this.name(e)}</div><div class="info">${hp}${status ? ` · ${status}` : ''}</div></div></div>`;
     if (!own) return html;
     if (isUnit(e.type)) return html + this.unitButtons();
     if (e.type === hqType(c.side) && e.complete) {
@@ -539,6 +715,7 @@ export class PlayerPanel {
       html += '<div class="buttons">';
       for (const type of FACTORY_BUILDS) html += this.produceButton(type, e);
       html += '</div>';
+      html += this.queue(e);
       if (e.job) html += `<div class="buttons"><button data-action="cancel" data-id="${e.id}">${T.cancel}</button></div>`;
     } else if (!e.complete) {
       html += `<div class="buttons"><button data-action="cancel" data-id="${e.id}">${T.cancel}</button></div>`;
@@ -550,17 +727,49 @@ export class PlayerPanel {
   private buildButton(type: BuildingType, price: number, busy: boolean): string {
     const active = this.c.placing?.type === type ? ' active' : '';
     const disabled = busy || price > this.c.money ? ' disabled' : '';
-    return `<button class="build${active}" data-action="place" data-type="${type}"${disabled}>${objectName(this.ownRace, type)}<small>$${price}</small></button>`;
+    return `<button class="build${active}" data-action="place" data-type="${type}"${disabled}>${img(portraitOf(this.own, type, 24))}<span>${objectName(this.ownRace, type)}</span><small>$ ${price}</small></button>`;
   }
 
   private produceButton(type: UnitType, factory: Entity): string {
     const price = UNIT_RULES[type].price;
     const disabled = factory.job || price > this.c.money ? ' disabled' : '';
-    return `<button class="build" data-action="produce" data-type="${type}" data-id="${factory.id}"${disabled}>${objectName(this.ownRace, type)}<small>$${price}</small></button>`;
+    return `<button class="build" data-action="produce" data-type="${type}" data-id="${factory.id}"${disabled}>${img(portraitOf(this.own, type, 24))}<span>${objectName(this.ownRace, type)}</span><small>$ ${price}</small></button>`;
+  }
+
+  /** The side an entity belongs to (a neutral field is shown in this player's colours). */
+  private sideOf(team: Team): SideState {
+    return this.c.world.sides[team === 'neutral' ? this.c.side : team];
+  }
+
+  /**
+   * The factory's queue: the tank being built with its progress, then the ones waiting (when the simulation keeps a
+   * queue). Right click on one cancels it.
+   */
+  private queue(factory: Entity): string {
+    const job = factory.job?.kind === 'produce' ? factory.job : null;
+    const waiting = ((factory as Entity & { queue?: UnitType[] }).queue ?? []) as UnitType[];
+    if (!job && waiting.length === 0) return '';
+    const T = t();
+    const icon = (type: UnitType, i: number, progress: number | null) =>
+      `<button class="slot" data-queue="${i}" data-id="${factory.id}" title="${objectName(this.ownRace, type)} · ${T.queueCancel}">${img(portraitOf(this.own, type, 24))}${progress === null ? '' : `<i style="width: ${Math.floor(progress * 100)}%"></i>`}</button>`;
+    let html = '<div class="queue">';
+    if (job) html += icon(job.unit, 0, job.elapsedMs / job.totalMs);
+    waiting.forEach((type, i) => (html += icon(type, i + (job ? 1 : 0), null)));
+    return `${html}</div>`;
+  }
+
+  private onRightClick(ev: MouseEvent): void {
+    ev.preventDefault();
+    const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-queue]');
+    if (!btn) return;
+    // The running tank cancels like the Cancel button; later places in a queue come with the simulation's queue.
+    const index = Number(btn.dataset.queue);
+    if (index === 0) this.c.run({ kind: 'cancel', id: Number(btn.dataset.id) });
+    this.key = '';
   }
 
   private unitButtons(): string {
-    return `<div class="buttons"><button data-action="stop">${t().stop} <small>${this.c.cursor ? '↓' : 'S'}</small></button></div>`;
+    return `<div class="buttons"><button data-action="stop">${t().stop}${this.c.cursor ? ' <small>↓</small>' : ''}</button></div>`;
   }
 
   private onClick(ev: MouseEvent): void {

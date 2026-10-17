@@ -1,4 +1,4 @@
-# Strategy War Remaster
+# Shardfall, a Strategy War remaster
 
 Фанатський ремайстер мобільної стратегії **Strategy War** (Jiří Mikula / Redboss, 2004) для Mac.
 
@@ -25,10 +25,10 @@
 ## Як отримати гру
 
 Кожна нова версія на `main` сама стає релізом: вкладка **Releases** у цьому репозиторії, файл
-`StrategyWarRemaster-<версія>.dmg`. Він працює на будь-якому Mac (Apple Silicon і Intel) з macOS 12 чи новішою.
+`Shardfall-<версія>.dmg`. Він працює на будь-якому Mac (Apple Silicon і Intel) з macOS 12 чи новішою.
 Репозиторій приватний, тож друзям цей .dmg треба передати напряму (AirDrop, месенджер, хмара) разом із посиланням на
 [інструкцію](docs/INSTALL.md) або її текстом: він же стоїть в описі релізу. Збірка кожного запиту на зміну лежить у
-**Actions → CI → Artifacts → StrategyWarRemaster-macOS**.
+**Actions → CI → Artifacts → Shardfall-macOS**.
 
 Щоб випустити нову версію, досить підняти `version` в `apps/desktop/package.json`.
 

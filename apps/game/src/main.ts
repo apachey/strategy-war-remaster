@@ -3,14 +3,17 @@ import { loadArt } from './assets';
 import { Sound } from './audio';
 import { Soundscape } from './soundscape';
 import { Minimap } from './minimap';
-import { LANGS, type Lang } from '@sw/data';
-import { DIFFICULTIES, issue, loadWorld, SAVE_VERSION, saveWorld, TICK_MS, type Command, type Difficulty, type Side, type World } from '@sw/sim';
+import { CELL, LANGS, ObjectType, type Lang } from '@sw/data';
+import { DIFFICULTIES, isUnit, issue, loadWorld, SAVE_VERSION, saveWorld, TICK_MS, type Command, type Difficulty, type Side, type World } from '@sw/sim';
 import { Game, nextMission, parseSetup, setupQuery, type Setup } from './game';
 import { Gamepads } from './gamepad';
 import { Hud } from './hud';
 import { tickAlpha } from './render';
 import { loadSettings, markCompleted, readSave, saveSettings, SLOTS, writeSave, type Slot } from './storage';
 import { setLang, t } from './text';
+import { cursorCss, type CursorKind, type ScrollDir } from './ui/cursors';
+import { loadFonts } from './ui/font';
+import { markOptions } from './ui/marks';
 import { View } from './view';
 
 /**
@@ -18,7 +21,7 @@ import { View } from './view';
  * scroll, wheel zooms. A two-player skirmish splits the screen: player 1 on the left with the mouse, player 2 on
  * the right with a gamepad. URL options: `?m=6.2` mission, `?s=4&vs=hard&money=3000` skirmish on map 4 (`vs=human`
  * for two players, `&r=walker,hover&c=blue,red` the sides' races and colours), `?d=hard` campaign difficulty,
- * `?lang=en`, `?speed=8`, `?load=quick` continues a save.
+ * `?lang=en`, `?speed=8`, `?load=quick` continues a save. Without a mission, skirmish or save it opens the main screen.
  */
 
 const params = new URLSearchParams(location.search);
@@ -28,6 +31,10 @@ const urlLang = params.get('lang') as Lang | null;
 setLang(urlLang && LANGS.includes(urlLang) ? urlLang : settings.lang);
 const urlDifficulty = params.get('d') as Difficulty | null;
 const difficulty = urlDifficulty && DIFFICULTIES.includes(urlDifficulty) ? urlDifficulty : settings.difficulty;
+const menuMode = !['m', 's', 'load'].some((k) => params.has(k));
+markOptions.selection = settings.selection;
+// Pixel font scale: 1.5 CSS px per font pixel on Retina (3 device pixels), 2 elsewhere.
+document.documentElement.style.setProperty('--k', window.devicePixelRatio >= 2 ? '1.5' : '2');
 
 function open(setup: Setup, load?: Slot): void {
   const p = new URLSearchParams(location.search);
@@ -58,6 +65,7 @@ const CHEATS = ['1298*', '1298#', '12986', '12989'] as const;
 
 async function start(): Promise<void> {
   const saved = savedGame();
+  await loadFonts();
   const game = new Game(saved?.setup ?? parseSetup(location.search, difficulty), saved?.world);
   game.speed = Math.max(0.25, Math.min(16, Number(params.get('speed')) || 1));
   const world = () => game.world;
@@ -97,7 +105,15 @@ async function start(): Promise<void> {
       saveSettings(settings);
       sound.setVolumes(music, sfx);
     },
-  });
+    selection: () => settings.selection,
+    setSelection: (style) => {
+      settings.selection = markOptions.selection = style;
+      saveSettings(settings);
+    },
+    toMenu: () => {
+      location.search = params.has('lang') ? `lang=${params.get('lang')}` : '';
+    },
+  }, menuMode);
   if (game.loaded) hud.toast(t().loaded);
 
   // Views: the whole window for one player, left and right halves for two ------------------------------------------
@@ -229,8 +245,14 @@ async function start(): Promise<void> {
   );
 
   window.addEventListener('keydown', (ev) => {
-    keys.add(ev.code);
     if (ev.key.length === 1) cheat(ev.key);
+    // A letter on a panel button presses it (Q W E R T, A S D F G, X stop), ahead of any other use of the key.
+    const letter = /^Key([A-Z])$/.exec(ev.code)?.[1];
+    if (letter && !ev.metaKey && !ev.ctrlKey && game.started && hud.panels[0]!.pressKey(letter)) {
+      ev.preventDefault();
+      return;
+    }
+    keys.add(ev.code);
     if (ev.code === 'F5' || ev.code === 'F9') {
       // F5 quick-saves, F9 quick-loads; the browser's own reload is not wanted mid-game.
       ev.preventDefault();
@@ -257,9 +279,6 @@ async function start(): Promise<void> {
         hud.togglePause();
         ev.preventDefault();
         break;
-      case 'KeyS':
-        if (!ev.metaKey && !ev.ctrlKey && p1.ownUnits().length) p1.run({ kind: 'stop', ids: p1.ownUnits().map((u) => u.id) });
-        break;
       case 'KeyH': {
         const hq = p1.hq();
         if (hq) p1.select([hq.id]);
@@ -278,6 +297,38 @@ async function start(): Promise<void> {
   });
   window.addEventListener('keyup', (ev) => keys.delete(ev.code));
   window.addEventListener('blur', () => keys.clear());
+
+  // The mouse cursor: what a click would do here, in the race's style --------------------------------------------------
+  const own = world().sides[p1.side];
+  let shownCursor = '';
+  function cursorKind(): { kind: CursorKind; dir?: ScrollDir } {
+    if (!mouseScreen || !game.started || !v1.contains(mouseScreen.x, mouseScreen.y) || drag) return { kind: 'normal' };
+    const r = v1.rect;
+    const edge = 6;
+    const ns = mouseScreen.y < r.y + edge ? 'n' : mouseScreen.y > r.y + r.h - edge ? 's' : '';
+    const we = mouseScreen.x < r.x + edge ? 'w' : mouseScreen.x > r.x + r.w - edge ? 'e' : '';
+    if (ns || we) return { kind: 'scroll', dir: (ns + we) as ScrollDir };
+    if (p1.placing) return { kind: 'normal' };
+    const p = v1.toWorld(mouseScreen.x, mouseScreen.y);
+    const hit = p1.pick(p.x, p.y);
+    const units = p1.selected().filter((e) => p1.isOwn(e) && isUnit(e.type));
+    if (units.length === 0) return { kind: hit ? 'select' : 'normal' };
+    if (hit && p1.isFoe(hit)) return { kind: units.some((u) => u.type !== ObjectType.Harvester) ? 'attack' : 'forbidden' };
+    if (hit?.type === ObjectType.ResourceField) return { kind: units.some((u) => u.type === ObjectType.Harvester) ? 'harvest' : 'move' };
+    if (hit && p1.isOwn(hit)) return { kind: 'select' };
+    const w = world();
+    const cx = Math.floor(p.x / CELL);
+    const cy = Math.floor(p.y / CELL);
+    const known = w.sides[p1.side].explored[cy * w.cols + cx] === 1;
+    if (cx < 0 || cy < 0 || cx >= w.cols || cy >= w.rows || (known && w.blocked[cy * w.cols + cx] === 1)) return { kind: 'forbidden' };
+    return { kind: 'move' };
+  }
+  function updateCursor(): void {
+    const { kind, dir } = cursorKind();
+    const css = cursorCss(own.race, own.color, kind, dir);
+    if (css !== shownCursor) app.canvas.style.cursor = shownCursor = css;
+  }
+  document.body.style.cursor = cursorCss(own.race, own.color, 'normal');
 
   // Gamepads -------------------------------------------------------------------------------------------------------
   const playing = () => game.started && !game.paused && world().outcome === 'playing';
@@ -338,6 +389,7 @@ async function start(): Promise<void> {
       v.renderer.draw(alpha, tk.deltaMS, mouse, (v === v1 ? drag : null) ?? pads.dragFor(v));
     }
     hud.update();
+    updateCursor();
     soundscape.update();
     for (const m of minimaps) m.update(tk.deltaMS);
     // Ready only once a frame has been drawn and the HUD filled in, so tests never click a blank page.

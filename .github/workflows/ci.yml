@@ -58,7 +58,7 @@ jobs:
       - name: Upload .dmg
         uses: actions/upload-artifact@v4
         with:
-          name: StrategyWarRemaster-macOS
+          name: Shardfall-macOS
           path: apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: error
 
@@ -85,7 +85,7 @@ jobs:
       - uses: actions/download-artifact@v4
         if: steps.exists.outputs.yes != 'true'
         with:
-          name: StrategyWarRemaster-macOS
+          name: Shardfall-macOS
           path: dmg
       - name: Publish
         if: steps.exists.outputs.yes != 'true'
@@ -93,6 +93,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${{ steps.version.outputs.tag }}"
-          cp dmg/*.dmg "StrategyWarRemaster-${tag#v}.dmg"
-          gh release create "$tag" "StrategyWarRemaster-${tag#v}.dmg" \
-            --target "$GITHUB_SHA" --title "Strategy War Remaster ${tag#v}" --notes-file docs/INSTALL.md
+          cp dmg/*.dmg "Shardfall-${tag#v}.dmg"
+          gh release create "$tag" "Shardfall-${tag#v}.dmg" \
+            --target "$GITHUB_SHA" --title "Shardfall ${tag#v}" --notes-file docs/INSTALL.md
