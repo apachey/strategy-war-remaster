@@ -124,7 +124,23 @@ export interface SideState {
   money: number;
   /** 1 = cell has been seen. The original has a classic shroud: once seen, always shown. */
   explored: Uint8Array;
+  /** Running totals for the victory and defeat screens; no rule reads them. */
+  stats: SideStats;
 }
+
+export interface SideStats {
+  /** Crystals harvesters have unloaded into silos. */
+  harvested: number;
+  /** Units the side's factories have finished. */
+  built: number;
+  /** The side's own units destroyed, and its buildings (walls included). */
+  lost: number;
+  buildingsLost: number;
+  /** The other side's units and buildings this side destroyed. */
+  killed: number;
+}
+
+export const newStats = (): SideStats => ({ harvested: 0, built: 0, lost: 0, buildingsLost: 0, killed: 0 });
 
 export type Outcome = 'playing' | 'won' | 'lost';
 
@@ -256,8 +272,8 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, op
     byId: new Map(),
     projectiles: [],
     sides: {
-      player: { race: playerRace, color: playerColor, color2: playerColor2, money: mission.money, explored: new Uint8Array(cells) },
-      enemy: { race: enemyRace, color: enemyColor, color2: enemyColor2, money: 0, explored: new Uint8Array(cells) },
+      player: { race: playerRace, color: playerColor, color2: playerColor2, money: mission.money, explored: new Uint8Array(cells), stats: newStats() },
+      enemy: { race: enemyRace, color: enemyColor, color2: enemyColor2, money: 0, explored: new Uint8Array(cells), stats: newStats() },
     },
     tick: 0,
     rngState: seed >>> 0,
@@ -710,8 +726,24 @@ export function step(world: World): void {
   }
   updateProjectiles(world);
   removeDead(world);
+  tally(world);
   if (world.pendingOutcome && world.tick >= world.pendingOutcome.atTick) world.outcome = world.pendingOutcome.outcome;
   world.tick++;
+}
+
+/** Counts this tick's finished units and losses into each side's stats. */
+function tally(world: World): void {
+  for (const ev of world.events) {
+    if (ev.kind === 'completed' && isUnit(ev.type)) {
+      const e = world.byId.get(ev.id);
+      if (e && e.team !== 'neutral') world.sides[e.team].stats.built++;
+    } else if (ev.kind === 'destroyed' && ev.team !== 'neutral') {
+      const own = world.sides[ev.team].stats;
+      if (isUnit(ev.type)) own.lost++;
+      else own.buildingsLost++;
+      world.sides[ev.team === 'player' ? 'enemy' : 'player'].stats.killed++;
+    }
+  }
 }
 
 function updateUnit(world: World, e: Entity): void {
@@ -1066,7 +1098,10 @@ function harvesterThink(world: World, e: Entity): void {
       }
       const give = Math.min(HARVESTER.perTick, e.cargo);
       e.cargo -= give;
-      if (e.team !== 'neutral') world.sides[e.team].money += give;
+      if (e.team !== 'neutral') {
+        world.sides[e.team].money += give;
+        world.sides[e.team].stats.harvested += give;
+      }
       if (e.cargo <= 0) {
         silo.dockedId = 0;
         e.hidden = false;
