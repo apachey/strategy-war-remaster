@@ -2,6 +2,7 @@ import { Container, Graphics } from 'pixi.js';
 import { CELL } from '@sw/data';
 import { centerOf } from '@sw/sim';
 import type { Commander } from './game';
+import type { Art } from './assets';
 import { Renderer } from './render';
 
 export interface Rect {
@@ -15,6 +16,14 @@ export interface Rect {
 const TOP = 44;
 
 /**
+ * Zoom moves in steps of half an art pixel: the sprites have 32 art pixels per 15 px cell, so at zoom n × 16/15 one
+ * art pixel covers n/2 screen points, a whole number of pixels on a Retina screen, and the pixel art stays even.
+ */
+const ZOOM_STEP = 16 / 15;
+const MIN_STEPS = 1;
+const MAX_STEPS = 8;
+
+/**
  * One person's window onto the map: a renderer with its own camera, clipped to a part of the screen. A one-player
  * game has one view over the whole window; a two-player game splits the window into a left and a right half.
  */
@@ -26,10 +35,11 @@ export class View {
 
   constructor(
     readonly commander: Commander,
+    art: Art,
     /** Height of this player's selection panel, which covers the bottom of the view. */
     private readonly panelHeight: () => number,
   ) {
-    this.renderer = new Renderer(commander);
+    this.renderer = new Renderer(commander, art);
     this.root.addChild(this.renderer.camera, this.mask);
     this.root.mask = this.mask;
   }
@@ -88,10 +98,15 @@ export class View {
     this.clamp();
   }
 
+  /** Zooms in (+1) or out (-1) by one step around a screen point (the view's centre by default). */
+  zoomBy(delta: number, sx?: number, sy?: number): void {
+    this.setZoom((Math.round(this.zoom / ZOOM_STEP) + delta) * ZOOM_STEP, sx, sy);
+  }
+
   /** Zooms around a screen point (the view's centre by default). */
   setZoom(z: number, sx = this.rect.x + this.rect.w / 2, sy = this.rect.y + this.rect.h / 2): void {
     const old = this.zoom;
-    const zoom = Math.max(1, Math.min(8, z));
+    const zoom = Math.max(MIN_STEPS, Math.min(MAX_STEPS, Math.round(z / ZOOM_STEP))) * ZOOM_STEP;
     if (zoom === old) return;
     const lx = sx - this.rect.x;
     const ly = sy - this.rect.y;
@@ -101,11 +116,18 @@ export class View {
     this.clamp();
   }
 
-  /** The largest whole zoom that shows the whole map, at least 2× (a split half then shows the home base). */
+  /** The largest zoom step that shows the whole map, at least 2 steps (a split half then shows the home base). */
   fit(): void {
-    const z = Math.floor(Math.min(this.rect.w / (this.mapW + 40), (this.rect.h - this.panelHeight() - 60) / (this.mapH + 20)));
-    this.camera.scale.set(Math.max(2, Math.min(5, z)));
+    const z = Math.min(this.rect.w / (this.mapW + 40), (this.rect.h - this.panelHeight() - 60) / (this.mapH + 20));
+    this.camera.scale.set(Math.max(2, Math.min(5, Math.floor(z / ZOOM_STEP))) * ZOOM_STEP);
     this.centerOnHome();
+  }
+
+  /** Puts a map point in the middle of the view. */
+  centerOn(x: number, y: number): void {
+    this.camera.x = this.rect.w / 2 - x * this.zoom;
+    this.camera.y = (this.rect.h - this.panelHeight() + TOP) / 2 - y * this.zoom;
+    this.clamp();
   }
 
   /** Puts this player's HQ in the middle of the view. */

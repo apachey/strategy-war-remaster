@@ -123,6 +123,8 @@ export class Commander {
   /** Where a gamepad player's cursor points, in map pixels; null for mouse players. */
   cursor: { x: number; y: number } | null = null;
   onToast: (text: string) => void = () => {};
+  /** Feedback sounds for this person's own actions. */
+  onSound: (name: 'select' | 'order' | 'error' | 'build_start' | 'self_destruct') => void = () => {};
 
   constructor(
     readonly game: Game,
@@ -181,6 +183,7 @@ export class Commander {
     // Clicking an enemy or a field shows its info without making it controllable.
     const list = own.length > 0 ? own : ids.slice(0, 1);
     this.selection = add ? [...new Set([...this.selection.filter((id) => this.world.byId.get(id)?.team === this.side), ...own])] : list;
+    if (own.length > 0) this.onSound('select');
     this.placing = null;
     this.focus = 0;
   }
@@ -214,7 +217,12 @@ export class Commander {
 
   run(cmd: Command): CommandResult {
     const result = issue(this.world, this.side, cmd);
-    if (!result.ok) this.onToast(t().reason[result.reason]);
+    if (!result.ok) {
+      this.onToast(t().reason[result.reason]);
+      this.onSound('error');
+    } else if (cmd.kind === 'build') this.onSound('build_start');
+    else if (cmd.kind === 'destruct') this.onSound('self_destruct');
+    else if (cmd.kind === 'move' || cmd.kind === 'attack' || cmd.kind === 'harvest' || cmd.kind === 'defend') this.onSound('order');
     return result;
   }
 

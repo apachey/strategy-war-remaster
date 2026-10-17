@@ -119,8 +119,8 @@ export class Gamepads {
     c.cursor = at;
 
     if (down(B.Start)) this.hooks.startOrPause();
-    if (down(B.LT)) view.setZoom(view.zoom - 1, s.sx, s.sy);
-    if (down(B.RT)) view.setZoom(view.zoom + 1, s.sx, s.sy);
+    if (down(B.LT)) view.zoomBy(-1, s.sx, s.sy);
+    if (down(B.RT)) view.zoomBy(1, s.sx, s.sy);
     if (down(B.Back)) view.centerOnHome();
     if (!this.hooks.playing()) {
       s.box = null;

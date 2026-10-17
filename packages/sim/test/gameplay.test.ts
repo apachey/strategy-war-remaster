@@ -164,6 +164,25 @@ describe('combat', () => {
     expect(tank.order.kind).toBe('idle');
   });
 
+  it('shot and destroyed events name the object, so the game can flash its gun and leave its wreck', () => {
+    const w = arena([
+      { type: ObjectType.PlayerHQ, x: 0, y: 0, hp: 150 },
+      { type: ObjectType.EnemyHQ, x: 270, y: 270, hp: 150 },
+      { type: ObjectType.HeavyTank, x: 60, y: 150, hp: 120 },
+      { type: ObjectType.Wall, x: 90, y: 150, hp: 10, enemy: true },
+    ]);
+    const tank = byType(w, ObjectType.HeavyTank);
+    const wall = byType(w, ObjectType.Wall);
+    issue(w, 'player', { kind: 'attack', ids: [tank.id], targetId: wall.id });
+    const events: World['events'] = [];
+    for (let i = 0; i < 4 * TICKS_PER_SECOND; i++) {
+      step(w);
+      events.push(...w.events);
+    }
+    expect(events.find((e) => e.kind === 'shot')).toMatchObject({ id: tank.id, by: ObjectType.HeavyTank, weapon: 'cannon', team: 'player' });
+    expect(events.find((e) => e.kind === 'destroyed')).toMatchObject({ id: wall.id, type: ObjectType.Wall, team: 'enemy', dir: wall.dir });
+  });
+
   it('enemy tanks shoot player buildings in range, and idle player tanks shoot back', () => {
     const w = arena([
       { type: ObjectType.PlayerHQ, x: 0, y: 0, hp: 150 },
