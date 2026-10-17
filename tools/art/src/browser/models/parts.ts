@@ -48,24 +48,25 @@ export function plasmaFlash(pos: Vec3, size: number): THREE.Group {
 }
 
 /**
- * Shot of the walkers: a cone of chitin in the side's main colour, a thorn pointing the way it flies (-z), trailing a
- * short streak of acid that is always green. At a muzzle (`muzzle`) it is drawn over the unit, so the body never
- * hides it.
+ * Shot of the walkers: a long, needle-sharp cone of chitin in the side's main colour, a thorn pointing the way it
+ * flies (-z), trailing a short streak of acid that runs from hot yellow at the thorn to green at its tail. At a muzzle
+ * (`muzzle`) it is drawn over the unit, so the body never hides it.
  */
 export function thornShot(pos: Vec3, size: number, muzzle = false): THREE.Group {
-  const thorn = new THREE.ConeGeometry(size * 0.34, size * 2.2, 6);
+  const thorn = new THREE.ConeGeometry(size * 0.5, size * 4, 6);
   thorn.rotateX(-Math.PI / 2);
-  const butt = new THREE.ConeGeometry(size * 0.34, size * 0.5, 6);
-  butt.rotateX(Math.PI / 2);
-  const trail = new THREE.ConeGeometry(size * 0.26, size * 1.5, 5);
-  trail.rotateX(Math.PI / 2);
-  const g = noShadow(
-    group(
-      mesh(thorn, 'team', [pos[0], pos[1], pos[2] - size * 0.6]),
-      mesh(butt, 'teamDark', [pos[0], pos[1], pos[2] + size * 0.75]),
-      mesh(trail, 'bileGlow', [pos[0], pos[1], pos[2] + size * 1.6]),
-    ),
-  );
+  const g = noShadow(group(mesh(thorn, 'team', [pos[0], pos[1], pos[2] - size * 1.4])));
+  // Trail: three tapering lengths, yellow to green.
+  for (const [k, mat] of [
+    [0, 'bileGlow'],
+    [1, 'bileLight'],
+    [2, 'bile'],
+  ] as const) {
+    const r0 = size * (0.22 - k * 0.06);
+    const seg = new THREE.CylinderGeometry(r0 - size * 0.06, r0, size * 0.55, 5);
+    seg.rotateX(Math.PI / 2);
+    g.add(noShadow(mesh(seg, mat, [pos[0], pos[1], pos[2] + size * (0.87 + k * 0.55)])));
+  }
   if (muzzle) g.userData.onTop = true;
   return g;
 }

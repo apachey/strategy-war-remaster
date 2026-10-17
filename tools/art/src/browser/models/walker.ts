@@ -38,16 +38,16 @@ function legs(pairs: number, z0: number, z1: number, hipX: number, hipY: number,
   return out;
 }
 
-/** A green acid spike pointing north: the walkers' muzzle. */
+/** A spike of chitin pointing north: the walkers' muzzle, in the main colour so it never looks like a shot. */
 function fang(r: number, len: number, pos: Vec3, rot: Vec3 = [0, 0, 0]): THREE.Mesh {
   const geo = new THREE.ConeGeometry(r, len, 4);
   geo.rotateX(-Math.PI / 2);
-  return mesh(geo, 'bileLight', pos, rot);
+  return mesh(geo, 'teamLight', pos, rot);
 }
 
 /**
  * Walker light tank: a skittering tripod. A small arrowhead body on three thin legs, one big eye in front and
- * a single spike under the chin that shoots thorns.
+ * a single spike under the chin, a drop of acid at its root, that shoots thorns.
  */
 const lightTank: Builder = (view, frame) => {
   const fire = frame === 'fire';
@@ -67,7 +67,7 @@ const lightTank: Builder = (view, frame) => {
     ball(0.03, 'team2Light', [-0.3, 0.0, 0.26 + step], 4),
     ball(0.03, 'team2Light', [0.3, 0.0, 0.26 - step], 4),
     fang(0.03, 0.3, [0, 0.2, -0.3 + (fire ? 0.04 : 0)]),
-    ball(0.03, 'bileGlow', [0, 0.2, -0.45], 4),
+    ball(0.02, 'bileGlow', [0, 0.2, -0.17], 4),
   );
   if (fire) g.add(thornShot([0, 0.2, -0.6], 0.08, true));
   if (frame === 'wreck') slump(g, -0.04, 0.15);
@@ -104,8 +104,9 @@ const middleTank: Builder = (view, frame) => {
 };
 
 /**
- * Walker heavy tank: a crawling fortress. A broad faceted shell with glowing green seams, carried low on eight stubby
- * legs, a mouth of mandibles in front and two long green prongs with a thorn shooting from between them.
+ * Walker heavy tank: a crawling fortress. A broad faceted shell with seams in the secondary colour, carried low on eight
+ * stubby legs, a mouth of mandibles with a gland of acid in front and two long prongs with a thorn shooting from
+ * between them.
  */
 const heavyTank: Builder = (view, frame) => {
   const fire = frame === 'fire';
@@ -113,9 +114,9 @@ const heavyTank: Builder = (view, frame) => {
     plate(0.3, 1.0, 0.5, 1.25, 'teamDark', [0, 0.17, 0.05]),
     plate(0.26, 1.0, 0.62, 1.15, 'team', [0, 0.25, 0.08]),
     plate(0.14, 1.2, 0.7, 1.0, 'team2Light', [0, 0.38, 0.12]),
-    // Glowing seams across the shell.
+    // Seams across the shell, in the secondary colour.
     ...[-0.08, 0.08, 0.24].map((z) => {
-      const seam = mesh(new THREE.BoxGeometry(0.42, 0.02, 0.025), 'bileGlow', [0, 0.33 - Math.abs(z - 0.08) * 0.3, z]);
+      const seam = mesh(new THREE.BoxGeometry(0.42, 0.02, 0.025), 'team2Light', [0, 0.33 - Math.abs(z - 0.08) * 0.3, z]);
       seam.castShadow = false;
       return seam;
     }),
@@ -125,7 +126,7 @@ const heavyTank: Builder = (view, frame) => {
     eye(0.03, [0, 0.32, -0.25]),
     fang(0.05, 0.5, [-0.12, 0.24, -0.38], [0.05, -0.12, 0]),
     fang(0.05, 0.5, [0.12, 0.24, -0.38], [0.05, 0.12, 0]),
-    ball(fire ? 0.09 : 0.06, fire ? 'bileGlow' : 'bileLight', [0, 0.24, -0.55], 6),
+    ball(0.04, 'bileGlow', [0, 0.22, -0.36], 5),
     ...legs(4, -0.22, 0.3, 0.24, 0.13, 0.16, 0.03, frame),
   );
   if (fire) g.add(thornShot([0, 0.24, -0.76], 0.1, true));
@@ -225,7 +226,7 @@ function spine(a: number, r0: number, r1: number, h: number, r: number): THREE.M
 
 /** Thorn in flight with its trail of acid, bigger for the cannon. */
 const shot: Builder = (view, frame) => {
-  const g = group(thornShot([0, 0.32, 0], frame === 'cannon' ? 0.1 : 0.07));
+  const g = group(thornShot([0, 0.32, 0.1], frame === 'cannon' ? 0.12 : 0.09));
   g.traverse((o) => (o.castShadow = true));
   return facing(g, view);
 };

@@ -24,8 +24,9 @@ export const RAMPS = {
   signal: ['#006633', '#33ff66'],
   // The walkers' eyes as drawn, magenta; the game recolours them to `glowRamp` of the secondary colour.
   glow: ['#3a0a30', '#701a5c', '#a83088', '#d860b4', '#ffa0e0'],
-  // The walkers' acid: muzzles, the trail of their thorns, pools and seams. Fixed, not a team colour.
-  acid: ['#1a3606', '#36660c', '#5c9a10', '#8ed016', '#ccff4a'],
+  // The walkers' acid: muzzles, the trail of their thorns, pools and glands. Fixed, not a team colour, and running
+  // from deep green in shadow to hot yellow where it is lit or glowing, so it shimmers apart from any team green.
+  acid: ['#0e3a1a', '#1c6a24', '#58a818', '#bcd81c', '#fff04a'],
   // Dark forest soil, heaped where crystals break through the forest floor.
   soil: ['#2a2016', '#463626', '#62503a', '#806c50'],
   // Terrain: turquoise fir needles and desert sand (dark to light).

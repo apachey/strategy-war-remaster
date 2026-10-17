@@ -38,8 +38,8 @@ export const MATERIALS = {
   flash: { ramp: 'fire', emissive: true },
   // Orange of the humans' shots, lit, so it shades from orange into pale yellow.
   ember: { ramp: 'fire' },
-  // The walkers' acid, always the same toxic green whatever the side's colours: wet, a lighter tip, and a glow for
-  // muzzles and seams.
+  // The walkers' acid, always the same green-to-yellow whatever the side's colours: wet, a lighter tip, and a
+  // hot yellow glow for muzzles.
   bile: { ramp: 'acid' },
   bileLight: { ramp: 'acid', shift: 1 },
   bileGlow: { ramp: 'acid', emissive: true },
