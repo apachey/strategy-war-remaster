@@ -24,8 +24,8 @@ function guns(count: 1 | 2, r: number, len: number, y: number, z: number, spread
 }
 
 /**
- * Wheel turning about the x axis, all in the secondary colour: a chunky dark tyre with tread blocks that move on
- * between frames, a hub and a pale cap.
+ * Wheel turning about the x axis: a chunky tyre in the secondary colour with tread blocks that move on between
+ * frames, and a grey hub with a pale cap.
  */
 function wheel(r: number, w: number, pos: Vec3, phase: number): THREE.Group {
   const tyre = new THREE.CylinderGeometry(r, r, w, 10);
@@ -34,11 +34,11 @@ function wheel(r: number, w: number, pos: Vec3, phase: number): THREE.Group {
   hub.rotateZ(Math.PI / 2);
   const cap = new THREE.CylinderGeometry(r * 0.18, r * 0.18, w + 0.024, 6);
   cap.rotateZ(Math.PI / 2);
-  const g = group(mesh(tyre, 'team2Dark'), mesh(hub, 'team2'), mesh(cap, 'team2Light'));
+  const g = group(mesh(tyre, 'team2'), mesh(hub, 'steel'), mesh(cap, 'steelLight'));
   const n = 8;
   for (let i = 0; i < n; i++) {
     const a = ((i + phase * 0.5) / n) * Math.PI * 2;
-    g.add(mesh(new THREE.BoxGeometry(w + 0.01, r * 0.22, r * 0.36), i % 2 ? 'team2' : 'team2Dark', [0, Math.cos(a) * r, Math.sin(a) * r], [-a, 0, 0]));
+    g.add(mesh(new THREE.BoxGeometry(w + 0.01, r * 0.22, r * 0.36), i % 2 ? 'team2Light' : 'team2', [0, Math.cos(a) * r, Math.sin(a) * r], [-a, 0, 0]));
   }
   g.position.set(...pos);
   return g;
@@ -74,24 +74,27 @@ function chassis(spec: HullSpec, phase: number): { g: THREE.Group; top: number; 
 const lightTank: Builder = (view, frame) => {
   const phase = frame === 'move1' ? 1 : 0;
   const turret = group(
-    cyl(0.13, 0.13, 0.03, 'team2Dark', [0, 0, 0], 10),
+    cyl(0.13, 0.13, 0.03, 'steelDark', [0, 0, 0], 10),
     slab(0.28, 0.13, 0.3, 'team', [0, 0.03, 0], 0.72),
-    box(0.1, 0.02, 0.09, 'team2', [0, 0.15, 0.03]),
+    // A band of the secondary colour set into the turret armour: round its flanks and back, and a plate on top.
+    slab(0.29, 0.04, 0.31, 'team2', [0, 0.06, 0], 0.72),
+    box(0.14, 0.02, 0.12, 'team2', [0, 0.15, 0.04]),
+    box(0.06, 0.022, 0.05, 'steelDark', [0, 0.155, 0.04]),
     lightSlot(0.03, 0.025, 0.06, [0.125, 0.06, 0.02]),
     guns(1, 0.03, 0.36, 0.09, -0.13, 0, frame === 'fire'),
   );
   turret.position.set(0, 0.25, 0.05);
   const g = group(
     slab(0.36, 0.15, 0.66, 'team', [0, 0.1, 0], 0.84),
-    box(0.22, 0.07, 0.02, 'team2Dark', [0, 0.13, -0.335]),
+    box(0.22, 0.07, 0.02, 'steelDark', [0, 0.13, -0.335]),
     ...[-1, 1].flatMap((sx) => [
       wheel(0.13, 0.1, [sx * 0.25, 0.13, -0.21], phase),
       wheel(0.13, 0.1, [sx * 0.25, 0.13, 0.22], phase),
-      // Wheel arches with pale armour caps.
+      // Wheel arches with light armour caps.
       slab(0.13, 0.06, 0.2, 'team', [sx * 0.25, 0.22, -0.21], 0.8),
       slab(0.13, 0.06, 0.2, 'team', [sx * 0.25, 0.22, 0.22], 0.8),
-      box(0.09, 0.015, 0.12, 'team2', [sx * 0.25, 0.28, -0.21]),
-      box(0.09, 0.015, 0.12, 'team2', [sx * 0.25, 0.28, 0.22]),
+      box(0.09, 0.015, 0.12, 'teamLight', [sx * 0.25, 0.28, -0.21]),
+      box(0.09, 0.015, 0.12, 'teamLight', [sx * 0.25, 0.28, 0.22]),
     ]),
     box(0.16, 0.015, 0.1, 'teamLight', [0, 0.25, -0.22]),
     turret,
@@ -113,14 +116,14 @@ const middleTank: Builder = (view, frame) => {
     g.add(lightSlot(0.012, 0.025, 0.07, [sx * (trackX + 0.056), 0.13, -0.06]));
     g.add(lightSlot(0.012, 0.025, 0.07, [sx * (trackX + 0.056), 0.13, 0.16]));
   }
-  g.add(box(0.2, 0.02, 0.08, 'team2Dark', [0, top, 0.28]));
+  g.add(box(0.2, 0.02, 0.08, 'steelDark', [0, top, 0.28]));
   const recoil = fire ? 0.05 : 0;
   const turret = group(
     slab(0.3, 0.13, 0.36, 'team', [0, 0, 0.04], 0.72),
     box(0.14, 0.04, 0.12, 'team2', [0, 0.13, 0.08]),
     lightSlot(0.012, 0.03, 0.08, [0.15, 0.06, 0.04]),
     lightSlot(0.012, 0.03, 0.08, [-0.15, 0.06, 0.04]),
-    box(0.12, 0.1, 0.1, 'teamDark', [0, 0.02, -0.16]),
+    box(0.12, 0.1, 0.1, 'steelDark', [0, 0.02, -0.16]),
     barrel(0.03, 0.4, 'lamp', [0, 0.07, -0.18 + recoil]),
     ...[0, 1, 2, 3].map((i) => barrel(0.048, 0.035, 'team2Dark', [0, 0.07, -0.22 - i * 0.07 + recoil], 8)),
     barrel(0.04, 0.06, 'team2Light', [0, 0.07, -0.52 + recoil], 8),
@@ -148,8 +151,8 @@ const heavyTank: Builder = (view, frame) => {
     }
     g.add(slab(0.12, 0.08, 0.2, 'teamDark', [sx * 0.2, top, -0.34], 0.7));
   }
-  g.add(box(0.12, 0.03, 0.06, 'team2Dark', [-0.06, top - 0.05, -0.47]));
-  g.add(box(0.12, 0.03, 0.06, 'team2Dark', [0.1, top - 0.05, -0.47]));
+  g.add(box(0.12, 0.03, 0.06, 'steelDark', [-0.06, top - 0.05, -0.47]));
+  g.add(box(0.12, 0.03, 0.06, 'steelDark', [0.1, top - 0.05, -0.47]));
   g.add(lightSlot(0.3, 0.018, 0.012, [0, top - 0.02, -0.47]));
   const recoil = fire ? 0.06 : 0;
   const turret = group(
@@ -162,14 +165,14 @@ const heavyTank: Builder = (view, frame) => {
     // Vents in the cheeks glow cyan between dark fins.
     ...[-1, 1].flatMap((sx) => [
       box(0.05, 0.07, 0.02, 'lamp', [sx * 0.23, 0.05, -0.15]),
-      box(0.012, 0.08, 0.025, 'team2Dark', [sx * 0.23 - 0.03, 0.045, -0.155]),
-      box(0.012, 0.08, 0.025, 'team2Dark', [sx * 0.23 + 0.03, 0.045, -0.155]),
+      box(0.012, 0.08, 0.025, 'steelDark', [sx * 0.23 - 0.03, 0.045, -0.155]),
+      box(0.012, 0.08, 0.025, 'steelDark', [sx * 0.23 + 0.03, 0.045, -0.155]),
       lightSlot(0.012, 0.025, 0.16, [sx * 0.296, 0.09, 0.02]),
     ]),
     ...[-1, 1].map((sx) => slab(0.14, 0.1, 0.2, 'team', [sx * 0.15, 0.0, 0.33], 0.8)),
   );
   for (const x of [-0.065, 0.065]) {
-    turret.add(box(0.07, 0.07, 0.07, 'team2Dark', [x, 0.05, -0.17 + recoil]));
+    turret.add(box(0.07, 0.07, 0.07, 'steelDark', [x, 0.05, -0.17 + recoil]));
     turret.add(barrel(0.032, 0.42, 'team', [x, 0.085, -0.2 + recoil]));
     for (const z of [-0.3, -0.36, -0.42]) turret.add(barrel(0.038, 0.022, z === -0.36 ? 'lamp' : 'team2Dark', [x, 0.085, z + recoil], 8));
     turret.add(barrel(0.04, 0.06, 'team2Light', [x, 0.085, -0.56 + recoil], 8));
@@ -182,8 +185,8 @@ const heavyTank: Builder = (view, frame) => {
 };
 /**
  * Harvester: a crew cab with wraparound glass up front, pale tracks, a dark strap over the roof and a raised hopper
- * with vents at the back. Only the hull and hopper wear the main colour; cab, glass, tracks and fittings wear the
- * secondary. A grey toothed cutter drum rides on two arms under the nose: raised while driving, lowered to the
+ * with vents at the back. Hull, hopper, lid and the cab's roof and pillars wear the main colour; glass and tracks
+ * the secondary; strap and vents are dark grey. A grey toothed cutter drum rides on two arms under the nose: raised while driving, lowered to the
  * ground and turning while it harvests, throwing crystal chips back over the cab into the hopper.
  */
 const harvester: Builder = (view, frame) => {
@@ -194,26 +197,26 @@ const harvester: Builder = (view, frame) => {
   g.add(
     // Cab: glass walls under a roof, pillars in the corners and down the middle.
     box(0.46, 0.19, 0.36, 'team2Light', [0, top, -0.2]),
-    slab(0.48, 0.04, 0.38, 'team2', [0, top + 0.19, -0.2], 0.9),
-    box(0.04, 0.2, 0.38, 'team2Dark', [0, top, -0.2]),
-    ...[-1, 1].map((sx) => box(0.03, 0.2, 0.03, 'team2Dark', [sx * 0.225, top, -0.38])),
-    box(0.5, 0.05, 0.03, 'team2Dark', [0, top - 0.02, -0.395]),
+    slab(0.48, 0.04, 0.38, 'team', [0, top + 0.19, -0.2], 0.9),
+    box(0.04, 0.2, 0.38, 'team', [0, top, -0.2]),
+    ...[-1, 1].map((sx) => box(0.03, 0.2, 0.03, 'team', [sx * 0.225, top, -0.38])),
+    box(0.5, 0.05, 0.03, 'team', [0, top - 0.02, -0.395]),
     lightSlot(0.07, 0.018, 0.012, [-0.15, top + 0.005, -0.415]),
     lightSlot(0.07, 0.018, 0.012, [0.15, top + 0.005, -0.415]),
     // Hopper, its lid open over a heap of crystals while harvesting.
     slab(0.48, 0.24, 0.42, 'team', [0, top, 0.18], 0.88),
-    ...[0.08, 0.13, 0.18].map((dy) => box(0.012, 0.02, 0.2, 'team2Dark', [0.245, top + dy, 0.18])),
+    ...[0.08, 0.13, 0.18].map((dy) => box(0.012, 0.02, 0.2, 'steelDark', [0.245, top + dy, 0.18])),
     // Strap over the roof.
-    box(0.05, 0.03, 0.82, 'team2Dark', [0, top + 0.225, 0]),
+    box(0.05, 0.03, 0.82, 'steelDark', [0, top + 0.225, 0]),
   );
   if (harvest) {
     g.add(dome(0.15, 'gold', [0, top + 0.22, 0.2], 0.5, 6));
-    const lid = slab(0.4, 0.04, 0.3, 'team2', [0, 0, 0.15], 0.8);
+    const lid = slab(0.4, 0.04, 0.3, 'teamLight', [0, 0, 0.15], 0.8);
     const hinge = group(lid);
     hinge.position.set(0, top + 0.24, 0.05);
     hinge.rotation.x = -1.0;
     g.add(hinge, ...chips([0, 0.08, -0.52], [0, top + 0.36, 0.1], k, 0.05));
-  } else g.add(slab(0.4, 0.06, 0.3, 'team2', [0, top + 0.24, 0.2], 0.8));
+  } else g.add(slab(0.4, 0.06, 0.3, 'teamLight', [0, top + 0.24, 0.2], 0.8));
   // Cutter drum on two arms.
   const drumY = harvest ? 0.075 : 0.15;
   const drum = new THREE.CylinderGeometry(0.075, 0.075, 0.44, 8);
@@ -239,7 +242,7 @@ const defender: Builder = (view, frame) => {
   const head = group(mesh(new THREE.IcosahedronGeometry(0.19, 1), 'team2', [0, 0, 0]), box(0.05, 0.03, 0.03, 'lamp', [0, 0.07, -0.17]));
   for (const x of [-0.16, 0.16]) head.add(mesh(new THREE.IcosahedronGeometry(0.08, 0), 'team2Light', [x, 0, -0.06]));
   for (const x of [-0.16, 0, 0.16]) {
-    head.add(box(0.07, 0.07, 0.05, 'team2Dark', [x, -0.035, -0.16]));
+    head.add(box(0.07, 0.07, 0.05, 'steelDark', [x, -0.035, -0.16]));
     head.add(barrel(0.022, 0.2, 'steel', [x, 0, -0.18 + (fire ? 0.03 : 0)]));
     head.add(barrel(0.026, 0.02, 'steelDark', [x, 0, -0.36 + (fire ? 0.03 : 0)], 8));
     if (fire) head.add(gaussFlash([x, 0, -0.45], 0.07));

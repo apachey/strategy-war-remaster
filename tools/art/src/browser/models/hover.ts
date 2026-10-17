@@ -195,18 +195,26 @@ interface VaultSpec {
   crown: number;
   /** Wall thickness. */
   t: number;
+  /** Rounded top (a dome, or a barrel vault with `barrel`) instead of the pointed monolith. */
+  round?: boolean;
+  /** Keeps its full length along z all the way up: a barrel vault, open at its north and south ends. */
+  barrel?: boolean;
 }
 
 /** Half size of the plan at height share v: steep near the ground, rounding in to a point at the top. */
 const vaultProfile = (v: number) => Math.pow(Math.max(0, 1 - Math.pow(v, 1.8)), 0.7);
+/** Profile of a rounded vault: walls stand nearly upright, then curve over into a full round top. */
+const domeProfile = (v: number) => Math.sqrt(Math.max(0, 1 - Math.pow(v, 2.2)));
 
 /** Point on a vault side (north, east, south, west) at u -1..1 across and v 0..1 up; `inset` pulls it in. */
 function vaultPoint(s: VaultSpec, side: number, u: number, v: number, inset: number): THREE.Vector3 {
-  const p = vaultProfile(v);
+  const p = s.round ? domeProfile(v) : vaultProfile(v);
   const hx = Math.max(0.001, s.sx * p - inset);
-  const hz = Math.max(0.001, s.sz * p - inset);
-  // Sides bulge out a little between the corners, so the vault reads as one smooth monolith.
-  const bulge = 1 + 0.1 * (1 - u * u) * Math.sin(Math.PI * Math.min(1, v * 1.2));
+  const hz = Math.max(0.001, (s.barrel ? s.sz : s.sz * p) - inset);
+  // Sides bulge out a little between the corners, so the vault reads as one smooth monolith; round vaults bulge
+  // more, into a dome, and a barrel vault keeps flat ends.
+  const k = s.barrel ? 0 : s.round ? 0.32 : 0.1;
+  const bulge = 1 + k * (1 - u * u) * Math.sin(Math.PI * Math.min(1, v * 1.2));
   const y = s.h * v * (inset ? 1 - inset / s.h : 1);
   switch (side) {
     case 0:
@@ -335,18 +343,44 @@ const hq: Builder = (_view, frame) => {
 };
 
 /**
- * Hover silo: two small vaults, one on the north-west and a lower one on the east, open on every side so the heap of
- * gathered crystals inside shows, and a round landing pad ringed with light where harvesters drop their load.
+ * Rotunda: a round drum wall in the main colour with tall arched windows glowing with stored crystals, a band in the
+ * secondary colour and a smooth dome on top crowned with a crystal.
+ */
+function rotunda(x: number, z: number, r: number, h: number, crown: boolean): THREE.Group {
+  const steps = 8;
+  const dome: [number, number][] = Array.from({ length: steps + 1 }, (_, i) => {
+    const a = (i / steps) * (Math.PI / 2);
+    return [r * 1.02 * Math.cos(a), h + r * 0.8 * Math.sin(a)];
+  });
+  const g = group(
+    cyl(r * 1.12, r * 1.16, 0.06, 'team2Dark', [x, 0, z], 14),
+    lathe([[r, 0.06], [r, h], ...dome], 'team', [x, 0, z], 16),
+    cyl(r * 1.04, r * 1.04, 0.04, 'team2', [x, h - 0.02, z], 16),
+  );
+  // Arched windows round the drum, the ones the camera can see.
+  for (const deg of [-60, -20, 20, 60, 100, 140]) {
+    const t = (deg * Math.PI) / 180;
+    const [dx, dz] = [Math.sin(t), Math.cos(t)];
+    const ww = r * 0.32;
+    const win = group(
+      box(ww, (h - 0.12) * 0.62, 0.02, 'team2Dark', [0, 0.1, 0]),
+      mesh(new THREE.CylinderGeometry(ww / 2, ww / 2, 0.02, 8, 1, false, -Math.PI / 2, Math.PI).rotateX(Math.PI / 2), 'team2Dark', [0, 0.1 + (h - 0.12) * 0.62, 0]),
+      box(ww * 0.5, 0.04, 0.025, 'gold', [0, 0.12, 0]),
+    );
+    win.position.set(x + dx * (r + 0.005), 0, z + dz * (r + 0.005));
+    win.rotation.y = t;
+    g.add(win);
+  }
+  if (crown) g.add(cyl(0.06, 0.08, 0.04, 'team2', [x, h + r * 0.8, z], 8), spike(0.06, 0.2, 'team2Light', [x, h + r * 0.8 + 0.04, z]));
+  return g;
+}
+
+/**
+ * Hover silo: two rotundas, a big one crowned with a crystal and a small one beside it, their arched windows glowing
+ * with the crystals stored inside, and a round landing pad ringed with light where harvesters drop their load.
  */
 const silo: Builder = () => {
-  const big: VaultSpec = { sx: 0.46, sz: 0.46, h: 0.86, archW: 0.5, archH: 0.6, arches: [true, true, true, true], crown: 1, t: 0.05 };
-  const small: VaultSpec = { ...big, sx: 0.3, sz: 0.3, h: 0.56 };
-  const heap = (x: number, z: number, r: number) => [dome(r, 'crystal', [x, 0, z], 0.7, 6), spike(r * 0.4, r * 1.4, 'gold', [x, 0, z])];
-  const a = vault(big);
-  a.position.set(-0.4, 0, -0.38);
-  const b = vault(small);
-  b.position.set(0.5, 0, -0.5);
-  const g = group(a, b, ...heap(-0.4, -0.38, 0.28), ...heap(0.5, -0.5, 0.18));
+  const g = group(rotunda(-0.34, -0.34, 0.4, 0.5, true), rotunda(0.5, -0.5, 0.24, 0.3, false));
   // Landing pad.
   g.add(
     cyl(0.44, 0.46, 0.05, 'steelLight', [0.3, 0, 0.36], 12),
@@ -361,19 +395,28 @@ const silo: Builder = () => {
 };
 
 /**
- * Hover factory: a long hangar vault on four legs, open front and back. Inside, a crystal in the secondary colour on the back wall
- * hums; working, a fresh hover tank floats in the hangar in a ring of light. A small pointed tower with an orb
- * stands on the north-east.
+ * Hover factory: a long barrel-vault hangar, open front and back behind arched gate frames, its shell banded by ribs.
+ * Inside, a crystal in the secondary colour on a plinth hums; working, a fresh hover tank floats in the hangar in a
+ * ring of light. A small pointed tower with an orb stands on the north-east.
  */
 const factory: Builder = (_view, frame) => {
   const work = frame === 'work';
-  const s: VaultSpec = { sx: 0.52, sz: 0.78, h: 0.9, archW: 0.78, archH: 0.84, arches: [true, false, true, false], crown: 1, t: 0.06 };
+  const s: VaultSpec = { sx: 0.5, sz: 0.74, h: 0.72, archW: 0.74, archH: 0.82, arches: [true, false, true, false], crown: 1, t: 0.06, round: true, barrel: true };
   const hangar = vault(s, 'steelDark');
-  hangar.position.set(-0.2, 0, 0.08);
+  // Ribs round the shell and a frame round each gate.
+  for (const z of [-0.74, -0.37, 0, 0.37, 0.74]) {
+    const end = Math.abs(z) > 0.7;
+    const rib = new THREE.TorusGeometry(1, end ? 0.06 : 0.035, 4, 16, Math.PI);
+    rib.scale(s.sx + 0.015, s.h + 0.015, 1);
+    hangar.add(mesh(rib, end ? 'team2' : 'team2Dark', [0, 0, z]));
+  }
+  hangar.position.set(-0.2, 0.04, 0.08);
   const g = group(
+    box(1.16, 0.04, 1.6, 'steelLight', [-0.2, 0, 0.08]),
     hangar,
-    cyl(0.36, 0.38, 0.03, 'steelDark', [-0.2, 0, 0.08], 10),
-    spike(0.12, 0.42, work ? 'team2Light' : 'team2', [-0.2, 0.03, -0.42]),
+    cyl(0.32, 0.34, 0.03, 'steelDark', [-0.2, 0.04, 0.08], 10),
+    box(0.22, 0.12, 0.12, 'team2Dark', [-0.2, 0.04, -0.4]),
+    spike(0.1, 0.36, work ? 'team2Light' : 'team2', [-0.2, 0.16, -0.4]),
     // Tower.
     lathe(
       [
@@ -388,17 +431,13 @@ const factory: Builder = (_view, frame) => {
     ),
     spike(0.08, 0.26, 'team2', [0.62, 0.05, -0.47]),
     ball(0.055, 'lamp', [0.62, 1.04, -0.56], 6),
-    ...[-1, 1].map((sx) => slit(s, 1, sx * 0.85, 0.1, 0.22)).map((m) => {
-      m.position.x -= 0.2;
-      m.position.z += 0.08;
-      return m;
-    }),
+    ...[-1, 1].map((sx) => lightSlot(0.012, 0.03, 0.9, [-0.2 + sx * (s.sx + 0.03), 0.12, 0.08])),
   );
   if (work) {
     const tank = middleTank(4, 'move0');
     paintAll(tank, 'steel', ['steelDark', 'lamp', 'team2Dark']);
-    tank.position.set(-0.2, 0.1, 0.12);
-    g.add(tank, mesh(new THREE.TorusGeometry(0.38, 0.02, 4, 16).rotateX(Math.PI / 2), 'lamp', [-0.2, 0.06, 0.12]));
+    tank.position.set(-0.2, 0.12, 0.12);
+    g.add(tank, mesh(new THREE.TorusGeometry(0.36, 0.02, 4, 16).rotateX(Math.PI / 2), 'lamp', [-0.2, 0.08, 0.12]));
   }
   return g;
 };

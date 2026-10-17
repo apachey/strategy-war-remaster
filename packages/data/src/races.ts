@@ -46,7 +46,7 @@ export const TEAM_COLORS = {
   black: ['#08080a', '#16161b', '#26262e', '#3a3a45', '#55555f'],
   // Warmer than the steel of unpainted parts, so a grey side still reads as painted.
   grey: ['#2e2618', '#5a4e3a', '#867a66', '#b2a692', '#ded2be'],
-  white: ['#3a3e44', '#6c727a', '#a0a6ae', '#d0d4da', '#ffffff'],
+  white: ['#484c54', '#80868e', '#b6bcc4', '#e0e4ea', '#ffffff'],
 } as const satisfies Record<string, readonly string[]>;
 export type TeamColor = keyof typeof TEAM_COLORS;
 /** All colours in rainbow order, each hue dark, base, light. */
@@ -74,15 +74,35 @@ const mix = (a: string, b: string, t: number): string =>
     .map((v) => v.toString(16).padStart(2, '0'))
     .join('');
 
+const rgbOf = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number];
+const hexOf = (rgb: number[]) => '#' + rgb.map((v) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0')).join('');
+
+/** The colour pushed to neon: full saturation at a middle lightness, keeping its hue. */
+function neon(h: string): string {
+  const [r, g, b] = rgbOf(h);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max - min < 0.02) return '#ffffff';
+  const d = max - min;
+  const hue = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  // HSL with saturation 1 and lightness 0.58.
+  const l = 0.58;
+  const c = 1 - Math.abs(2 * l - 1);
+  const x = c * (1 - Math.abs((hue % 2) - 1));
+  const m = l - c / 2;
+  const [r1, g1, b1] = hue < 1 ? [c, x, 0] : hue < 2 ? [x, c, 0] : hue < 3 ? [0, c, x] : hue < 4 ? [0, x, c] : hue < 5 ? [x, 0, c] : [c, 0, x];
+  return hexOf([r1 + m, g1 + m, b1 + m]);
+}
+
 /**
- * Light glowing in a colour: the walkers' eyes (main colour) and their spit and muzzles (secondary colour). A dark
- * shade glows as its hue's base colour, since dark light does not read as light; the greys glow white.
+ * Light glowing in a colour: the walkers' eyes (main colour) and their spit and muzzles (secondary colour), drawn
+ * round a white-hot core. The colour is pushed to neon, full saturation in its own hue, so any colour reads as light;
+ * the greys glow white. Dark to light; emissive surfaces use the last step, lit ones shade through the ramp.
  */
 export function glowRamp(color: TeamColor): string[] {
-  const hue = TEAM_HUES.find((h) => TEAM_COLOR_GRID[h].includes(color))!;
-  const source = hue === 'grey' ? 'white' : TEAM_COLOR_GRID[hue][0] === color ? TEAM_COLOR_GRID[hue][1] : color;
-  const r = TEAM_COLORS[source];
-  return [r[1], r[2], r[3], mix(r[3], r[4], 0.5), r[4]];
+  if (TEAM_COLOR_GRID.grey.includes(color)) return ['#6a6e78', '#9a9ea8', '#c8ccd4', '#e8eaee', '#ffffff'];
+  const n = neon(TEAM_COLORS[color][2]);
+  return [mix(n, '#000000', 0.62), mix(n, '#000000', 0.44), mix(n, '#000000', 0.27), mix(n, '#000000', 0.12), n];
 }
 
 /** The ramps the sprites are drawn in: main colour and secondary colour. */

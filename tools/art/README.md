@@ -27,13 +27,14 @@ pnpm sprites:check                 # CI: fail if assets/sprites is stale
    swaps the four ramps for the side's colours and `glowRamp` of them; the atlas meta lists the drawn ramps
    (`teamRamp`, `secondRamp`, `glowRamp`, `glow2Ramp`) and `teamColors`. Nothing else in the palette uses those
    twenty colours. Which parts wear which colour:
-   - humans: hulls and building shells in the main colour; tracks, wheels, glass, cabs, bands and fittings in the
-     secondary; the harvester's cutter, guns, platforms, the silo's and factory's thin rings and masts and the
-     factory's big dark blocks stay grey; cyan lights stay cyan;
+   - humans: hulls, cabs and building shells in the main colour; tracks, tyres, glass, bands and fittings in the
+     secondary; small fittings (turret rings, grilles, hatches, vents, gun sleeves), wheel hubs, the harvester's
+     cutter, guns, platforms, the silo's and factory's thin rings and masts and the factory's big dark blocks stay
+     grey, so a side in two equal colours still has some contrast; cyan lights stay cyan;
    - hovers: shells and vaults in the main colour, everything else that is not grey (grooves, plates, crystals) in
      the secondary; cyan lights stay cyan;
-   - walkers: carapace in the main colour and sacs and plates in the secondary, eyes glowing in the main colour and
-     spit glowing in the secondary.
+   - walkers: carapace in the main colour and sacs and plates in the secondary, eyes glowing neon in the main colour
+     and spit glowing neon in the secondary, each round a white-hot core.
    Human and hover shots keep their race's own colours (yellow-orange gauss, cyan plasma).
 5. **Atlas** (`src/atlas.ts`): frames are trimmed and shelf-packed into `assets/sprites/sprites.png` with a
    PixiJS spritesheet `sprites.json`.

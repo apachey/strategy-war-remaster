@@ -81,22 +81,30 @@ describe('team colours', () => {
   }
 
   it('keep grey warmer than unpainted steel, so a grey side still looks painted', () => {
-    const steel = SURROUNDINGS['unpainted grey parts']!;
-    expect(nearest('grey', steel)).toBeGreaterThan(2 * nearest('white', steel));
+    expect(nearest('grey', SURROUNDINGS['unpainted grey parts']!)).toBeGreaterThan(12);
   });
 });
 
+const chroma = (h: string) => Math.hypot(lab(hex(h))[1], lab(hex(h))[2]);
+
 describe('glow', () => {
-  it('is brighter than the colour it comes from, also for dark shades', () => {
-    for (const c of TEAM_COLOR_NAMES) expect(lab(hex(glowRamp(c)[4]!))[0], c).toBeGreaterThan(lab(hex(TEAM_COLORS[c][2]))[0]);
+  it('is neon: more saturated than the colour it comes from, also for dark and pale shades', () => {
+    for (const c of TEAM_COLOR_NAMES) {
+      if (TEAM_COLOR_GRID.grey.includes(c)) continue;
+      const lit = glowRamp(c)[4]!;
+      expect(chroma(lit), c).toBeGreaterThan(Math.max(45, chroma(TEAM_COLORS[c][2])));
+    }
   });
 
   it('is white for the greys', () => {
     for (const c of TEAM_COLOR_GRID.grey) expect(glowRamp(c)[4]).toBe('#ffffff');
   });
 
-  it('of a dark shade is its base colour lit up', () => {
-    expect(glowRamp('crimson')).toEqual(glowRamp('red'));
-    expect(glowRamp('indigo')).toEqual(glowRamp('blue'));
+  it('keeps the hue of its colour', () => {
+    const hueOf = (h: string) => Math.atan2(lab(hex(h))[2], lab(hex(h))[1]);
+    for (const c of ['red', 'orange', 'green', 'azure', 'blue', 'violet'] as const) {
+      const d = Math.abs(hueOf(glowRamp(c)[4]!) - hueOf(TEAM_COLORS[c][2]));
+      expect(Math.min(d, 2 * Math.PI - d), c).toBeLessThan(0.6);
+    }
   });
 });

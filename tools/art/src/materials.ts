@@ -42,8 +42,9 @@ export const MATERIALS = {
   bile: { ramp: 'team4' },
   bileLight: { ramp: 'team4', shift: 1 },
   bileGlow: { ramp: 'team4', emissive: true },
-  // The walkers' eyes, glowing in the main colour's light.
+  // The walkers' eyes, glowing neon in the main colour, and the white-hot core of their eyes and spit.
   eye: { ramp: 'team3', emissive: true },
+  glowCore: { ramp: 'fire', emissive: true },
   // Ground heaped or broken round the crystals of a resource field: sand, forest soil and the hovers' plates.
   sand: { ramp: 'sand', shift: 1 },
   soil: { ramp: 'soil' },
