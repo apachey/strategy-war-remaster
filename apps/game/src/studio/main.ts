@@ -1,48 +1,410 @@
 import '../style.css';
 import './studio.css';
-import { RACES, type TeamColor } from '@sw/data';
-import { loadFonts } from '../ui/font';
-import { applySkin, skin } from '../ui/skin';
-import { CURSOR_KINDS, cursorImage, SCROLL_DIRS } from '../ui/cursors';
+import { Application, Container, Sprite } from 'pixi.js';
+import { CELL, ObjectType, RACES, spriteName, TEAM_COLOR_GRID, TEAM_HUES, type Race, type TeamColor } from '@sw/data';
+import type { Entity } from '@sw/sim';
+import { CHARSET, glyph, loadFonts } from '../ui/font';
+import { applySkin, skin, type ButtonState } from '../ui/skin';
+import { CURSOR_KINDS, cursorCss, cursorImage, SCROLL_DIRS, type CursorKind } from '../ui/cursors';
 import { flagHtml } from '../ui/flags';
-import { battleScene, outcomeScene, portrait } from '../ui/scene3d';
+import { Marks, markOptions, type SelectionStyle } from '../ui/marks';
+import { battleScene, outcomeScene, portrait, type Dress, type PixelScene } from '../ui/scene3d';
+import { groundPiece, loadArt, ART_PX_PER_CELL } from '../assets';
+import { t } from '../text';
 
-const root = document.getElementById('studio')!;
+/**
+ * Shardfall Studio: every interface piece of version 1.1 on one page, each with its switches, plus the other threads'
+ * before/after material (gameplay pictures, sound samples). Built with `vite --config vite.studio.config.ts build`;
+ * the sound and gameplay files are copied next to it into `v11/` when publishing, they are not in the repository.
+ */
+
+const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector<T>(sel)!;
+const $$ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => [...root.querySelectorAll<T>(sel)];
+
+const state = {
+  own: { race: 'human', color: 'white', color2: 'olive' } as Dress,
+  foe: { race: 'hover', color: 'cyan', color2: 'white' } as Dress,
+  k: window.devicePixelRatio >= 2 ? 1.5 : 2,
+  systemFont: false,
+};
+
+/** The game page next to the studio: `index.html` in dev, `game.html` once published (the host keeps index for itself). */
+const GAME = import.meta.env.DEV ? 'index.html' : 'game.html';
+
+const RACE_UA: Record<Race, string> = { human: 'Хюмани', hover: 'Ховери', walker: 'Ходуни' };
+const COLORS: TeamColor[] = TEAM_HUES.flatMap((h) => [...TEAM_COLOR_GRID[h]]);
+const KINDS = ['harvester', 'light_tank', 'middle_tank', 'heavy_tank', 'defender', 'hq', 'silo', 'factory', 'wall'];
+const KIND_UA: Record<string, string> = {
+  harvester: 'Комбайн', light_tank: 'Легкий', middle_tank: 'Середній', heavy_tank: 'Важкий', defender: 'Турель',
+  hq: 'Штаб', silo: 'Сховище', factory: 'Завод', wall: 'Стіна',
+};
+
+/** A row of toggle buttons; `on` is called with the picked value. */
+function toggles<V extends string>(name: string, values: readonly V[], current: V, label: (v: V) => string, on: (v: V) => void): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'toggles';
+  row.innerHTML = `<span>${name}</span>` + values.map((v) => `<button data-v="${v}" class="${v === current ? 'active' : ''}">${label(v)}</button>`).join('');
+  row.addEventListener('click', (ev) => {
+    const b = (ev.target as HTMLElement).closest('button');
+    if (!b) return;
+    $$('button', row).forEach((x) => x.classList.toggle('active', x === b));
+    on(b.dataset.v as V);
+  });
+  return row;
+}
+
+function colorSelect(name: string, current: TeamColor, on: (c: TeamColor) => void): HTMLElement {
+  const row = document.createElement('label');
+  row.className = 'toggles';
+  row.innerHTML = `<span>${name}</span><select>${COLORS.map((c) => `<option value="${c}"${c === current ? ' selected' : ''}>${t().color[c]}</option>`).join('')}</select>`;
+  $<HTMLSelectElement>('select', row).addEventListener('change', (ev) => on((ev.target as HTMLSelectElement).value as TeamColor));
+  return row;
+}
+
+function section(id: string, title: string, note: string): HTMLElement {
+  const s = document.createElement('section');
+  s.id = id;
+  s.className = 'frame';
+  s.innerHTML = `<h2>${title}</h2><p class="note">${note}</p><div class="controls"></div><div class="body"></div>`;
+  $('#studio').append(s);
+  $('#toc').insertAdjacentHTML('beforeend', `<a href="#${id}">${title}</a>`);
+  return s;
+}
+
+const listeners: Array<() => void> = [];
+const onDress = (f: () => void) => listeners.push(f);
+function dressChanged(): void {
+  applySkin(document.body, skin(state.own.race, state.own.color, state.own.color2));
+  document.body.style.cursor = cursorCss(state.own.race, state.own.color, 'normal');
+  for (const f of listeners) f();
+}
+
+// Sections ------------------------------------------------------------------------------------------------------------
+
+function header(): void {
+  const h = $('#top');
+  h.append(
+    toggles('Раса', RACES, state.own.race, (r) => RACE_UA[r], (r) => ((state.own = { ...state.own, race: r }), dressChanged())),
+    colorSelect('Колір', state.own.color, (c) => ((state.own = { ...state.own, color: c }), dressChanged())),
+    colorSelect('Другий', state.own.color2, (c) => ((state.own = { ...state.own, color2: c }), dressChanged())),
+    toggles('Ворог', RACES, state.foe.race, (r) => RACE_UA[r], (r) => ((state.foe = { ...state.foe, race: r }), dressChanged())),
+    colorSelect('Колір ворога', state.foe.color, (c) => ((state.foe = { ...state.foe, color: c }), dressChanged())),
+    toggles('Піксель шрифту', ['1.5', '2', '3'], String(state.k), (v) => `×${v}`, (v) => {
+      state.k = Number(v);
+      document.documentElement.style.setProperty('--k', v);
+    }),
+    toggles('Шрифт', ['pixel', 'system'], 'pixel', (v) => (v === 'pixel' ? 'Shardfall' : 'Системний (до)'), (v) => {
+      document.documentElement.classList.toggle('system-font', v === 'system');
+    }),
+  );
+}
+
+function game(): void {
+  const s = section('game', 'Гра наживо', 'Справжня збірка гри з усім інтерфейсом 1.1. Раса й кольори зверху передаються в скірміш. Клавіші: Q W E R T, A S D F G, X стоп.');
+  const frame = document.createElement('iframe');
+  frame.className = 'game';
+  const go = (v: string) => {
+    const r = `${state.own.race},${state.foe.race}`;
+    const c = `${state.own.color},${state.foe.color}`;
+    const c2 = `${state.own.color2},${state.foe.color2}`;
+    const dress = `&r=${r}&c=${c}&c2=${c2}`;
+    const src: Record<string, string> = {
+      menu: GAME,
+      campaign: `${GAME}?m=1.1`,
+      skirmish: `${GAME}?s=4&vs=normal${dress}`,
+      duo: `${GAME}?s=4&vs=human${dress}`,
+      won: `${GAME}?s=4&vs=normal${dress}#won`,
+      lost: `${GAME}?s=4&vs=normal${dress}#lost`,
+    };
+    frame.src = src[v]!;
+  };
+  frame.addEventListener('load', () => {
+    const outcome = frame.contentWindow?.location.hash.slice(1);
+    if (outcome !== 'won' && outcome !== 'lost') return;
+    // Finish the match a moment after it starts so the screen shows real numbers.
+    const w = frame.contentWindow as unknown as { __sw?: { game: { world: { outcome: string } } } };
+    const tryEnd = (n: number) => {
+      if (w.__sw) w.__sw.game.world.outcome = outcome;
+      else if (n) setTimeout(() => tryEnd(n - 1), 300);
+    };
+    setTimeout(() => tryEnd(20), 1500);
+  });
+  $('.controls', s).append(
+    toggles('Екран', ['menu', 'campaign', 'skirmish', 'duo', 'won', 'lost'], 'menu', (v) => ({
+      menu: 'Головне меню', campaign: 'Місія 1.1', skirmish: 'Скірміш', duo: 'Удвох', won: 'Перемога', lost: 'Поразка',
+    })[v]!, go),
+  );
+  $('.body', s).append(frame);
+  go('menu');
+}
+
+function font(): void {
+  const s = section('font', 'Шрифт', 'Власний піксельний шрифт: латиниця, кирилиця з Ґ Є І Ї, значки. Знак $ малюється кристалом ◆. Текст нижче можна редагувати.');
+  const sample = 'Шардфол: ґанок, їжак, йорж, щука. The quick brown fox jumps. ◆ 1500 ☠☠☠ ★ ✓ ✕ ⚔ ⚙ ▶ ⏸ ↑↓←→';
+  $('.body', s).innerHTML = `
+    <p class="sample" contenteditable spellcheck="false">${sample}</p>
+    <p class="sample" contenteditable spellcheck="false"><b>${sample}</b></p>
+    <p class="sample big" contenteditable spellcheck="false"><b>SHARDFALL · Ремастер · $3000</b></p>
+    <div class="glyphs"></div>`;
+  const box = $('.glyphs', s);
+  const draw = (bold: boolean) => {
+    box.innerHTML = '';
+    for (const ch of CHARSET) {
+      const g = glyph(ch, bold);
+      if (!g) continue;
+      const c = document.createElement('canvas');
+      c.width = g.width + 2;
+      c.height = 12;
+      c.title = ch;
+      const x = c.getContext('2d')!;
+      x.fillStyle = '#efe3c2';
+      g.rows.forEach((row, y) => [...row].forEach((p, i) => p === '#' && x.fillRect(i + 1, 10 - g.top + y, 1, 1)));
+      box.append(c);
+    }
+  };
+  $('.controls', s).append(toggles('Карта гліфів', ['regular', 'bold'], 'regular', (v) => (v === 'bold' ? 'Жирний' : 'Звичайний'), (v) => draw(v === 'bold')));
+  draw(false);
+}
+
+function skins(): void {
+  const s = section('skins', 'Рамки й кнопки рас', 'Хюмани: клепані сталеві плити. Ховери: скошене скло зі світінням. Ходуни: жива мембрана з шипами. Колір рамки береться з командного кольору, мітки з другого.');
+  const states: ButtonState[] = ['normal', 'hover', 'down', 'on', 'primary', 'disabled'];
+  const UA: Record<ButtonState, string> = { normal: 'Звичайна', hover: 'Наведення', down: 'Натиснута', on: 'Вибрана', primary: 'Головна', disabled: 'Вимкнена' };
+  const draw = () => {
+    const body = $('.body', s);
+    body.innerHTML = RACES.map((r) => `<div class="frame demo" data-race-demo="${r}">
+        <b class="title">${RACE_UA[r]}</b><p>Міцність 300/300 · їде · ◆ 1500</p>
+        <div class="buttons"><button>Звичайна</button><button class="active">Вибрана</button><button class="primary">Почати</button><button disabled>Вимкнена</button>
+        <button class="build"><kbd>Q</kbd>Багі<br>$100</button></div>
+        <div class="states">${states.map((st) => `<figure><img data-state="${st}"><figcaption>${UA[st]}</figcaption></figure>`).join('')}</div></div>`).join('');
+    for (const r of RACES) {
+      const el = $(`[data-race-demo="${r}"]`, body);
+      const sk = skin(r, state.own.color, state.own.color2);
+      applySkin(el, sk);
+      $$<HTMLImageElement>('img[data-state]', el).forEach((img) => (img.src = sk.buttons[img.dataset.state as ButtonState]));
+    }
+  };
+  onDress(draw);
+  draw();
+}
+
+function levels(): void {
+  const s = section('levels', 'Складність і суперник', 'Черепи замість слів: класика ★, легко ☠, нормально ☠☠, важко ☠☠☠, удвох ⚔.');
+  const draw = () => {
+    const T = t();
+    $('.body', s).innerHTML = `<div class="buttons">${(['classic', 'easy', 'normal', 'hard'] as const)
+      .map((d, i) => `<button class="level${i === 2 ? ' active' : ''}"><span class="icons">${['★', '☠', '☠☠', '☠☠☠'][i]}</span>${T.difficulty[d]}</button>`)
+      .join('')}<button class="level"><span class="icons">⚔</span>${T.opponent.human}</button></div>`;
+  };
+  onDress(draw);
+  draw();
+}
+
+function cursors(): void {
+  const s = section('cursors', 'Курсори', 'Наведіть мишу на плитку, щоб спробувати курсор наживо. Гра сама вибирає: свій юніт → вибір, ворог → атака, кристали → збір, ліс чи край мапи → не можна, край екрана → стрілка прокрутки.');
+  const UA: Record<CursorKind, string> = { normal: 'Звичайний', select: 'Вибір', move: 'Рух', attack: 'Атака', harvest: 'Збір', forbidden: 'Не можна', scroll: 'Прокрутка' };
+  const draw = () => {
+    const { race, color } = state.own;
+    const tile = (kind: CursorKind, dir: (typeof SCROLL_DIRS)[number] = 'n', label = UA[kind]) =>
+      `<figure class="try" style="cursor: ${cursorCss(race, color, kind, dir)}"><img class="cur" src="${cursorImage(race, color, kind, dir)}"><figcaption>${label}</figcaption></figure>`;
+    $('.body', s).innerHTML = `<div class="tiles">${CURSOR_KINDS.filter((k) => k !== 'scroll').map((k) => tile(k)).join('')}</div>
+      <div class="tiles">${SCROLL_DIRS.map((d) => tile('scroll', d, d.toUpperCase())).join('')}</div>`;
+  };
+  onDress(draw);
+  draw();
+}
+
+function flags(): void {
+  const s = section('flags', 'Прапорці мов', 'Піксельні прапорці майорять на кнопках мови: 6 кадрів, кожен стовпчик тканини на хвилі.');
+  $('.body', s).innerHTML = `<div class="buttons"><button class="active">${flagHtml('uk')}Українська</button><button>${flagHtml('en')}English</button></div>
+    <div class="flags-big">${flagHtml('uk')}${flagHtml('en')}</div>`;
+  $('.controls', s).append(toggles('Вітер', ['0', '0.9', '0.45'], '0.9', (v) => ({ '0': 'Штиль', '0.9': 'Звичайний', '0.45': 'Сильний' })[v]!, (v) => {
+    document.documentElement.style.setProperty('--wave', v === '0' ? 'paused' : 'running');
+    document.documentElement.style.setProperty('--wave-time', `${v === '0' ? 0.9 : v}s`);
+  }));
+}
+
+async function marks(): Promise<void> {
+  const s = section('marks', 'Виділення й смужки', 'Рамка виділення по сітці спрайтів з темним контуром, як у самих спрайтів, або еліпс на землі. Сегментна смужка міцності зеленіє, жовтіє, червоніє; під нею тонка смужка будівництва, виробництва чи вантажу. Пунктир показує дальність зброї свого юніта.');
+  const app = new Application();
+  await app.init({ width: 8 * CELL, height: 5 * CELL, background: 0x14110c, antialias: false, resolution: 1 });
+  app.canvas.className = 'marks';
+  $('.body', s).append(app.canvas);
+  const zoom = { v: 4 };
+  const hp = { v: 0.7 };
+  const ART = CELL / ART_PX_PER_CELL;
+  const world = new Container();
+  app.stage.addChild(world);
+  const fake = (type: number, team: string, x: number, y: number, size: number, extra: Partial<Entity> = {}) =>
+    ({ id: 1, type, team, x, y, size, hp: 100, maxHp: 100, dir: 3, complete: true, buildElapsedMs: 0, buildTotalMs: 0, job: null, cargo: 0, ...extra }) as unknown as Entity;
+  const draw = async () => {
+    const art = await loadArt([[state.own.color, state.own.color2], [state.foe.color, state.foe.color2]]);
+    world.removeChildren();
+    app.renderer.resize(8 * CELL * zoom.v, 5 * CELL * zoom.v);
+    world.scale.set(zoom.v);
+    for (let cy = 0; cy < 5; cy++)
+      for (let cx = 0; cx < 8; cx++) {
+        const g = new Sprite(groundPiece(art.terrain, 'sand', cx, cy));
+        g.scale.set(ART);
+        g.position.set(cx * CELL, cy * CELL);
+        world.addChild(g);
+      }
+    const things = [
+      fake(ObjectType.LightTank, 'player', CELL * 1, CELL * 3.2, CELL, { hp: hp.v * 100 }),
+      fake(ObjectType.Harvester, 'player', CELL * 0.6, CELL * 1.2, CELL, { cargo: 30, hp: 100 }),
+      fake(ObjectType.TankFactory, 'player', CELL * 3, CELL * 1.4, CELL * 2, { hp: Math.max(5, hp.v * 100), job: { kind: 'produce', unit: ObjectType.LightTank, elapsedMs: 600, totalMs: 1000, price: 100 } } as Partial<Entity>),
+      fake(ObjectType.HeavyTank, 'enemy', CELL * 6, CELL * 3, CELL, { hp: 25 }),
+    ];
+    const m = new Marks();
+    world.addChild(m.under);
+    for (const e of things) {
+      const dress = e.team === 'player' ? state.own : state.foe;
+      const sheet = art.sheet(dress.color, dress.color2);
+      const base = spriteName(dress.race, e.type);
+      const tex = sheet.textures[`${base}/idle/s`] ?? sheet.textures[`${base}/move0/se`] ?? sheet.textures[`${base}/idle`];
+      if (!tex) continue;
+      const sp = new Sprite(tex);
+      sp.scale.set(ART);
+      sp.position.set(e.x + e.size / 2, e.y + e.size / 2);
+      world.addChild(sp);
+    }
+    world.addChild(m.over);
+    for (const e of things) {
+      m.selection(e, e.x, e.y, 'player');
+      m.bars(e, e.x, e.y);
+    }
+  };
+  onDress(() => void draw());
+  const slider = document.createElement('label');
+  slider.className = 'toggles';
+  slider.innerHTML = '<span>Міцність легкого</span><input type="range" min="0.05" max="1" step="0.05" value="0.7">';
+  $('input', slider).addEventListener('input', (ev) => ((hp.v = Number((ev.target as HTMLInputElement).value)), void draw()));
+  $('.controls', s).append(
+    toggles<SelectionStyle>('Виділення', ['corners', 'ellipse'], 'corners', (v) => (v === 'corners' ? 'Кутики' : 'Еліпс'), (v) => ((markOptions.selection = v), void draw())),
+    toggles('Зум', ['2', '4', '6'], '4', (v) => `×${v}`, (v) => ((zoom.v = Number(v)), void draw())),
+    slider,
+  );
+  await draw();
+}
+
+function portraits(): void {
+  const s = section('portraits', 'Портрети', 'Наживо рендеряться з тих самих 3D-моделей у низькій роздільності з палітрою рас. Видно на панелі вибору й на кнопках будівництва.');
+  const size = { v: 40 };
+  const draw = () => {
+    $('.body', s).innerHTML = [state.own, state.foe]
+      .map((d) => `<div class="tiles">${KINDS.map((k) => `<figure><img class="portrait" src="${portrait(d, k, size.v)}"><figcaption>${KIND_UA[k]}</figcaption></figure>`).join('')}</div>`)
+      .join('');
+  };
+  $('.controls', s).append(toggles('Роздільність', ['32', '40', '64'], '40', (v) => `${v} px`, (v) => ((size.v = Number(v)), draw())));
+  onDress(draw);
+  draw();
+}
+
+function scenes(): void {
+  const s = section('scenes', 'Сцени перемоги, поразки й меню', 'Живий низькополігональний 3D у низькій роздільності, з землею мапи. Перемога: колона ваших танків, штаб ворога горить. Поразка: ваш штаб у руїнах, довкола ворожі танки. Меню: бій двох рас.');
+  const opts = { scene: 'won', ground: 'sand' as 'sand' | 'plates' | 'forest', forest: true, res: 320 };
+  let live: PixelScene | null = null;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'scene';
+  $('.body', s).append(canvas);
+  const draw = async () => {
+    live?.dispose();
+    const fresh = document.createElement('canvas');
+    fresh.className = 'scene';
+    $('.body', s).replaceChildren(fresh);
+    const w = opts.res;
+    const h = Math.round((w * 9) / 16);
+    live =
+      opts.scene === 'menu'
+        ? await battleScene(fresh, state.own, state.foe, w, h)
+        : await outcomeScene(fresh, { won: opts.scene === 'won', own: state.own, foe: state.foe, ground: opts.ground, forest: opts.forest }, w, h);
+    live.start();
+  };
+  $('.controls', s).append(
+    toggles('Сцена', ['won', 'lost', 'menu'], 'won', (v) => ({ won: 'Перемога', lost: 'Поразка', menu: 'Меню' })[v]!, (v) => ((opts.scene = v), void draw())),
+    toggles('Земля', ['sand', 'plates', 'forest'], 'sand', (v) => ({ sand: 'Пісок', plates: 'Плити', forest: 'Ліс' })[v]!, (v) => ((opts.ground = v), void draw())),
+    toggles('Ялинки', ['on', 'off'], 'on', (v) => (v === 'on' ? 'Є' : 'Немає'), (v) => ((opts.forest = v === 'on'), void draw())),
+    toggles('Роздільність', ['240', '320', '480'], '320', (v) => `${v}×${Math.round((Number(v) * 9) / 16)}`, (v) => ((opts.res = Number(v)), void draw())),
+  );
+  onDress(() => void draw());
+  void draw();
+}
+
+function sound(): void {
+  const s = section('sound', 'Звук 1.1', 'Матеріал треду «Звук 1.1»: голоси юнітів для кожної раси (по 3 варіанти, щоразу випадковий), петлі збору, фон мапи й нові треки.');
+  const units = ['harvester', 'light', 'middle', 'heavy'];
+  const UNIT: Record<string, string> = { harvester: 'Комбайн', light: 'Легкий', middle: 'Середній', heavy: 'Важкий' };
+  const ACT: Record<string, string> = { ready: 'Готовий', move: 'Їду', attack: 'Атакую', harvest: 'Збираю' };
+  const voice = (race: Race, u: string, a: string) => `v11/sound/sfx/voice_${race}_${u}_${a}_${Math.floor(Math.random() * 3)}.wav`;
+  let playing: HTMLAudioElement | null = null;
+  const play = (src: string, loop = false) => {
+    playing?.pause();
+    playing = new Audio(src);
+    playing.loop = loop;
+    void playing.play();
+  };
+  const body = $('.body', s);
+  body.innerHTML = `
+    <h3>Голоси</h3>
+    <div class="voices">${RACES.map((r) => `<div class="frame demo" data-race-demo="${r}"><b class="title">${RACE_UA[r]}</b>${units
+      .map((u) => `<div class="row"><span>${UNIT[u]}</span>${(u === 'harvester' ? ['ready', 'move', 'harvest'] : ['ready', 'move', 'attack'])
+        .map((a) => `<button data-voice="${r}/${u}/${a}">▶ ${ACT[a]}</button>`).join('')}</div>`).join('')}</div>`).join('')}</div>
+    <h3>Петлі</h3>
+    <div class="buttons">${['harvest_human', 'harvest_hover', 'harvest_walker', 'amb_wind', 'amb_forest', 'amb_crystals', 'amb_base', 'amb_factory']
+      .map((n) => `<button data-loop="${n}">▶ ${({ harvest_human: 'Збір: бур', harvest_hover: 'Збір: всмоктування', harvest_walker: 'Збір: щелепи', amb_wind: 'Вітер', amb_forest: 'Ліс', amb_crystals: 'Кристали', amb_base: 'База', amb_factory: 'Завод' } as Record<string, string>)[n]}</button>`)
+      .join('')}<button data-stop>■ Стоп</button></div>
+    <h3>Музика</h3>
+    <div class="music">${['tension-2', 'tension-3', 'battle-2', 'battle-3', 'victory', 'defeat']
+      .map((n) => `<figure><figcaption>${n}</figcaption><audio controls preload="none" src="v11/sound/music/${n}.m4a"></audio></figure>`).join('')}</div>`;
+  for (const r of RACES) applySkin($(`[data-race-demo="${r}"]`, body), skin(r, state.own.color, state.own.color2));
+  body.addEventListener('click', (ev) => {
+    const b = (ev.target as HTMLElement).closest('button');
+    if (!b) return;
+    if (b.dataset.voice) {
+      const [r, u, a] = b.dataset.voice.split('/') as [Race, string, string];
+      play(voice(r, u, a));
+    } else if (b.dataset.loop) play(`v11/sound/sfx/${b.dataset.loop}.wav`, true);
+    else if ('stop' in b.dataset) playing?.pause();
+  });
+}
+
+function gameplay(): void {
+  const s = section('gameplay', 'Геймплей 1.1: до і після', 'Матеріал треду «Геймплей 1.1». Місія 1.1 на старті: огляд 4 клітинки замість 2, ворота заросли лісом, до ворога лише крізь його стіну. Потягніть повзунок.');
+  $('.body', s).innerHTML = `<div class="compare" style="--cut: 50%">
+      <img src="v11/gameplay/mission-1-1-after.png" alt="Після">
+      <img class="before" src="v11/gameplay/mission-1-1-before.png" alt="До">
+      <i class="cut"></i><b class="tag l">До</b><b class="tag r">Після</b>
+      <input type="range" min="0" max="100" value="50" aria-label="До / після">
+    </div>
+    <figure class="shot"><img src="v11/gameplay/factory-queue-after.png" alt=""><figcaption>Черга заводу: два «Багі» чекають, гроші списано лише за перший; праворуч точка збору. Правий клік по іконці в черзі скасовує її.</figcaption></figure>
+    <ul class="changes">
+      <li>Дальність на клітинку менша: легкий 2, середній і важкий 3, турель 4.</li>
+      <li>Снаряди летять з упередженням у рухому ціль; крізь ліс ніхто не стріляє.</li>
+      <li>Танк без наказу сам їде до ворога в межах 6 клітинок і повертається.</li>
+      <li>Атака в русі (Option + ПКМ) і маршрут з кількох точок (Shift + ПКМ).</li>
+      <li>Коли б’ють базу чи комбайн: червона мітка на мінікарті, Пробіл переносить туди камеру.</li>
+      <li>Комп’ютер шле вільні танки на того, хто б’є його будівлі.</li>
+    </ul>`;
+  const box = $('.compare', s);
+  $('input', box).addEventListener('input', (ev) => box.style.setProperty('--cut', `${(ev.target as HTMLInputElement).value}%`));
+}
 
 async function main(): Promise<void> {
   await loadFonts();
-  const k = window.devicePixelRatio >= 2 ? 1.5 : 2;
-  document.documentElement.style.setProperty('--k', String(k));
-  const sample = 'Шардфол: Ґанок, їжак, Йорж. The quick brown fox ◆ 700 ☠☠☠ ✓';
-  let html = `<section><h2>Шрифт</h2><p>${sample}</p><p><b>${sample}</b></p><p style="font-size: var(--t2)"><b>SHARDFALL Ремастер</b></p></section>`;
-  const colors: [TeamColor, TeamColor][] = [['white', 'olive'], ['cyan', 'white'], ['red', 'white'], ['crimson', 'lime']];
-  for (const race of RACES)
-    for (const [c, c2] of colors)
-      html += `<div class="frame demo" data-skin="${race}/${c}/${c2}"><b class="title">${race} · ${c}</b><p class="info">Міцність 300/300 · їде</p>
-        <div class="buttons"><button>Звичайна</button><button class="active">Вибрана</button><button class="primary">Почати</button><button disabled>Вимкнена</button></div></div>`;
-  html += '<section><h2>Курсори</h2>';
-  for (const race of RACES) {
-    html += '<div>';
-    for (const k of CURSOR_KINDS) html += `<img class="cur" src="${cursorImage(race, 'red', k)}">`;
-    for (const d of SCROLL_DIRS) html += `<img class="cur" src="${cursorImage(race, 'red', 'scroll', d)}">`;
-    html += '</div>';
-  }
-  html += `</section><section><h2>Прапорці</h2><span class="lang">${flagHtml('uk')} Українська</span> <span class="lang">${flagHtml('en')} English</span></section>`;
-  root.innerHTML = html;
-  root.querySelectorAll<HTMLElement>('[data-skin]').forEach((el) => {
-    const [r, c, c2] = el.dataset.skin!.split('/') as [never, TeamColor, TeamColor];
-    applySkin(el, skin(r, c, c2));
-  });
-  const kinds = ['harvester', 'light_tank', 'middle_tank', 'heavy_tank', 'defender', 'hq', 'silo', 'factory', 'wall'];
-  let ph = '<section><h2>Портрети</h2>';
-  for (const race of RACES) ph += `<div>${kinds.map((k) => `<img class="portrait" src="${portrait({ race, color: 'red', color2: 'white' }, k)}">`).join('')}</div>`;
-  ph += '</section><section><h2>Сцени</h2><canvas class="scene" id="sc1"></canvas><canvas class="scene" id="sc2"></canvas><canvas class="scene" id="sc3"></canvas></section>';
-  root.insertAdjacentHTML('beforeend', ph);
-  const own = { race: 'walker', color: 'blue', color2: 'white' } as const;
-  const foe = { race: 'hover', color: 'red', color2: 'white' } as const;
-  await outcomeScene(document.getElementById('sc1') as HTMLCanvasElement, { won: true, own, foe, ground: 'sand', forest: true });
-  await outcomeScene(document.getElementById('sc2') as HTMLCanvasElement, { won: false, own, foe, ground: 'sand', forest: true });
-  await battleScene(document.getElementById('sc3') as HTMLCanvasElement, { race: 'human', color: 'white', color2: 'olive' }, foe);
+  document.documentElement.style.setProperty('--k', String(state.k));
+  header();
+  game();
+  font();
+  skins();
+  levels();
+  cursors();
+  flags();
+  portraits();
+  scenes();
+  sound();
+  gameplay();
+  dressChanged();
+  await marks();
   document.body.dataset.ready = 'true';
 }
 void main();

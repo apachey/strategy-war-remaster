@@ -762,9 +762,10 @@ export class PlayerPanel {
     ev.preventDefault();
     const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-queue]');
     if (!btn) return;
-    // The running tank cancels like the Cancel button; later places in a queue come with the simulation's queue.
-    const index = Number(btn.dataset.queue);
-    if (index === 0) this.c.run({ kind: 'cancel', id: Number(btn.dataset.id) });
+    // `index` counts along the factory's production line (running tank first); a simulation without a queue ignores
+    // it and cancels the running tank, the only one there is.
+    const cancel = { kind: 'cancel', id: Number(btn.dataset.id), index: Number(btn.dataset.queue) };
+    this.c.run(cancel as { kind: 'cancel'; id: number });
     this.key = '';
   }
 
