@@ -33,7 +33,8 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 /** The 3D models (three.js) load on their own, after the game is up: portraits appear once they are in. */
 let scene3d: typeof import('./ui/scene3d') | null = null;
-const scene3dReady = import('./ui/scene3d').then((m) => (scene3d = m));
+let faces: typeof import('./ui/faces') | null = null;
+const scene3dReady = Promise.all([import('./ui/scene3d'), import('./ui/faces')]).then(([m, f]) => ((faces = f), (scene3d = m)));
 
 const dress = (s: SideState): Dress => ({ race: s.race, color: s.color, color2: s.color2 });
 
@@ -46,8 +47,20 @@ function portraitOf(s: SideState, type: ObjectType, size = 64): string {
 
 function portraitFor(d: Dress, type: ObjectType, size = 64): string {
   if (!scene3d) return '';
+  return scene3d.portrait(d, kindOf(d, type), size);
+}
+
+/** The kind name of an object type in the art catalog: light_tank, hq, … */
+function kindOf(d: Dress, type: ObjectType): string {
   const name = spriteName(d.race, type === ObjectType.EnemyTank ? ObjectType.MiddleTank : type);
-  return scene3d.portrait(d, name.startsWith(`${d.race}_`) ? name.slice(d.race.length + 1) : name, size);
+  return name.startsWith(`${d.race}_`) ? name.slice(d.race.length + 1) : name;
+}
+
+/** Who speaks for an object on the selection panel: its pilot, or the base's advisor; a crystal field shows itself. */
+function speakerOf(s: SideState, type: ObjectType, size = 64): string {
+  const d = dress(s);
+  const who = faces?.speakerOf(kindOf(d, type));
+  return who ? faces!.face(d, who, size) : portraitFor(d, type, size);
 }
 
 const img = (src: string, cls = '') => (src ? `<img${cls ? ` class="${cls}"` : ''} src="${src}" alt="">` : '');
@@ -756,7 +769,7 @@ export class PlayerPanel {
     const e = sel[0]!;
     const own = c.isOwn(e);
     const team = e.team === 'neutral' ? 'neutral' : own ? 'own' : 'foe';
-    const face = img(portraitOf(this.sideOf(e.team), e.type), 'portrait');
+    const face = img(speakerOf(this.sideOf(e.team), e.type), 'portrait');
     const rows: string[] = [];
     if (e.type === ObjectType.ResourceField) rows.push(gauge(T.resource, e.hp / Math.max(e.hp, e.maxHp), 'cargo', `${e.hp}`));
     else rows.push(gauge(T.hp, e.hp / e.maxHp, hpTone(e), `${Math.max(0, e.hp)}/${e.maxHp}`));

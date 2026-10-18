@@ -563,6 +563,20 @@ export function portrait(dress: Dress, kind: string, size = 64): string {
   const id = `${dress.race}/${dress.color}/${dress.color2}/${kind}/${size}`;
   const hit = portraits.get(id);
   if (hit) return hit;
+  const name = kind === 'resource' ? 'resource' : sprite(dress.race, kind);
+  const { frame, view } = portraitFrame(kind);
+  const m = model(name, dress, view, frame);
+  // Frame the model: fit its bounding sphere into the view.
+  const sphere = new THREE.Box3().setFromObject(m).getBoundingSphere(new THREE.Sphere());
+  const dist = (sphere.radius / Math.sin((30 * Math.PI) / 360)) * 0.8;
+  const from = new THREE.Vector3(sphere.center.x + dist * 0.35, sphere.center.y + dist * 0.5, sphere.center.z + dist * 0.8);
+  const url = still(m, size, from, sphere.center);
+  portraits.set(id, url);
+  return url;
+}
+
+/** Renders an object alone into a square still of `size` pixels, seen from `from` towards `at`: a PNG data URL. */
+export function still(o: THREE.Object3D, size: number, from: THREE.Vector3, at: THREE.Vector3, fov = 30): string {
   if (!portraitCanvas || portraitScene?.w !== size) {
     portraitScene?.dispose();
     portraitCanvas = document.createElement('canvas');
@@ -570,20 +584,40 @@ export function portrait(dress: Dress, kind: string, size = 64): string {
   }
   const s = portraitScene!;
   s.scene.clear();
-  const name = kind === 'resource' ? 'resource' : sprite(dress.race, kind);
-  const { frame, view } = portraitFrame(kind);
-  const m = model(name, dress, view, frame);
-  s.scene.add(m);
-  // Frame the model: fit its bounding sphere into the view.
-  const sphere = new THREE.Box3().setFromObject(m).getBoundingSphere(new THREE.Sphere());
-  s.camera.fov = 30;
+  s.scene.add(o);
+  s.camera.fov = fov;
   s.camera.aspect = 1;
-  const dist = (sphere.radius / Math.sin((s.camera.fov * Math.PI) / 360)) * 0.8;
-  s.camera.position.set(sphere.center.x + dist * 0.35, sphere.center.y + dist * 0.5, sphere.center.z + dist * 0.8);
-  s.camera.lookAt(sphere.center);
+  s.camera.position.copy(from);
+  s.camera.lookAt(at);
   s.camera.updateProjectionMatrix();
   s.render(0);
-  const url = portraitCanvas.toDataURL('image/png');
-  portraits.set(id, url);
-  return url;
+  return portraitCanvas.toDataURL('image/png');
+}
+
+const rampMaterials = new Map<string, THREE.ShaderMaterial>();
+
+/**
+ * A material with its own ramp (dark to light) for what the art catalog has no material for, such as skin; or, with
+ * a catalog name, that material in a side's colours.
+ */
+export function paint(ramp: readonly string[] | MaterialName, dress: Dress, emissive = false): THREE.ShaderMaterial {
+  if (typeof ramp === 'string') return material(ramp, dress);
+  const id = `${ramp.join()}/${emissive}`;
+  let m = rampMaterials.get(id);
+  if (m) return m;
+  const colors = hexes(ramp);
+  m = new THREE.ShaderMaterial({
+    vertexShader: VERTEX,
+    fragmentShader: FRAGMENT,
+    uniforms: {
+      ramp: { value: rampTexture(colors) },
+      steps: { value: colors.length },
+      shift: { value: 0 },
+      emissive: { value: emissive ? 1 : 0 },
+      flicker: { value: 0 },
+      sun: { value: SUN },
+    },
+  });
+  rampMaterials.set(id, m);
+  return m;
 }

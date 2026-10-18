@@ -9,6 +9,7 @@ import { CURSOR_KINDS, cursorCss, cursorImage, SCROLL_DIRS, type CursorKind } fr
 import { flagHtml } from '../ui/flags';
 import { Marks, markOptions, type SelectionStyle } from '../ui/marks';
 import { battleScene, outcomeScene, portrait, type Dress, type PixelScene } from '../ui/scene3d';
+import { face, type Speaker } from '../ui/faces';
 import { groundPiece, loadArt, ART_PX_PER_CELL } from '../assets';
 import { t } from '../text';
 
@@ -67,9 +68,32 @@ function section(id: string, title: string, note: string): HTMLElement {
   s.className = 'frame';
   s.innerHTML = `<h2>${title}</h2><p class="note">${note}</p><div class="controls"></div><div class="body"></div>`;
   $('#studio').append(s);
-  $('#toc').insertAdjacentHTML('beforeend', `<a href="#${id}">${title}</a>`);
   return s;
 }
+
+/**
+ * The race and colours a section draws, as switches in that section's own controls: your side, and the other side
+ * where the section shows both. They are shared by every tab.
+ */
+function dressBar(s: HTMLElement, foe: boolean): void {
+  const bar = document.createElement('div');
+  bar.className = 'dress';
+  bar.append(
+    toggles(foe ? 'Ви' : 'Раса', RACES, state.own.race, (r) => RACE_UA[r], (r) => ((state.own = { ...state.own, race: r }), dressChanged())),
+    colorSelect('Колір', state.own.color, (c) => ((state.own = { ...state.own, color: c }), dressChanged())),
+    colorSelect('Другий', state.own.color2, (c) => ((state.own = { ...state.own, color2: c }), dressChanged())),
+  );
+  if (foe)
+    bar.append(
+      toggles('Ворог', RACES, state.foe.race, (r) => RACE_UA[r], (r) => ((state.foe = { ...state.foe, race: r }), dressChanged())),
+      colorSelect('Колір ворога', state.foe.color, (c) => ((state.foe = { ...state.foe, color: c }), dressChanged())),
+    );
+  $('.controls', s).prepend(bar);
+}
+
+/** Work to undo when the tab closes: WebGL contexts, live scenes, sounds. */
+const leaving: Array<() => void> = [];
+const onLeave = (f: () => void) => leaving.push(f);
 
 const listeners: Array<() => void> = [];
 const onDress = (f: () => void) => listeners.push(f);
@@ -84,11 +108,6 @@ function dressChanged(): void {
 function header(): void {
   const h = $('#top');
   h.append(
-    toggles('Раса', RACES, state.own.race, (r) => RACE_UA[r], (r) => ((state.own = { ...state.own, race: r }), dressChanged())),
-    colorSelect('Колір', state.own.color, (c) => ((state.own = { ...state.own, color: c }), dressChanged())),
-    colorSelect('Другий', state.own.color2, (c) => ((state.own = { ...state.own, color2: c }), dressChanged())),
-    toggles('Ворог', RACES, state.foe.race, (r) => RACE_UA[r], (r) => ((state.foe = { ...state.foe, race: r }), dressChanged())),
-    colorSelect('Колір ворога', state.foe.color, (c) => ((state.foe = { ...state.foe, color: c }), dressChanged())),
     toggles('Піксель шрифту', ['2', '3'], String(state.k), (v) => `×${v}`, (v) => {
       state.k = Number(v);
       document.documentElement.style.setProperty('--k', v);
@@ -100,7 +119,8 @@ function header(): void {
 }
 
 function game(): void {
-  const s = section('game', 'Гра наживо', 'Справжня збірка гри з усім інтерфейсом 1.1. Раса й кольори зверху передаються в скірміш. Клавіші: Q W E R T, A S D F G, X стоп.');
+  const s = section('game', 'Гра наживо', 'Справжня збірка гри з усім інтерфейсом 1.1. Раси й кольори тут передаються в скірміш. Клавіші: Q W E R T, A S D F G, X стоп.');
+  dressBar(s, true);
   const frame = document.createElement('iframe');
   frame.className = 'game';
   const go = (v: string) => {
@@ -169,6 +189,7 @@ function font(): void {
 function skins(): void {
   const s = section('skins', 'Рамки й кнопки рас', 'Хюмани: клепані сталеві плити. Ховери: скошене скло зі світінням. Ходуни: жива мембрана з шипами. Колір рамки береться з командного кольору, мітки з другого.');
   const states: ButtonState[] = ['normal', 'hover', 'down', 'on', 'primary', 'disabled'];
+  dressBar(s, false);
   const UA: Record<ButtonState, string> = { normal: 'Звичайна', hover: 'Наведення', down: 'Натиснута', on: 'Вибрана', primary: 'Головна', disabled: 'Вимкнена' };
   const draw = () => {
     const body = $('.body', s);
@@ -190,6 +211,7 @@ function skins(): void {
 
 function levels(): void {
   const s = section('levels', 'Складність і суперник', 'Черепи замість слів: класика ★, легко ☠, нормально ☠☠, важко ☠☠☠, удвох ⚔.');
+  dressBar(s, false);
   const draw = () => {
     const T = t();
     $('.body', s).innerHTML = `<div class="buttons">${(['classic', 'easy', 'normal', 'hard'] as const)
@@ -202,6 +224,7 @@ function levels(): void {
 
 function cursors(): void {
   const s = section('cursors', 'Курсори', 'Наведіть мишу на плитку, щоб спробувати курсор наживо. Гра сама вибирає: свій юніт → вибір, ворог → атака, кристали → збір, ліс чи край мапи → не можна, край екрана → стрілка прокрутки.');
+  dressBar(s, false);
   const UA: Record<CursorKind, string> = { normal: 'Звичайний', select: 'Вибір', move: 'Рух', attack: 'Атака', harvest: 'Збір', forbidden: 'Не можна', scroll: 'Прокрутка' };
   const draw = () => {
     const { race, color } = state.own;
@@ -226,8 +249,13 @@ function flags(): void {
 
 async function marks(): Promise<void> {
   const s = section('marks', 'Виділення й смужки', 'Рамка виділення по сітці спрайтів з темним контуром, як у самих спрайтів, або еліпс на землі. Сегментна смужка міцності зеленіє, жовтіє, червоніє; під нею тонка смужка будівництва, виробництва чи вантажу. Пунктир показує дальність зброї свого юніта.');
+  dressBar(s, true);
   const app = new Application();
   await app.init({ width: 8 * CELL, height: 5 * CELL, background: 0x14110c, antialias: false, resolution: 1 });
+  onLeave(() => app.destroy(true, { children: true }));
+  // Recolouring the atlas is heavy: once per pair of colours.
+  const arts = new Map<string, ReturnType<typeof loadArt>>();
+  const artFor = (key: string, make: () => ReturnType<typeof loadArt>) => arts.get(key) ?? (arts.set(key, make()), arts.get(key)!);
   app.canvas.className = 'marks';
   $('.body', s).append(app.canvas);
   const zoom = { v: 4 };
@@ -238,7 +266,9 @@ async function marks(): Promise<void> {
   const fake = (type: number, team: string, x: number, y: number, size: number, extra: Partial<Entity> = {}) =>
     ({ id: 1, type, team, x, y, size, hp: 100, maxHp: 100, dir: 3, complete: true, buildElapsedMs: 0, buildTotalMs: 0, job: null, cargo: 0, ...extra }) as unknown as Entity;
   const draw = async () => {
-    const art = await loadArt([[state.own.color, state.own.color2], [state.foe.color, state.foe.color2]]);
+    const key = [state.own.color, state.own.color2, state.foe.color, state.foe.color2].join();
+    const art = await artFor(key, () => loadArt([[state.own.color, state.own.color2], [state.foe.color, state.foe.color2]]));
+    if (app.renderer === null) return;
     world.removeChildren();
     app.renderer.resize(8 * CELL * zoom.v, 5 * CELL * zoom.v);
     world.scale.set(zoom.v);
@@ -288,22 +318,29 @@ async function marks(): Promise<void> {
 }
 
 function portraits(): void {
-  const s = section('portraits', 'Портрети', 'Наживо рендеряться з тих самих 3D-моделей у низькій роздільності з палітрою рас. Видно на панелі вибору й на кнопках будівництва.');
-  const size = { v: 40 };
+  const s = section('portraits', 'Портрети', 'Обличчя на панелі вибору, як у StarCraft: кожен юніт показує свого пілота, кожна будівля радника бази. Хюмани: колоністи в шоломах, база говорить через робота-адʼютанта. Ходуни: рій із хітиновими пілотами, над базою володар. Ховери: машини без екіпажу, кожним корпусом керує власне ядро-дрон, база одна ЕОМ з оком на екрані. Нижче моделі, з яких рендеряться кнопки будівництва.');
+  dressBar(s, true);
+  const size = { v: 64 };
+  const WHO: Record<Speaker, string> = { harvester: 'Комбайн', light_tank: 'Легкий', middle_tank: 'Середній', heavy_tank: 'Важкий', advisor: 'Радник бази' };
   const draw = () => {
-    $('.body', s).innerHTML = [state.own, state.foe]
-      .map((d) => `<div class="tiles">${KINDS.map((k) => `<figure><img class="portrait" src="${portrait(d, k, size.v)}"><figcaption>${KIND_UA[k]}</figcaption></figure>`).join('')}</div>`)
-      .join('');
+    const people = (d: Dress) =>
+      `<div class="tiles faces">${(Object.keys(WHO) as Speaker[]).map((w) => `<figure><img class="portrait" src="${face(d, w, size.v)}"><figcaption>${WHO[w]}</figcaption></figure>`).join('')}</div>`;
+    const models = (d: Dress) =>
+      `<div class="tiles">${KINDS.map((k) => `<figure><img class="portrait small" src="${portrait(d, k, size.v)}"><figcaption>${KIND_UA[k]}</figcaption></figure>`).join('')}</div>`;
+    $('.body', s).innerHTML = `<h3>Персонажі: ${RACE_UA[state.own.race]}</h3>${people(state.own)}<h3>Персонажі: ${RACE_UA[state.foe.race]}</h3>${people(state.foe)}
+      <h3>Моделі</h3>${models(state.own)}${models(state.foe)}`;
   };
-  $('.controls', s).append(toggles('Роздільність', ['32', '40', '64'], '40', (v) => `${v} px`, (v) => ((size.v = Number(v)), draw())));
+  $('.controls', s).append(toggles('Роздільність', ['32', '48', '64'], '64', (v) => `${v} px`, (v) => ((size.v = Number(v)), draw())));
   onDress(draw);
   draw();
 }
 
 function scenes(): void {
-  const s = section('scenes', 'Сцени перемоги, поразки й меню', 'Живий низькополігональний 3D у низькій роздільності, з землею мапи. Перемога: колона ваших танків, штаб ворога горить. Поразка: ваш штаб у руїнах, довкола ворожі танки. Меню: бій двох рас.');
+  const s = section('scenes', 'Сцени перемоги, поразки й меню', 'Живий низькополігональний 3D у низькій роздільності, з землею мапи. Перемога: ваша армія стоїть перед палаючим штабом ворога. Поразка: ваш штаб у руїнах, довкола ворожі танки. Меню: бій двох рас. Ялинки виходять за обрій, у лісі земля оливкова.');
+  dressBar(s, true);
   const opts = { scene: 'won', ground: 'sand' as 'sand' | 'plates' | 'forest', forest: true, res: 480 };
   let live: PixelScene | null = null;
+  onLeave(() => live?.dispose());
   const canvas = document.createElement('canvas');
   canvas.className = 'scene';
   $('.body', s).append(canvas);
@@ -340,6 +377,7 @@ function sound(): void {
   const play = (src: string, loop = false) => {
     playing?.pause();
     playing = new Audio(src);
+    onLeave(() => playing?.pause());
     playing.loop = loop;
     void playing.play();
   };
@@ -413,23 +451,46 @@ function graphics(): void {
   wireCompare(s);
 }
 
+/** One tab per part of the interface; only the open one is built, so the page never holds more than one 3D view. */
+const TABS: Array<[id: string, title: string, build: () => void | Promise<void>]> = [
+  ['game', 'Гра наживо', game],
+  ['font', 'Шрифт', font],
+  ['skins', 'Рамки й кнопки', skins],
+  ['levels', 'Складність', levels],
+  ['cursors', 'Курсори', cursors],
+  ['flags', 'Прапорці', flags],
+  ['marks', 'Виділення й смужки', marks],
+  ['portraits', 'Портрети', portraits],
+  ['scenes', 'Сцени', scenes],
+  ['sound', 'Звук 1.1', sound],
+  ['gameplay', 'Геймплей 1.1', gameplay],
+  ['graphics', 'Графіка мапи 1.1', graphics],
+];
+
+async function openTab(id: string): Promise<void> {
+  for (const f of leaving.splice(0)) f();
+  listeners.length = 0;
+  $('#studio').replaceChildren();
+  const tab = TABS.find(([t]) => t === id) ?? TABS[0]!;
+  $$('#toc a').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab[0]));
+  history.replaceState(null, '', `#${tab[0]}`);
+  document.body.dataset.ready = 'false';
+  await tab[2]();
+  document.body.dataset.ready = 'true';
+}
+
 async function main(): Promise<void> {
   await loadFonts();
   document.documentElement.style.setProperty('--k', String(state.k));
   header();
-  game();
-  font();
-  skins();
-  levels();
-  cursors();
-  flags();
-  portraits();
-  scenes();
-  sound();
-  gameplay();
-  graphics();
-  dressChanged();
-  await marks();
-  document.body.dataset.ready = 'true';
+  $('#toc').innerHTML = TABS.map(([id, title]) => `<a href="#${id}" data-tab="${id}">${title}</a>`).join('');
+  $('#toc').addEventListener('click', (ev) => {
+    const a = (ev.target as HTMLElement).closest<HTMLAnchorElement>('a[data-tab]');
+    if (!a) return;
+    ev.preventDefault();
+    void openTab(a.dataset.tab!);
+  });
+  applySkin(document.body, skin(state.own.race, state.own.color, state.own.color2));
+  await openTab(location.hash.slice(1));
 }
 void main();
