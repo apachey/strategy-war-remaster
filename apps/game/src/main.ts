@@ -157,7 +157,10 @@ async function start(): Promise<void> {
 
   // Sound ----------------------------------------------------------------------------------------------------------
   const soundscape = new Soundscape(sound, game, views);
-  for (const c of game.commanders) c.onSound = (name) => sound.play(name, { gain: name === 'select' || name === 'order' ? 0.7 : 1, pan: 0 });
+  for (const c of game.commanders) {
+    c.onSound = (name) => sound.play(name, { gain: name === 'select' || name === 'order' ? 0.7 : 1, pan: 0 });
+    c.onOrder = (ids, action) => soundscape.acknowledge(c.side, ids, action);
+  }
   document.addEventListener('click', (ev) => {
     const b = (ev.target as HTMLElement).closest('button');
     if (b && !b.disabled) sound.play('click', { gain: 0.8, pan: 0 });
@@ -380,6 +383,7 @@ async function start(): Promise<void> {
     const alpha = running ? tickAlpha(acc) : 1;
     for (const v of views) {
       const mouse = v === v1 && mouseScreen && v1.contains(mouseScreen.x, mouseScreen.y) ? v1.toWorld(mouseScreen.x, mouseScreen.y) : null;
+      v.animate(tk.deltaMS);
       v.renderer.draw(alpha, tk.deltaMS, mouse, (v === v1 ? drag : null) ?? pads.dragFor(v));
     }
     hud.update();

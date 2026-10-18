@@ -72,6 +72,12 @@ export const MATERIAL_NAMES = Object.keys(MATERIALS) as MaterialName[];
 /** Id written into the material pass for each material; 0 is empty, GROUND marks the shadow-catching floor. */
 export const materialId = (name: MaterialName): number => MATERIAL_NAMES.indexOf(name) + 1;
 export const GROUND_ID = 255;
+/**
+ * Id of `ghost` meshes: geometry that is really part of a neighbour (the next wall's arm, the hull under a turret).
+ * It hides what is behind it and stops the outline, so pieces drawn side by side in the game join without a seam,
+ * but it is never drawn itself. Builders mark such meshes with `userData.ghost`.
+ */
+export const GHOST_ID = 254;
 
 export const materialById = (id: number): MaterialDef | undefined => {
   const name = MATERIAL_NAMES[id - 1];

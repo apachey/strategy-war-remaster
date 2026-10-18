@@ -1,7 +1,8 @@
 import { Container, Graphics, Sprite, type Spritesheet, type Texture } from 'pixi.js';
-import { CELL, ObjectType, spriteName, TEAM_COLORS, type Race } from '@sw/data';
+import { CELL, ObjectType, spriteName, TEAM_COLORS, wallMask, type Race } from '@sw/data';
 import { isUnit, TICK_MS, UNIT_RULES, BUILDING_RULES, type Entity, type GameEvent, type Side, type UnitType, type BuildingType, type World } from '@sw/sim';
 import { ART_PX_PER_CELL, groundPiece, type Art } from './assets';
+import { Fog } from './fog';
 import type { Commander } from './game';
 
 /** Map pixels per art pixel: the sprites are drawn at 32 px per 15 px cell. */
@@ -10,7 +11,6 @@ const ART = CELL / ART_PX_PER_CELL;
 const DIRS = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] as const;
 
 const C = {
-  shroud: 0x0b0a08,
   select: 0x9dff7a,
   field: 0xf0c43a,
   hpGood: 0x6ee06e,
@@ -24,16 +24,35 @@ const FIRE_MS = 160;
 const MOVE_HOLD_MS = 260;
 const WRECK_MS = 12_000;
 const SCORCH_MS = 25_000;
+/** Track marks: one every this many map pixels driven, swept away by the wind over MARK_MS; at most MAX_MARKS lie about. */
+const MARK_STEP = 6;
+const MARK_MS = 20_000;
+const MAX_MARKS = 800;
+/** How often the fog is recomputed, and the ambient life of the map spawns. */
+const FOG_MS = 100;
+const GLINT_MS = 260;
+const WISP_MS = 340;
+
+/** Unit and building kinds whose gun turns on a turret of its own (sprites `<race>_<kind>_turret`). */
+const TURRETED = new Set<number>([ObjectType.LightTank, ObjectType.MiddleTank, ObjectType.HeavyTank, ObjectType.Defender]);
+
+/** Decor scattered over open sand (`decor/idle/<variant>`), weighted: pebbles and plants often, bones and craters rarely. */
+const DECOR_WEIGHTS = [3, 2, 2, 1, 1, 1, 2, 1];
+/** Share of open sand cells, in thousandths, that get a piece of decor. */
+const DECOR_DENSITY = 55;
 
 interface Effect {
-  x: number;
-  y: number;
-  r: number;
+  sprite: Sprite;
+  frames: Texture[];
+  frameMs: number;
   life: number;
-  max: number;
-  kind: 'blast' | 'spark' | 'smoke';
-  /** Smoke drifts up and sideways. */
+  /** Waits this long before it shows. */
+  delay: number;
+  /** Drift in map pixels per ms. */
   vx: number;
+  vy: number;
+  /** Lasts this long when it has one frame (a wisp of sand), fading in and out. */
+  hold?: number;
 }
 
 interface Decal {
@@ -53,6 +72,16 @@ function hash(n: number): number {
 function dirOf(dx: number, dy: number): number {
   const a = Math.atan2(dx, -dy);
   return (Math.round(a / (Math.PI / 4)) + 8) % 8;
+}
+
+/** Where a turret looks: its own facing once the sim gives turrets one, else the hull's. */
+const turretDir = (e: Entity): number => (e as Entity & { turretDir?: number }).turretDir ?? e.dir;
+
+/** The marks a unit leaves on the sand: tracks, the light tank's wheels, walkers' feet; hovers leave none. */
+function markKind(race: Race, type: number): 'tread' | 'wheel' | 'foot' | null {
+  if (race === 'hover') return null;
+  if (race === 'walker') return 'foot';
+  return type === ObjectType.LightTank ? 'wheel' : 'tread';
 }
 
 /**
@@ -84,28 +113,44 @@ export function platedCells(world: World): Uint8Array {
 export class Renderer {
   readonly camera = new Container();
   private readonly ground = new Container();
+  /** Flat things on the ground, bottom to top: decor, track marks, scorch marks and wrecks. */
+  private readonly decor = new Container();
+  private readonly marks = new Container();
   private readonly decals = new Container();
   private readonly objects = new Container({ sortableChildren: true });
   private readonly shots = new Container();
-  private readonly fx = new Graphics();
+  private readonly fx = new Container();
   private readonly overlay = new Graphics();
-  private readonly shroud = new Graphics();
+  private readonly fog: Fog;
   private readonly ui = new Graphics();
   private readonly ghost = new Sprite();
   private readonly sprites = new Map<number, Sprite>();
+  private readonly turrets = new Map<number, Sprite>();
+  /** Flames on buildings below a quarter of their life. */
+  private readonly flames = new Map<number, Sprite[]>();
+  private readonly smokeAt = new Map<number, number>();
   private readonly shotSprites: Sprite[] = [];
   private effects: Effect[] = [];
   private decalList: Decal[] = [];
+  private markList: { sprite: Sprite; life: number }[] = [];
+  private readonly lastMark = new Map<number, { x: number; y: number; n: number }>();
   private exploredCount = -1;
+  private fogAt = -1e9;
+  private glintAt = 0;
+  private wispAt = 0;
   /** Positions at the previous tick, for smooth movement between 20 Hz sim steps. */
   private prev = new Map<number, { x: number; y: number }>();
+  /** Shells in flight before the step, to tell whose shot a hit was. */
+  private prevShots: { x: number; y: number; team: Side }[] = [];
   private readonly lastMoved = new Map<number, number>();
   private readonly firedAt = new Map<number, number>();
   private readonly lastDir = new Map<number, number>();
   private clock = 0;
   private readonly plated: Uint8Array;
   /** Firs by the cell they grow in: hidden until the cell is seen, as they would poke out of the dark. */
-  private readonly firs: Array<{ sprite: Sprite; cell: number }> = [];
+  private readonly firs: Array<{ sprite: Sprite; cell: number; variant: number; phase: number; frame: string }> = [];
+  /** Effect animations by name (`blast/big` = its frames in order). */
+  private readonly fxFrames = new Map<string, Texture[]>();
 
   /** Draws the world as one person sees it: their fog, their selection, their cursor. */
   constructor(
@@ -113,11 +158,22 @@ export class Renderer {
     private readonly art: Art,
   ) {
     this.plated = platedCells(game.world);
+    this.fog = new Fog(game.world, game.side);
     this.ghost.visible = false;
-    this.camera.addChild(this.ground, this.decals, this.objects, this.shots, this.fx, this.overlay, this.shroud, this.ui);
+    this.camera.addChild(this.ground, this.decor, this.marks, this.decals, this.objects, this.shots, this.fx, this.overlay, this.fog.sprite, this.ui);
     this.objects.addChild(this.ghost);
     this.ghost.zIndex = 1e9;
+    const names = Object.keys(art.effects.textures).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+    for (const name of names) {
+      const cut = name.lastIndexOf('/');
+      const key = name.slice(0, cut);
+      if (!this.fxFrames.has(key)) this.fxFrames.set(key, []);
+      this.fxFrames.get(key)!.push(art.effects.textures[name]!);
+    }
     this.drawGround();
+    // The ground never changes: bake its tiles into one texture at art resolution, one texel per art pixel. Drawn as
+    // hundreds of separate quads, their edges could show thin seams at fractional zoom or scroll on some GPUs.
+    this.ground.cacheAsTexture({ resolution: ART_PX_PER_CELL / CELL, antialias: false, scaleMode: 'nearest' });
   }
 
   private sheetOf(team: Side | 'neutral'): Spritesheet {
@@ -141,36 +197,89 @@ export class Renderer {
   beforeStep(): void {
     this.prev.clear();
     for (const e of this.game.world.entities) this.prev.set(e.id, { x: e.x, y: e.y });
+    this.prevShots = this.game.world.projectiles.map((p) => ({ x: p.x + p.vx, y: p.y + p.vy, team: p.team }));
   }
 
   /** Call right after every sim step: notes who moved and fired, and turns sim events into effects. */
   afterStep(events: GameEvent[]): void {
-    for (const e of this.game.world.entities) {
+    const world = this.game.world;
+    for (const e of world.entities) {
       const p = this.prev.get(e.id);
-      if (p && (p.x !== e.x || p.y !== e.y)) this.lastMoved.set(e.id, this.clock);
+      if (p && (p.x !== e.x || p.y !== e.y)) {
+        this.lastMoved.set(e.id, this.clock);
+        if (isUnit(e.type) && e.team !== 'neutral' && !e.hidden) this.leaveMark(e);
+      }
     }
     for (const ev of events) {
       if (ev.kind === 'shot') this.firedAt.set(ev.id, this.clock);
-      if (ev.kind === 'hit') this.burst(ev.x, ev.y, ev.weapon === 'cannon' ? 5 : 3, 'spark');
+      if (ev.kind === 'hit') this.hit(ev.x, ev.y, ev.weapon);
       if (ev.kind === 'destroyed') this.destroyed(ev);
     }
   }
 
-  private burst(x: number, y: number, r: number, kind: Effect['kind'], max = kind === 'spark' ? 220 : 650, vx = 0): void {
-    this.effects.push({ x, y, r, life: 0, max, kind, vx });
+  /** Starts an effect animation (`blast/small`, `smoke`...) centred on a map point. */
+  private play(name: string, x: number, y: number, frameMs: number, opts: { delay?: number; vx?: number; vy?: number; hold?: number; scale?: number } = {}): void {
+    const frames = this.fxFrames.get(name);
+    if (!frames) return;
+    const s = new Sprite(frames[0]!);
+    s.anchor.copyFrom(frames[0]!.defaultAnchor ?? { x: 0.5, y: 0.5 });
+    s.scale.set(ART * (opts.scale ?? 1));
+    s.position.set(x, y);
+    s.visible = !opts.delay;
+    this.fx.addChild(s);
+    this.effects.push({ sprite: s, frames, frameMs, life: 0, delay: opts.delay ?? 0, vx: opts.vx ?? 0, vy: opts.vy ?? 0, hold: opts.hold });
+  }
+
+  /** A shell striking: sparks for the humans' slugs, a ring of plasma for the hovers, a splash of acid for the walkers. */
+  private hit(x: number, y: number, weapon: 'gun' | 'cannon'): void {
+    if (!this.visibleCell(x, y)) return;
+    let race: Race = 'human';
+    let best = Infinity;
+    for (const p of this.prevShots) {
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < best) {
+        best = d;
+        race = this.game.world.sides[p.team].race;
+      }
+    }
+    const big = weapon === 'cannon' ? 1.25 : 0.9;
+    if (race === 'hover') this.play('plasma', x, y, 55, { scale: big });
+    else if (race === 'walker') this.play('acid', x, y, 60, { scale: big });
+    else this.play('spark', x, y, 50, { scale: big });
+    if (weapon === 'cannon') this.play('dust', x, y + 1, 70, { delay: 60, vy: -0.002 });
   }
 
   private destroyed(ev: Extract<GameEvent, { kind: 'destroyed' }>): void {
     const cx = ev.x + ev.size / 2;
     const cy = ev.y + ev.size / 2;
+    if (!this.visibleCell(cx, cy)) return;
+    if (ev.type === ObjectType.ResourceField) {
+      this.play('dust', cx, cy, 90, { scale: 1.5 });
+      return;
+    }
     const seed = hash(ev.id);
     const big = ev.size > CELL;
-    this.burst(cx, cy, ev.size * 0.75, 'blast', big ? 900 : 650);
-    for (let i = 0; i < (big ? 6 : 3); i++) {
+    if (big) {
+      this.play('blast/big', cx, cy - 2, 85);
+      for (let i = 0; i < 3; i++) {
+        const h = hash(seed + i * 7);
+        this.play('blast/small', cx + ((h % 17) - 8), cy + (((h >>> 8) % 13) - 6), 70, { delay: 120 + i * 140 });
+      }
+    } else this.play(ev.type === ObjectType.Wall ? 'dust' : 'blast/small', cx, cy - 1, 75, { scale: ev.type === ObjectType.Wall ? 1.6 : 1 });
+    for (let i = 0; i < (big ? 5 : 2); i++) {
       const h = hash(seed + i);
-      this.burst(cx + ((h % 13) - 6) * (big ? 1.4 : 0.7), cy + (((h >>> 8) % 9) - 4), 3 + (h % 4), 'smoke', 1800 + (h % 900), ((h >>> 4) % 5) / 900);
+      this.play('smoke', cx + ((h % 13) - 6) * (big ? 1.4 : 0.7), cy - 3 + (((h >>> 8) % 9) - 4), 260 + (h % 120), {
+        delay: 250 + i * 160,
+        vx: 0.0015 + ((h >>> 4) % 5) / 3000,
+        vy: -0.004,
+      });
     }
-    if (ev.type === ObjectType.ResourceField || !this.visibleCell(cx, cy)) return;
+    const scorch = new Sprite(this.art.effects.textures[big ? 'scorch/big' : 'scorch/small']!);
+    scorch.anchor.set(0.5);
+    scorch.scale.set(ART);
+    scorch.position.set(cx, cy + 1);
+    this.decals.addChild(scorch);
+    this.decalList.push({ node: scorch, life: 0, max: SCORCH_MS });
     if (isUnit(ev.type) && ev.team !== 'neutral') {
       const race = this.game.world.sides[ev.team].race;
       const dir = DIRS[this.lastDir.get(ev.id) ?? ev.dir]!;
@@ -178,15 +287,30 @@ export class Renderer {
       wreck.position.set(cx, cy);
       this.decals.addChild(wreck);
       this.decalList.push({ node: wreck, life: 0, max: WRECK_MS });
-    } else {
-      // A building leaves a scorched patch of ground.
-      const g = new Graphics();
-      const r = ev.size * 0.55;
-      g.ellipse(cx, cy + 1, r * 1.15, r * 0.8).fill({ color: 0x1a120a, alpha: 0.55 });
-      g.ellipse(cx - r * 0.2, cy, r * 0.6, r * 0.42).fill({ color: 0x0a0806, alpha: 0.5 });
-      this.decals.addChild(g);
-      this.decalList.push({ node: g, life: 0, max: SCORCH_MS });
     }
+  }
+
+  /** Stamps the unit's marks on the sand every few pixels it drives, now and then with a puff of dust. */
+  private leaveMark(e: Entity): void {
+    const kind = markKind(this.game.world.sides[e.team as Side].race, e.type);
+    const cx = e.x + e.size / 2;
+    const cy = e.y + e.size / 2;
+    const last = this.lastMark.get(e.id);
+    if (last && Math.hypot(cx - last.x, cy - last.y) < MARK_STEP) return;
+    const n = (last?.n ?? 0) + 1;
+    this.lastMark.set(e.id, { x: cx, y: cy, n });
+    if (!kind || !last) return;
+    const w = this.game.world;
+    const cell = Math.floor(cy / CELL) * w.cols + Math.floor(cx / CELL);
+    if (this.plated[cell] || !this.visibleCell(cx, cy)) return;
+    const s = new Sprite(this.art.effects.textures[`track/${kind}/${DIRS[e.dir]}`]!);
+    s.anchor.set(0.5);
+    s.scale.set(ART);
+    s.position.set((cx + last.x) / 2, (cy + last.y) / 2);
+    this.marks.addChild(s);
+    this.markList.push({ sprite: s, life: 0 });
+    if (this.markList.length > MAX_MARKS) this.markList.shift()!.sprite.destroy();
+    if (kind !== 'foot' && hash(e.id * 31 + n) % 4 === 0) this.play('dust', last.x, last.y + 2, 80, { vy: -0.002 });
   }
 
   private visibleCell(x: number, y: number): boolean {
@@ -194,20 +318,40 @@ export class Renderer {
     return w.sides[this.game.side].explored[Math.floor(y / CELL) * w.cols + Math.floor(x / CELL)] === 1;
   }
 
-  /** Sand everywhere, the hovers' plates around their base, forest floor with firs in the forest. */
+  /**
+   * Sand everywhere with odds and ends lying on it, the hovers' plates around their base, forest floor with firs in
+   * the forest and its fringe of tufts spilling onto the sand around it.
+   */
   private drawGround(): void {
     const w = this.game.world;
     const terrain = this.art.terrain;
-    const blocked = (cx: number, cy: number) => cx < 0 || cy < 0 || cx >= w.cols || cy >= w.rows || w.blocked[cy * w.cols + cx] === 1;
-    const plated = (cx: number, cy: number) => cx >= 0 && cy >= 0 && cx < w.cols && cy < w.rows && this.plated[cy * w.cols + cx] === 1;
+    const inMap = (cx: number, cy: number) => cx >= 0 && cy >= 0 && cx < w.cols && cy < w.rows;
+    const blocked = (cx: number, cy: number) => !inMap(cx, cy) || w.blocked[cy * w.cols + cx] === 1;
+    const forest = (cx: number, cy: number) => inMap(cx, cy) && w.blocked[cy * w.cols + cx] === 1;
+    const plated = (cx: number, cy: number) => inMap(cx, cy) && this.plated[cy * w.cols + cx] === 1;
     const mask = (test: (cx: number, cy: number) => boolean, cx: number, cy: number) =>
       (test(cx, cy - 1) ? 1 : 0) | (test(cx + 1, cy) ? 2 : 0) | (test(cx, cy + 1) ? 4 : 0) | (test(cx - 1, cy) ? 8 : 0);
+    const corners = (test: (cx: number, cy: number) => boolean, cx: number, cy: number) =>
+      (test(cx + 1, cy - 1) ? 16 : 0) | (test(cx + 1, cy + 1) ? 32 : 0) | (test(cx - 1, cy + 1) ? 64 : 0) | (test(cx - 1, cy - 1) ? 128 : 0);
     const put = (texture: Texture, cx: number, cy: number) => {
       const s = new Sprite(texture);
       s.scale.set(ART);
       s.position.set(cx * CELL, cy * CELL);
       this.ground.addChild(s);
     };
+    // Cells under fields and buildings stay clear of decor.
+    const taken = new Uint8Array(w.cols * w.rows);
+    for (const e of w.entities) {
+      if (isUnit(e.type)) continue;
+      const n = Math.max(1, e.size / CELL);
+      for (let dy = -1; dy <= n; dy++)
+        for (let dx = -1; dx <= n; dx++) {
+          const x = Math.floor(e.x / CELL) + dx;
+          const y = Math.floor(e.y / CELL) + dy;
+          if (inMap(x, y)) taken[y * w.cols + x] = 1;
+        }
+    }
+    const decorTotal = DECOR_WEIGHTS.reduce((a, b) => a + b, 0);
     for (let cy = 0; cy < w.rows; cy++)
       for (let cx = 0; cx < w.cols; cx++) {
         if (plated(cx, cy)) {
@@ -215,12 +359,23 @@ export class Renderer {
           continue;
         }
         put(groundPiece(terrain, 'sand', cx, cy), cx, cy);
+        const h = hash(cx * 7919 + cy * 104729 + 3);
         if (blocked(cx, cy)) {
-          put(terrain.textures[`forest/${mask(blocked, cx, cy)}`]!, cx, cy);
+          put(terrain.textures[`forest/${mask(blocked, cx, cy)}/${h % 4}`]!, cx, cy);
           this.plantFirs(cx, cy);
-        } else {
-          const m = mask(plated, cx, cy);
-          if (m) put(terrain.textures[`plate-edge/${m}`]!, cx, cy);
+          continue;
+        }
+        const fringe = terrain.textures[`forest-fringe/${mask(forest, cx, cy) | corners(forest, cx, cy)}`];
+        if (fringe) put(fringe, cx, cy);
+        const m = mask(plated, cx, cy);
+        if (m) put(terrain.textures[`plate-edge/${m}`]!, cx, cy);
+        else if (!taken[cy * w.cols + cx] && (h >>> 8) % 1000 < DECOR_DENSITY) {
+          let pick = (h >>> 18) % decorTotal;
+          let variant = 0;
+          while (pick >= DECOR_WEIGHTS[variant]!) pick -= DECOR_WEIGHTS[variant++]!;
+          const d = this.sprite(this.tex('neutral', `decor/idle/${variant}`));
+          d.position.set(cx * CELL + CELL / 2 + ((h >>> 3) % 7) - 3, cy * CELL + CELL / 2 + ((h >>> 5) % 5) - 2);
+          this.decor.addChild(d);
         }
       }
   }
@@ -231,14 +386,16 @@ export class Renderer {
     const count = 1 + (h % 3 === 0 ? 1 : 0);
     for (let i = 0; i < count; i++) {
       const k = hash(h + i * 31);
-      const fir = this.sprite(this.tex('neutral', `fir/idle/${k % 4}`));
+      const variant = k % 4;
+      const fir = this.sprite(this.tex('neutral', `fir/idle/${variant}`));
       const x = cx * CELL + CELL / 2 + ((k >>> 4) % 9) - 4 + (count === 2 ? (i ? 3 : -3) : 0);
       const y = cy * CELL + CELL / 2 + ((k >>> 8) % 7) - 3;
       fir.position.set(x, y);
       fir.zIndex = y;
       fir.visible = false;
       this.objects.addChild(fir);
-      this.firs.push({ sprite: fir, cell: cy * this.game.world.cols + cx });
+      // The wind reaches neighbouring trees a moment apart: the phase follows the position, plus a little noise.
+      this.firs.push({ sprite: fir, cell: cy * this.game.world.cols + cx, variant, phase: x * 0.045 + y * 0.02 + ((k >>> 12) % 100) / 60, frame: 'idle' });
     }
   }
 
@@ -249,8 +406,8 @@ export class Renderer {
     const selected = new Set(game.selection);
     this.overlay.clear();
     this.ui.clear();
-    this.fx.clear();
 
+    this.updateFog();
     const walls = this.wallCells();
     const seen = new Set<number>();
     for (const e of world.entities) {
@@ -258,26 +415,43 @@ export class Renderer {
       const p = this.prev.get(e.id);
       const x = p ? p.x + (e.x - p.x) * alpha : e.x;
       const y = p ? p.y + (e.y - p.y) * alpha : e.y;
+      // Enemy units show only while in sight; buildings stay remembered where they were seen.
+      if (isUnit(e.type) && e.team !== game.side && !this.fog.sees(x + e.size / 2, y + e.size / 2)) continue;
       seen.add(e.id);
       this.drawObject(e, x, y, walls);
+      if (!isUnit(e.type) && e.type !== ObjectType.ResourceField) this.burn(e, dtMs);
       if (selected.has(e.id)) this.drawSelection(e, x, y);
       const showHp = selected.has(e.id) || (e.hp < e.maxHp && e.type !== ObjectType.ResourceField);
       if (showHp) this.drawBars(e, x, y);
     }
     for (const [id, s] of this.sprites) {
       if (seen.has(id)) continue;
+      const turret = this.turrets.get(id);
       if (!world.byId.has(id)) {
         s.destroy();
+        turret?.destroy();
         this.sprites.delete(id);
+        this.turrets.delete(id);
         this.lastMoved.delete(id);
         this.firedAt.delete(id);
         this.lastDir.delete(id);
-      } else s.visible = false;
+        this.lastMark.delete(id);
+        this.smokeAt.delete(id);
+      } else {
+        s.visible = false;
+        if (turret) turret.visible = false;
+      }
+    }
+    for (const [id, list] of this.flames) {
+      if (seen.has(id) && world.byId.has(id)) continue;
+      for (const f of list) f.destroy();
+      this.flames.delete(id);
     }
 
     this.drawShots(alpha);
+    this.ambient();
     this.drawEffects(dtMs);
-    this.drawShroud();
+    this.swayFirs();
     const cursor = this.game.cursor;
     this.drawPlacement(cursor ?? mouse);
     if (cursor) this.drawCursor(cursor);
@@ -302,37 +476,36 @@ export class Renderer {
     return out;
   }
 
-  /** The sprite frame an object shows right now. */
-  private frameOf(e: Entity, race: Race, walls: Map<string, Set<number>>): { name: string; alpha: number } {
+  /** The sprite frame an object shows right now, and its turret's when it has one. */
+  private frameOf(e: Entity, race: Race, walls: Map<string, Set<number>>): { name: string; alpha: number; turret?: string } {
     const base = spriteName(race, e.type);
     const dir = DIRS[e.dir]!;
     const firing = this.clock - (this.firedAt.get(e.id) ?? -1e9) < FIRE_MS;
     const step = Math.floor(this.clock / 150) % 2;
+    const turret = TURRETED.has(e.type) ? `${base}_turret/${firing && e.complete ? 'fire' : 'idle'}/${DIRS[turretDir(e)]}` : undefined;
     if (e.type === ObjectType.ResourceField) {
       const cell = Math.floor((e.y + e.size / 2) / CELL) * this.game.world.cols + Math.floor((e.x + e.size / 2) / CELL);
       return { name: `resource/${this.plated[cell] ? 'plates' : 'idle'}`, alpha: 0.6 + 0.4 * Math.max(0, e.hp / e.maxHp) };
     }
     if (isUnit(e.type)) {
       const moving = this.clock - (this.lastMoved.get(e.id) ?? -1e9) < MOVE_HOLD_MS;
-      if (e.type === ObjectType.Harvester) {
-        if (e.phase === 'loading') return { name: `${base}/harvest${step}/${dir}`, alpha: 1 };
-        return { name: `${base}/move${moving ? step : 0}/${dir}`, alpha: 1 };
-      }
-      if (firing) return { name: `${base}/fire/${dir}`, alpha: 1 };
-      return { name: `${base}/move${moving ? step : 0}/${dir}`, alpha: 1 };
+      // Harvesting, the harvester stands still and only its cutter, beam or mandibles work.
+      if (e.type === ObjectType.Harvester && e.phase === 'loading') return { name: `${base}/harvest${Math.floor(this.clock / 120) % 4}/${dir}`, alpha: 1 };
+      return { name: `${base}/move${moving ? step : 0}/${dir}`, alpha: 1, turret };
     }
     if (e.type === ObjectType.Wall) {
       const w = this.game.world;
       const set = walls.get(e.team)!;
       const cx = Math.floor(e.x / CELL);
       const cy = Math.floor(e.y / CELL);
-      const has = (x: number, y: number) => x >= 0 && y >= 0 && x < w.cols && y < w.rows && set.has(y * w.cols + x);
-      const mask = (has(cx, cy - 1) ? 1 : 0) | (has(cx + 1, cy) ? 2 : 0) | (has(cx, cy + 1) ? 4 : 0) | (has(cx - 1, cy) ? 8 : 0);
+      const mask = wallMask((dx, dy) => {
+        const x = cx + dx;
+        const y = cy + dy;
+        return x >= 0 && y >= 0 && x < w.cols && y < w.rows && set.has(y * w.cols + x);
+      });
       return { name: `${base}/idle/${mask}`, alpha: 1 };
     }
-    if (e.type === ObjectType.Defender) {
-      return { name: `${base}/${firing && e.complete ? 'fire' : 'idle'}/${dir}`, alpha: e.complete ? 1 : 0.5 };
-    }
+    if (e.type === ObjectType.Defender) return { name: `${base}/idle`, alpha: e.complete ? 1 : 0.5, turret };
     if (!e.complete) return { name: `${race}_construction/idle`, alpha: 1 };
     if (e.type === ObjectType.PlayerHQ || e.type === ObjectType.EnemyHQ) return { name: `${base}/idle${Math.floor(this.clock / 260) % 4}`, alpha: 1 };
     if (e.type === ObjectType.TankFactory) return { name: `${base}/${e.job?.kind === 'produce' ? 'work' : 'idle'}`, alpha: 1 };
@@ -341,7 +514,7 @@ export class Renderer {
 
   private drawObject(e: Entity, x: number, y: number, walls: Map<string, Set<number>>): void {
     const race = e.team === 'neutral' ? 'human' : this.game.world.sides[e.team].race;
-    const { name, alpha } = this.frameOf(e, race, walls);
+    const { name, alpha, turret } = this.frameOf(e, race, walls);
     let s = this.sprites.get(e.id);
     const texture = this.tex(e.team, name);
     if (!s) {
@@ -357,6 +530,96 @@ export class Renderer {
     const z = e.type === ObjectType.ResourceField ? -1e6 + y : y + e.size;
     if (s.zIndex !== z) s.zIndex = z;
     this.lastDir.set(e.id, e.dir);
+    let t = this.turrets.get(e.id);
+    if (!turret) {
+      if (t) t.visible = false;
+      return;
+    }
+    const tt = this.tex(e.team, turret);
+    if (!t) {
+      t = this.sprite(tt);
+      this.turrets.set(e.id, t);
+      this.objects.addChild(t);
+    }
+    if (t.texture !== tt) t.texture = tt;
+    t.visible = true;
+    t.alpha = alpha;
+    t.position.copyFrom(s.position);
+    if (t.zIndex !== z + 0.5) t.zIndex = z + 0.5;
+  }
+
+  /** A building below half its life smokes, below a quarter it burns as well. */
+  private burn(e: Entity, dtMs: number): void {
+    const k = e.complete ? e.hp / e.maxHp : 1;
+    const big = e.size > CELL;
+    const flames = this.flames.get(e.id);
+    if (k >= 0.25 && flames) {
+      for (const f of flames) f.destroy();
+      this.flames.delete(e.id);
+    }
+    if (k >= 0.5) return;
+    const seed = hash(e.id * 13);
+    const spot = (i: number) => {
+      const h = hash(seed + i * 101);
+      return { x: e.x + e.size * (0.25 + ((h % 50) / 100)), y: e.y + e.size * (0.3 + (((h >>> 8) % 40) / 100)) };
+    };
+    const next = (this.smokeAt.get(e.id) ?? 0) - dtMs;
+    if (next <= 0) {
+      const p = spot(Math.floor(this.clock / 700) % (big ? 3 : 1));
+      this.play('smoke', p.x, p.y - (big ? 8 : 4), 230, { vx: 0.002, vy: -0.006, scale: big ? 1 : 0.7 });
+      this.smokeAt.set(e.id, (k < 0.25 ? 260 : 480) + (seed % 120));
+    } else this.smokeAt.set(e.id, next);
+    if (k >= 0.25) return;
+    let list = flames;
+    if (!list) {
+      list = [];
+      for (let i = 0; i < (big ? 2 : 1); i++) {
+        const p = spot(i);
+        const f = new Sprite(this.fxFrames.get('fire')![0]!);
+        f.anchor.copyFrom(f.texture.defaultAnchor ?? { x: 0.5, y: 1 });
+        f.scale.set(ART * (big ? 1 : 0.75));
+        f.position.set(p.x, p.y - (big ? 3 : 1));
+        f.zIndex = e.y + e.size + 0.6;
+        this.objects.addChild(f);
+        list.push(f);
+      }
+      this.flames.set(e.id, list);
+    }
+    const frames = this.fxFrames.get('fire')!;
+    list.forEach((f, i) => (f.texture = frames[(Math.floor(this.clock / 110) + i * 2) % frames.length]!));
+  }
+
+  /** The map's own life: crystals glinting in the sun and wisps of sand blown across the dunes. */
+  private ambient(): void {
+    const w = this.game.world;
+    if (this.clock - this.glintAt > GLINT_MS) {
+      this.glintAt = this.clock;
+      const fields = w.entities.filter((e) => e.type === ObjectType.ResourceField && this.visibleCell(e.x + e.size / 2, e.y + e.size / 2));
+      const f = fields[Math.floor(Math.random() * fields.length)];
+      if (f) this.play('glint', f.x + 3 + Math.random() * (f.size - 6), f.y + 3 + Math.random() * (f.size - 6), 75);
+    }
+    if (this.clock - this.wispAt > WISP_MS) {
+      this.wispAt = this.clock;
+      const cx = Math.floor(Math.random() * w.cols);
+      const cy = Math.floor(Math.random() * w.rows);
+      const i = cy * w.cols + cx;
+      if (!w.blocked[i] && !this.plated[i] && this.visibleCell(cx * CELL, cy * CELL)) {
+        this.play('wisp', cx * CELL + Math.random() * CELL, cy * CELL + Math.random() * CELL, 0, { vx: 0.014, vy: 0.003, hold: 2600 });
+      }
+    }
+  }
+
+  /** Firs lean with the gusts, each a moment after the tree upwind of it. */
+  private swayFirs(): void {
+    const t = this.clock / 1000;
+    for (const f of this.firs) {
+      if (!f.sprite.visible) continue;
+      const gust = Math.sin(t * 1.1 + f.phase) + 0.7 * Math.sin(t * 0.43 + f.phase * 0.5);
+      const frame = gust > 1.15 ? 'sway0' : gust < -1.25 ? 'sway1' : 'idle';
+      if (frame === f.frame) continue;
+      f.frame = frame;
+      f.sprite.texture = this.tex('neutral', `fir/${frame}/${f.variant}`);
+    }
   }
 
   private drawShots(alpha: number): void {
@@ -383,22 +646,30 @@ export class Renderer {
   }
 
   private drawEffects(dtMs: number): void {
-    this.effects = this.effects.filter((fx) => (fx.life += dtMs) < fx.max);
-    const g = this.fx;
-    for (const fx of this.effects) {
-      const k = fx.life / fx.max;
-      if (fx.kind === 'spark') {
-        g.circle(fx.x, fx.y, fx.r * (0.5 + k)).fill({ color: 0xffd27a, alpha: 0.9 * (1 - k) });
-        g.circle(fx.x, fx.y, fx.r * 0.45 * (1 - k)).fill({ color: 0xffffff, alpha: 1 - k });
-      } else if (fx.kind === 'blast') {
-        g.circle(fx.x, fx.y, fx.r * (0.5 + 0.9 * k)).fill({ color: 0xff6a1a, alpha: 0.85 * (1 - k) });
-        g.circle(fx.x, fx.y, fx.r * (0.35 + 0.5 * k)).fill({ color: 0xffc04a, alpha: 0.9 * (1 - k) * (1 - k) });
-        if (k < 0.25) g.circle(fx.x, fx.y, fx.r * 0.5).fill({ color: 0xffffff, alpha: 0.8 * (1 - k * 4) });
-      } else {
-        const rise = fx.life * 0.006;
-        g.circle(fx.x + fx.life * fx.vx * 6, fx.y - rise, fx.r * (0.8 + k)).fill({ color: 0x2a2620, alpha: 0.45 * (1 - k) });
+    this.effects = this.effects.filter((fx) => {
+      fx.life += dtMs;
+      const t = fx.life - fx.delay;
+      if (t < 0) return true;
+      const s = fx.sprite;
+      s.visible = true;
+      s.x += fx.vx * dtMs;
+      s.y += fx.vy * dtMs;
+      if (fx.hold) {
+        if (t >= fx.hold) {
+          s.destroy();
+          return false;
+        }
+        s.alpha = Math.min(1, t / 400, (fx.hold - t) / 600);
+        return true;
       }
-    }
+      const k = Math.floor(t / fx.frameMs);
+      if (k >= fx.frames.length) {
+        s.destroy();
+        return false;
+      }
+      s.texture = fx.frames[k]!;
+      return true;
+    });
     this.decalList = this.decalList.filter((d) => {
       d.life += dtMs;
       if (d.life >= d.max) {
@@ -409,6 +680,27 @@ export class Renderer {
       d.node.alpha = Math.min(1, 3 * (1 - d.life / d.max));
       return true;
     });
+    this.markList = this.markList.filter((m) => {
+      m.life += dtMs;
+      if (m.life >= MARK_MS) {
+        m.sprite.destroy();
+        return false;
+      }
+      m.sprite.alpha = Math.min(1, 2 * (1 - m.life / MARK_MS));
+      return true;
+    });
+  }
+
+  /** Fog: recomputed a few times a second, and at once when more of the map is explored. */
+  private updateFog(): void {
+    const explored = this.game.world.sides[this.game.side].explored;
+    let count = 0;
+    for (let i = 0; i < explored.length; i++) count += explored[i]!;
+    if (count === this.exploredCount && this.clock - this.fogAt < FOG_MS) return;
+    if (count !== this.exploredCount) for (const f of this.firs) f.sprite.visible = explored[f.cell] === 1;
+    this.exploredCount = count;
+    this.fogAt = this.clock;
+    this.fog.update();
   }
 
   /** A side's team colour: the middle of its ramp. */
@@ -461,32 +753,6 @@ export class Renderer {
     }
   }
 
-  private drawShroud(): void {
-    const world = this.game.world;
-    const explored = world.sides[this.game.side].explored;
-    let count = 0;
-    for (let i = 0; i < explored.length; i++) count += explored[i]!;
-    if (count === this.exploredCount) return;
-    this.exploredCount = count;
-    for (const f of this.firs) f.sprite.visible = explored[f.cell] === 1;
-    const g = this.shroud;
-    g.clear();
-    const dark = (cx: number, cy: number) => cx >= 0 && cy >= 0 && cx < world.cols && cy < world.rows && !explored[cy * world.cols + cx];
-    for (let cy = 0; cy < world.rows; cy++)
-      for (let cx = 0; cx < world.cols; cx++) {
-        if (dark(cx, cy)) {
-          g.rect(cx * CELL - 0.5, cy * CELL - 0.5, CELL + 1, CELL + 1).fill(C.shroud);
-          continue;
-        }
-        // A soft edge: seen cells next to the dark get a little of it along that side.
-        const fade = 5;
-        if (dark(cx, cy - 1)) g.rect(cx * CELL, cy * CELL, CELL, fade).fill({ color: C.shroud, alpha: 0.45 });
-        if (dark(cx, cy + 1)) g.rect(cx * CELL, (cy + 1) * CELL - fade, CELL, fade).fill({ color: C.shroud, alpha: 0.45 });
-        if (dark(cx - 1, cy)) g.rect(cx * CELL, cy * CELL, fade, CELL).fill({ color: C.shroud, alpha: 0.45 });
-        if (dark(cx + 1, cy)) g.rect((cx + 1) * CELL - fade, cy * CELL, fade, CELL).fill({ color: C.shroud, alpha: 0.45 });
-      }
-  }
-
   /** A gamepad player's crosshair. */
   private drawCursor(c: { x: number; y: number }): void {
     const w = 1.5 / this.camera.scale.x;
@@ -521,7 +787,7 @@ export class Renderer {
       placing.type === ObjectType.Wall
         ? `${base}/idle/0`
         : placing.type === ObjectType.Defender
-          ? `${base}/idle/s`
+          ? `${base}/idle`
           : placing.type === ObjectType.PlayerHQ || placing.type === ObjectType.EnemyHQ
             ? `${base}/idle0`
             : `${base}/idle`;

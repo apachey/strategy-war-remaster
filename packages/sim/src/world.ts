@@ -279,7 +279,7 @@ export interface WorldOptions {
   races?: readonly [Race, Race];
   /** Team colours of the two seats, [player, enemy]; they must differ (other shades of one hue may meet). Default white and cyan. */
   colors?: readonly [TeamColor, TeamColor];
-  /** Secondary colours of the two seats; they may match each other or a main colour. Default olive and white. */
+  /** Secondary colours of the two seats; they may match each other or a main colour. Default turquoise (cyan) and white. */
   colors2?: readonly [TeamColor, TeamColor];
 }
 
