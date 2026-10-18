@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { MaterialName } from '../../materials';
-import { barrel, box, cyl, dome, group, lathe, mesh, paintAll, slab, track, type Vec3, ball } from '../kit';
-import { chips, facing, gaussFlash, lightSlot, tube, WALL_ARMS, wreck, type Builder } from './parts';
+import { barrel, box, cyl, dome, group, lathe, mesh, paintAll, prism, slab, track, type Vec3, ball } from '../kit';
+import { chips, facing, gaussFlash, lightSlot, tube, wallPiece, wreck, type Builder } from './parts';
 
 /**
  * The humans: the original's player side. Chunky chamfered blocks of armour in the main colour, running gear and
@@ -84,6 +84,7 @@ const lightTank: Builder = (view, frame) => {
     guns(1, 0.03, 0.36, 0.09, -0.13, 0, frame === 'fire'),
   );
   turret.position.set(0, 0.25, 0.05);
+  turret.userData.turret = true;
   const g = group(
     slab(0.36, 0.15, 0.66, 'team', [0, 0.1, 0], 0.84),
     box(0.22, 0.07, 0.02, 'steelDark', [0, 0.13, -0.335]),
@@ -130,6 +131,7 @@ const middleTank: Builder = (view, frame) => {
   );
   if (fire) turret.add(gaussFlash([0, 0.07, -0.66], 0.11));
   turret.position.set(0, top, 0.04);
+  turret.userData.turret = true;
   g.add(turret);
   if (frame === 'wreck') wreck(g, turret);
   return facing(g, view);
@@ -179,6 +181,7 @@ const heavyTank: Builder = (view, frame) => {
     if (fire) turret.add(gaussFlash([x, 0.085, -0.7], 0.09));
   }
   turret.position.set(0, top, 0.06);
+  turret.userData.turret = true;
   g.add(turret);
   if (frame === 'wreck') wreck(g, turret);
   return facing(g, view);
@@ -192,8 +195,9 @@ const heavyTank: Builder = (view, frame) => {
 const harvester: Builder = (view, frame) => {
   const phase = frame === 'move1' ? 1 : 0;
   const harvest = frame.startsWith('harvest');
-  const k = frame === 'harvest1' ? 1 : 0;
-  const { g, top } = chassis({ w: 0.42, l: 0.82, h: 0.1, trackW: 0.13, trackH: 0.13, tracks: ['team2Light', 'team2'] }, harvest ? k : phase);
+  // Harvesting runs four frames: the tracks stand still, only the cutter turns and throws chips.
+  const k = harvest ? Number(frame.slice(-1)) : 0;
+  const { g, top } = chassis({ w: 0.42, l: 0.82, h: 0.1, trackW: 0.13, trackH: 0.13, tracks: ['team2Light', 'team2'] }, harvest ? 0 : phase);
   g.add(
     // Cab: glass walls under a roof, pillars in the corners and down the middle.
     box(0.46, 0.19, 0.36, 'team2Light', [0, top, -0.2]),
@@ -203,27 +207,21 @@ const harvester: Builder = (view, frame) => {
     box(0.5, 0.05, 0.03, 'team', [0, top - 0.02, -0.395]),
     lightSlot(0.07, 0.018, 0.012, [-0.15, top + 0.005, -0.415]),
     lightSlot(0.07, 0.018, 0.012, [0.15, top + 0.005, -0.415]),
-    // Hopper, its lid open over a heap of crystals while harvesting.
+    // Hopper with its lid shut.
     slab(0.48, 0.24, 0.42, 'team', [0, top, 0.18], 0.88),
+    slab(0.4, 0.06, 0.3, 'teamLight', [0, top + 0.24, 0.2], 0.8),
     ...[0.08, 0.13, 0.18].map((dy) => box(0.012, 0.02, 0.2, 'steelDark', [0.245, top + dy, 0.18])),
     // Strap over the roof.
     box(0.05, 0.03, 0.82, 'steelDark', [0, top + 0.225, 0]),
   );
-  if (harvest) {
-    g.add(dome(0.15, 'gold', [0, top + 0.22, 0.2], 0.5, 6));
-    const lid = slab(0.4, 0.04, 0.3, 'teamLight', [0, 0, 0.15], 0.8);
-    const hinge = group(lid);
-    hinge.position.set(0, top + 0.24, 0.05);
-    hinge.rotation.x = -1.0;
-    g.add(hinge, ...chips([0, 0.08, -0.52], [0, top + 0.36, 0.1], k, 0.05));
-  } else g.add(slab(0.4, 0.06, 0.3, 'teamLight', [0, top + 0.24, 0.2], 0.8));
+  if (harvest) g.add(...chips([0, 0.04, -0.6], [0, 0.2, -0.36], k / 2, 0.04));
   // Cutter drum on two arms.
   const drumY = harvest ? 0.075 : 0.15;
   const drum = new THREE.CylinderGeometry(0.075, 0.075, 0.44, 8);
   drum.rotateZ(Math.PI / 2);
   const cutter = group(mesh(drum, 'steelDark'));
   for (let i = 0; i < 6; i++) {
-    const a = ((i + (harvest ? k * 0.5 : 0)) / 6) * Math.PI * 2;
+    const a = ((i + k * 0.25) / 6) * Math.PI * 2;
     for (const x of [-0.14, 0.02, 0.18]) cutter.add(mesh(new THREE.BoxGeometry(0.05, 0.03, 0.035), 'steelLight', [x + (i % 2) * 0.04 - 0.02, Math.cos(a) * 0.08, Math.sin(a) * 0.08], [-a, 0, 0]));
   }
   cutter.position.set(0, drumY, -0.5);
@@ -249,6 +247,7 @@ const defender: Builder = (view, frame) => {
   }
   head.rotation.y = (-view * Math.PI) / 4;
   head.position.y = 0.66;
+  head.userData.turret = true;
   return group(
     lathe(
       [
@@ -558,31 +557,39 @@ const construction: Builder = () => {
 
 /**
  * Wall piece in the buildings' style: a chamfered body in the main colour on a plinth, with a band and a cap in the
- * secondary colour and a cyan light slot; arms reach towards neighbouring walls (bits N1 E2 S4 W8).
+ * secondary colour and a cyan light slot along both faces; runs of wall join the neighbours (wallPiece).
  */
 const wall: Builder = (mask) => {
   const h = 0.26;
   const t = 0.26;
-  const g = group(
-    box(t + 0.06, 0.05, t + 0.06, 'team2Dark', [0, 0, 0]),
-    slab(t + 0.02, h + 0.06, t + 0.02, 'team', [0, 0.04, 0], 0.8),
-    box(t * 0.5, 0.03, t * 0.5, 'team2', [0, h + 0.1, 0]),
+  // Cross-section of a run: [z, y] round the outline, chamfered at the top.
+  const body: [number, number][] = [
+    [-t / 2, 0],
+    [t / 2, 0],
+    [t / 2, h * 0.78],
+    [t * 0.34, h],
+    [-t * 0.34, h],
+    [-t / 2, h * 0.78],
+  ];
+  const run = (len: number) => {
+    const g = group(
+      prism([[-t / 2 - 0.02, 0], [t / 2 + 0.02, 0], [t / 2 + 0.02, 0.05], [-t / 2 - 0.02, 0.05]], len, 'team2Dark', [len / 2, 0, 0]),
+      prism(body, len, 'team', [len / 2, 0.04, 0]),
+      prism([[-t / 2 - 0.003, 0], [t / 2 + 0.003, 0], [t / 2 + 0.003, 0.035], [-t / 2 - 0.003, 0.035]], len, 'team2Dark', [len / 2, 0.13, 0]),
+    );
+    for (const sz of [-1, 1]) g.add(lightSlot(len * 0.5, 0.02, 0.01, [len / 2, 0.135, sz * (t / 2 + 0.005)]));
+    return g;
+  };
+  return wallPiece(
+    mask,
+    () =>
+      group(
+        box(t + 0.06, 0.05, t + 0.06, 'team2Dark', [0, 0, 0]),
+        slab(t + 0.02, h + 0.06, t + 0.02, 'team', [0, 0.04, 0], 0.8),
+        box(t * 0.5, 0.03, t * 0.5, 'team2', [0, h + 0.1, 0]),
+      ),
+    run,
   );
-  for (const [bit, dx, dz] of WALL_ARMS) {
-    if (!(mask & bit)) continue;
-    const len = 0.5;
-    const w = dx ? len : t;
-    const d = dz ? len : t;
-    const cx = dx * 0.25;
-    const cz = dz * 0.25;
-    g.add(box(dx ? len : t + 0.04, 0.05, dz ? len : t + 0.04, 'team2Dark', [cx, 0, cz]));
-    g.add(slab(w, h, d, 'team', [cx, 0.04, cz], dx ? 0.9 : 0.75));
-    g.add(box(dx ? len : t + 0.005, 0.035, dz ? len : t + 0.005, 'team2Dark', [cx, 0.13, cz]));
-    // Light slot on the faces that look south or east, where the camera sees them.
-    if (dx) g.add(lightSlot(len * 0.5, 0.02, 0.01, [cx, 0.135, cz + t / 2 + 0.005]));
-    else g.add(lightSlot(0.01, 0.02, len * 0.5, [cx + t / 2 + 0.005, 0.135, cz]));
-  }
-  return g;
 };
 
 /**

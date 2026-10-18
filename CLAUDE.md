@@ -55,7 +55,7 @@ pnpm sfx            # re-render the sound effects into assets/sfx (WAV + sfx.jso
 - The game exposes `window.__sw` (game, issue, camera) so Playwright can read state and give orders.
 - `packages/sim/test/autoplay.ts` is a scripted player; the "mission 1 can be won" test is the phase 1 gate.
 - Each side (`world.sides.player` / `.enemy`, seats, not races) carries its `race`, `color` and secondary
-  `color2` (accents; may repeat any colour); the campaign is white humans with olive accents against cyan hovers with
+  `color2` (accents; may repeat any colour); the campaign is olive humans with turquoise (`cyan`) accents against red hovers with
   white accents, a skirmish takes them from `SkirmishOptions`. The renderer takes team colours only from
   the side's ramp.
 - `packages/sim/src/ai.ts` is the computer player (difficulty levels); `test/campaign.test.ts` plays all 21 missions on

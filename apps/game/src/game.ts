@@ -127,6 +127,8 @@ export class Commander {
   onToast: (text: string) => void = () => {};
   /** Feedback sounds for this person's own actions. */
   onSound: (name: 'select' | 'order' | 'error' | 'build_start' | 'self_destruct') => void = () => {};
+  /** An order the units acknowledge in their own voice: `ids` are the units, `action` what they answer. */
+  onOrder: (ids: number[], action: 'move' | 'attack' | 'harvest') => void = () => {};
 
   constructor(
     readonly game: Game,
@@ -171,10 +173,14 @@ export class Commander {
     return isVisibleTo(this.world, this.side, e);
   }
 
-  /** Topmost visible object under a map point: units first, then buildings, then fields. */
+  /**
+   * Topmost visible object under a map point: units first, then buildings, then fields. A building also answers
+   * on its roof, which its sprite draws above its footprint.
+   */
   pick(x: number, y: number, slack = 0): Entity | null {
+    const roof = (e: Entity) => (isUnit(e.type) || e.type === ObjectType.ResourceField ? 0 : e.size * ROOF);
     const hits = this.world.entities.filter(
-      (e) => !e.hidden && this.visible(e) && x >= e.x - slack && x < e.x + e.size + slack && y >= e.y - slack && y < e.y + e.size + slack,
+      (e) => !e.hidden && this.visible(e) && x >= e.x - slack && x < e.x + e.size + slack && y >= e.y - slack - roof(e) && y < e.y + e.size + slack,
     );
     hits.sort((a, b) => rank(a) - rank(b) || b.id - a.id);
     return hits[0] ?? null;
@@ -225,18 +231,34 @@ export class Commander {
       this.onSound('error');
     } else if (cmd.kind === 'build') this.onSound('build_start');
     else if (cmd.kind === 'destruct') this.onSound('self_destruct');
-    else if (cmd.kind === 'move' || cmd.kind === 'attackMove' || cmd.kind === 'attack' || cmd.kind === 'harvest' || cmd.kind === 'defend') this.onSound('order');
+    else if (cmd.kind === 'move' || cmd.kind === 'defend') this.onOrder(cmd.ids, 'move');
+    else if (cmd.kind === 'attack' || cmd.kind === 'attackMove') this.onOrder(cmd.ids, 'attack');
+    else if (cmd.kind === 'harvest') this.onOrder(cmd.ids, 'harvest');
     return result;
   }
 
-  /** Right click: attack enemies, harvest fields, guard own objects, otherwise drive there. */
-  order(x: number, y: number, slack = 0): string | null {
+  /**
+   * Right click: attack enemies, harvest fields, guard own objects, otherwise drive there. `queue` (Shift) adds the
+   * point to the units' route, `attack` (Option/Alt) makes it an attack-move. With only a factory selected it sets
+   * the factory's rally point.
+   */
+  order(x: number, y: number, slack = 0, mods: { queue?: boolean; attack?: boolean } = {}): string | null {
     const units = this.ownUnits();
-    if (units.length === 0) return null;
+    if (units.length === 0) {
+      const factory = this.selected().find((e) => e.team === this.side && e.type === ObjectType.TankFactory);
+      if (!factory) return null;
+      this.run({ kind: 'rally', factoryId: factory.id, x, y });
+      this.onSound('order');
+      return 'rally';
+    }
     const ids = units.map((u) => u.id);
     const target = this.pick(x, y, slack);
     const armed = units.filter((u) => UNIT_RULES[u.type as UnitType].weapon).map((u) => u.id);
     const harvesters = units.filter((u) => u.type === ObjectType.Harvester).map((u) => u.id);
+    if (mods.attack && armed.length > 0) {
+      this.run({ kind: 'attackMove', ids: armed, x, y, queue: mods.queue });
+      return 'attackMove';
+    }
     if (target && this.isFoe(target) && armed.length > 0) {
       this.run({ kind: 'attack', ids: armed, targetId: target.id });
       return 'attack';
@@ -251,7 +273,7 @@ export class Commander {
       this.run({ kind: 'defend', ids: armed, targetId: target.id });
       return 'defend';
     }
-    this.run({ kind: 'move', ids, x, y });
+    this.run({ kind: 'move', ids, x, y, queue: mods.queue });
     return 'move';
   }
 
@@ -314,6 +336,9 @@ export class Commander {
     return true;
   }
 }
+
+/** How far a building's sprite reaches above its footprint, as a share of the footprint (the factory crane, the HQ towers). */
+const ROOF = 0.3;
 
 function rank(e: Entity): number {
   if (isUnit(e.type)) return 0;

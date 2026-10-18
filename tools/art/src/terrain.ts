@@ -125,10 +125,27 @@ function floorPixel(x: number, y: number, noise: (x: number, y: number) => numbe
   return colors[dither(v, x, y, 2)]!;
 }
 
-/** How far the forest edge sits inside the cell along a side, at position t (0..31): jagged, 3 px at the corners. */
-function inset(t: number, side: number): number {
-  const wobble = Math.sin((t + side * 7) * 0.9) + Math.sin((t + side * 3) * 2.3) * 0.6;
-  return Math.round(3 + Math.sin((Math.PI * t) / (PX_PER_CELL - 1)) ** 2 * (2 + wobble * 1.1));
+/** Forest floor tiles come in this many variants per mask, so neighbouring edges do not repeat. */
+export const FOREST_VARIANTS = 4;
+
+/**
+ * How far the forest edge sits inside the cell along a side, at position t (0..31): jagged, 3 px at the corners so
+ * every variant meets the next one, and between them a ragged line that differs per variant.
+ */
+function inset(t: number, side: number, variant = 0): number {
+  const s = side * 7 + variant * 13;
+  const wobble = Math.sin((t + s) * 0.9) + Math.sin((t + s * 0.6) * 2.3) * 0.6 + Math.sin((t + s * 1.7) * 0.37) * 0.8;
+  return Math.round(3 + Math.sin((Math.PI * t) / (PX_PER_CELL - 1)) ** 2 * (2.5 + wobble * 1.3));
+}
+
+/** Little tufts of grass and needles for the strip where forest turns into sand: blobs about two pixels wide. */
+const tuftNoise = periodicNoise(16, 57);
+/** A tuft pixel at (x, y), when the tufts there are this dense (0..1): its colour and the shadow under it. */
+function tuft(x: number, y: number, density: number): Rgb | null {
+  const v = tuftNoise(x / 2, y / 2);
+  if (v < 1 - density * 0.62) return null;
+  const pine = ramp('pine');
+  return pine[v > 1 - density * 0.62 + 0.12 ? 2 : 1]!;
 }
 
 /**
@@ -140,26 +157,98 @@ export function forestTiles(): Tile[] {
   const noise = periodicNoise(4, 31);
   const tiles: Tile[] = [];
   for (let mask = 0; mask < 16; mask++) {
+    for (let variant = 0; variant < FOREST_VARIANTS; variant++) {
+      const rgba = new Uint8ClampedArray(C * C * 4);
+      // Distance inside the forest edge for each pixel: negative means outside (sand).
+      const depth = (x: number, y: number) => {
+        let d = Infinity;
+        if (!(mask & 1)) d = Math.min(d, y - inset(x, 0, variant));
+        if (!(mask & 2)) d = Math.min(d, C - 1 - x - inset(y, 1, variant));
+        if (!(mask & 4)) d = Math.min(d, C - 1 - y - inset(x, 2, variant));
+        if (!(mask & 8)) d = Math.min(d, x - inset(y, 3, variant));
+        return d;
+      };
+      for (let y = 0; y < C; y++) {
+        for (let x = 0; x < C; x++) {
+          const d = depth(x, y);
+          const i = y * C + x;
+          if (d >= 1) put(rgba, i, floorPixel(x, y, noise));
+          else if (d >= 0) put(rgba, i, OUTLINE);
+          else {
+            // Outside the edge: tufts thinning out towards the cell border, over a soft shadow.
+            const t = tuft(x, y, 1 + d / 8);
+            if (t) put(rgba, i, t);
+            else if (d >= -2) put(rgba, i, OUTLINE, Math.round(SHADOW_ALPHA * 255 * (d >= -1 ? 1 : 0.5)));
+            else if (tuft(x, y - 1, 1 + d / 8)) put(rgba, i, OUTLINE, Math.round(SHADOW_ALPHA * 255));
+          }
+        }
+      }
+      tiles.push({ name: `forest/${mask}/${variant}`, w: C, h: C, rgba });
+    }
+  }
+  return tiles;
+}
+
+/**
+ * The fringe of a forest on the sand next to it, drawn over a sand cell (mask N1 E2 S4 W8 NE16 SE32 SW64 NW128 set =
+ * that neighbour is forest): tufts of grass and needles scattered half a cell out from the forest, thinning with
+ * distance, and the forest's shade on the sand where it stands north or west of the cell (the sun is in the
+ * north-west). The tufts follow one pattern across all cells, so neighbouring fringes join.
+ */
+export function forestFringes(): Tile[] {
+  const C = PX_PER_CELL;
+  const reach = C / 2;
+  const tiles: Tile[] = [];
+  for (let mask = 1; mask < 256; mask++) {
     const rgba = new Uint8ClampedArray(C * C * 4);
-    // Distance inside the forest edge for each pixel: negative means outside (sand).
-    const depth = (x: number, y: number) => {
+    // Distance in pixels to the nearest forest neighbour, along a side or to a corner.
+    const dist = (x: number, y: number) => {
+      const px = x + 0.5;
+      const py = y + 0.5;
       let d = Infinity;
-      if (!(mask & 1)) d = Math.min(d, y - inset(x, 0));
-      if (!(mask & 2)) d = Math.min(d, C - 1 - x - inset(y, 1));
-      if (!(mask & 4)) d = Math.min(d, C - 1 - y - inset(x, 2));
-      if (!(mask & 8)) d = Math.min(d, x - inset(y, 3));
+      if (mask & 1) d = Math.min(d, py);
+      if (mask & 2) d = Math.min(d, C - px);
+      if (mask & 4) d = Math.min(d, C - py);
+      if (mask & 8) d = Math.min(d, px);
+      if (mask & 16) d = Math.min(d, Math.hypot(C - px, py));
+      if (mask & 32) d = Math.min(d, Math.hypot(C - px, C - py));
+      if (mask & 64) d = Math.min(d, Math.hypot(px, C - py));
+      if (mask & 128) d = Math.min(d, Math.hypot(px, py));
       return d;
     };
+    // Shade cast by forest to the north or west.
+    const shade = (x: number, y: number) => {
+      let d = Infinity;
+      if (mask & 1) d = Math.min(d, y + 0.5);
+      if (mask & 8) d = Math.min(d, x + 0.5);
+      if (mask & 128) d = Math.min(d, Math.hypot(x + 0.5, y + 0.5));
+      return d;
+    };
+    let any = false;
     for (let y = 0; y < C; y++) {
       for (let x = 0; x < C; x++) {
-        const d = depth(x, y);
         const i = y * C + x;
-        if (d >= 1) put(rgba, i, floorPixel(x, y, noise));
-        else if (d >= 0) put(rgba, i, OUTLINE);
-        else if (d >= -2) put(rgba, i, OUTLINE, Math.round(SHADOW_ALPHA * 255 * (d >= -1 ? 1 : 0.5)));
+        const d = dist(x, y);
+        const density = 1 - d / reach;
+        const t = density > 0 ? tuft(x, y, density * 0.9) : null;
+        if (t) {
+          put(rgba, i, t);
+          any = true;
+          continue;
+        }
+        if (density > 0 && tuft(x, y - 1, density * 0.9)) {
+          put(rgba, i, OUTLINE, Math.round(SHADOW_ALPHA * 255));
+          any = true;
+          continue;
+        }
+        const s = shade(x, y);
+        if (s < 7 && dither(2.4 - s / 3, x, y, 3) > 0) {
+          put(rgba, i, OUTLINE, Math.round(SHADOW_ALPHA * 255 * 0.45));
+          any = true;
+        }
       }
     }
-    tiles.push({ name: `forest/${mask}`, w: C, h: C, rgba });
+    if (any) tiles.push({ name: `forest-fringe/${mask}`, w: C, h: C, rgba });
   }
   return tiles;
 }
@@ -173,7 +262,7 @@ const mix = (a: Rgb, b: Rgb, t: number): Rgb => [0, 1, 2].map((k) => Math.round(
  * The hover race's ground, seen at the same low angle as the sprites: a seamless texture (PLATE_CELLS cells each
  * way) of pale floor plates cut at random into sizes from half a cell to three cells, laid without regard to the
  * cell grid. Each plate stands a little proud of its neighbours by its own height, so its lit north rim, its top and
- * its dark south face (two to five pixels: deeper the higher it stands) all show, and dark seams run between plates.
+ * its dark south face (one or two pixels: deeper the higher it stands) all show, and dark seams run between plates.
  * Plates differ in tone and height, some are worn darker, cracked or carry a cyan light. Draw it by world position in
  * every plated cell, then `plate-edge/<mask>` over the sand cells next to the plating.
  */
@@ -207,7 +296,8 @@ export function plates(): Tile {
   split(0, 0, S, S, 0);
   const rgba = new Uint8ClampedArray(S * S * 4);
   for (const [x0, y0, x1, y1] of list) {
-    const tall = 2 + Math.floor(rnd() * 4);
+    // Plates stand only a pixel or two proud of each other: a floor, not a staircase.
+    const tall = 1 + Math.floor(rnd() * 2);
     const tone = rnd() < 0.15 ? 1 : 2 + Math.floor(rnd() * 3);
     const top = y1 - 1 - tall;
     for (let y = y0; y < y1; y++) {
@@ -252,9 +342,10 @@ export function plateEdges(): Tile[] {
     for (let y = 0; y < C; y++) {
       for (let x = 0; x < C; x++) {
         const i = y * C + x;
-        if (mask & 1 && y < 4) put(rgba, i, y === 3 ? mix(colors[0]!, OUTLINE, 0.45) : y === 0 ? colors[1]! : colors[0]!);
-        else if (mask & 1 && y < 7) shade(i, y < 6 ? 1 : 0.5);
-        else if (mask & 8 && x < 3) shade(i, x < 2 ? 1 : 0.5);
+        // A low front face of two pixels with a gentle shadow, so the plating reads as a floor laid on the sand.
+        if (mask & 1 && y < 2) put(rgba, i, y === 1 ? mix(colors[0]!, OUTLINE, 0.3) : colors[1]!);
+        else if (mask & 1 && y < 4) shade(i, y < 3 ? 0.7 : 0.35);
+        else if (mask & 8 && x < 2) shade(i, x < 1 ? 0.7 : 0.35);
         else if (mask & 2 && x === C - 1) put(rgba, i, colors[3]!);
         else if (mask & 4 && y === C - 1) put(rgba, i, colors[4]!);
       }

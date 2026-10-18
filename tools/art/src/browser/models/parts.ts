@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { WALL_LINKS } from '@sw/data';
+import { CAMERA_ELEVATION_DEG } from '../../catalog';
 import type { MaterialName } from '../../materials';
 import { ball, box, group, mesh, paintAll, type Vec3 } from '../kit';
 
@@ -145,10 +147,40 @@ export function tube(a: [number, number], b: [number, number], y: number, mats: 
   return g;
 }
 
-/** Wall arms reach towards the neighbours set in the mask (N1 E2 S4 W8): [bit, dx, dz]. */
-export const WALL_ARMS: readonly [number, number, number][] = [
-  [1, 0, -1],
-  [2, 1, 0],
-  [4, 0, 1],
-  [8, -1, 0],
-];
+/**
+ * Depth of one map cell in model units. The game lays sprites on a square grid, but the camera sees the ground at
+ * 40 degrees, so a cell's depth on screen is only sin 40° of its width: things that must reach the next cell north or
+ * south (wall arms) are 1/sin 40° cells long in z.
+ */
+export const CELL_DEPTH = 1 / Math.sin((CAMERA_ELEVATION_DEG * Math.PI) / 180);
+
+/** Marks a part as a ghost: a neighbour's surface that hides and stops the outline but is never drawn. */
+export function ghost<T extends THREE.Object3D>(o: T): T {
+  o.userData.ghost = true;
+  o.traverse((c) => (c.castShadow = false));
+  return o;
+}
+
+/**
+ * Wall piece for a neighbour mask (WALL_LINKS in @sw/data: sides N1 E2 S4 W8, corners NE16 SE32 SW64 NW128). `post`
+ * stands in the middle; `arm(len)` builds one run of wall along +x from 0 to len, centred on z = 0, with any detail
+ * spaced along its length. An arm reaches the edge of the cell (the corner for a diagonal), and the neighbour's arm
+ * towards this piece continues it as a ghost, so the pieces meet with no outline or end face between them.
+ */
+export function wallPiece(mask: number, post: () => THREE.Object3D, arm: (len: number) => THREE.Object3D): THREE.Group {
+  const g = group(post());
+  for (const [bit, dx, dy] of WALL_LINKS) {
+    if (!(mask & bit)) continue;
+    const vx = dx;
+    const vz = dy * CELL_DEPTH;
+    const len = Math.hypot(vx, vz) / 2;
+    const angle = Math.atan2(-vz, vx);
+    const own = arm(len);
+    own.rotation.y = angle;
+    const theirs = ghost(arm(len));
+    theirs.rotation.y = angle + Math.PI;
+    theirs.position.set(vx, 0, vz);
+    g.add(own, theirs);
+  }
+  return g;
+}

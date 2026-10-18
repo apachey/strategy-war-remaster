@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ball, cyl, dome, group, lathe, mesh, type Vec3 } from '../kit';
-import { facing, limb, plate, slump, thornShot, WALL_ARMS, type Builder } from './parts';
+import { facing, limb, plate, slump, thornShot, wallPiece, type Builder } from './parts';
 
 /**
  * The walkers: jointed many-legged creatures of the open sand. Faceted carapace plates in the team colour on thin
@@ -55,10 +55,18 @@ const lightTank: Builder = (view, frame) => {
   const body = new THREE.ConeGeometry(0.21, 0.58, 3);
   body.rotateX(-Math.PI / 2);
   body.scale(1, 0.55, 1);
+  // The head, its turret: a pale plate with the eye, and the spike under its chin.
+  const head = group(
+    plate(0.11, 1, 0.6, 1.3, 'team2Light', [0, 0, 0]),
+    eye(0.055, [0, -0.01, -0.12]),
+    fang(0.03, 0.26, [0, -0.06, -0.22 + (fire ? 0.04 : 0)]),
+    ball(0.02, 'bileGlow', [0, -0.06, -0.1], 4),
+  );
+  if (fire) head.add(thornShot([0, -0.06, -0.37], 'gun', true));
+  head.position.set(0, 0.34, 0);
+  head.userData.turret = true;
   const g = group(
     mesh(body, 'team', [0, 0.26, 0]),
-    plate(0.13, 1, 0.6, 1.4, 'team2Light', [0, 0.33, 0.06]),
-    eye(0.055, [0, 0.31, -0.16]),
     cyl(0, 0.035, 0.12, 'teamDark', [0, 0.36, 0.14], 4),
     limb([0, 0.24, -0.12], [0, 0.0, -0.3 - step], 0.034, 'teamDark'),
     limb([-0.08, 0.24, 0.12], [-0.3, 0.0, 0.26 + step], 0.034, 'teamDark'),
@@ -66,10 +74,8 @@ const lightTank: Builder = (view, frame) => {
     ball(0.03, 'team2Light', [0, 0.0, -0.3 - step], 4),
     ball(0.03, 'team2Light', [-0.3, 0.0, 0.26 + step], 4),
     ball(0.03, 'team2Light', [0.3, 0.0, 0.26 - step], 4),
-    fang(0.03, 0.3, [0, 0.2, -0.3 + (fire ? 0.04 : 0)]),
-    ball(0.02, 'bileGlow', [0, 0.2, -0.17], 4),
+    head,
   );
-  if (fire) g.add(thornShot([0, 0.2, -0.47], 'gun', true));
   if (frame === 'wreck') slump(g, -0.04, 0.15);
   return facing(g, view);
 };
@@ -89,16 +95,20 @@ const middleTank: Builder = (view, frame) => {
     eye(0.035, [0.06, 0.24, -0.33]),
     ...legs(3, -0.18, 0.22, 0.14, 0.17, 0.24, 0.022, frame),
   );
-  // Horn: a ridge spiralling up and forward from the back, ending in a green tip.
+  // Horn, its turret: a ridge spiralling up and forward from the middle of the back, ending in a green tip.
+  const horn = group();
   const steps = 14;
   for (let i = 0; i < steps; i++) {
     const k = i / steps;
     const a = k * Math.PI * 2 * 1.25;
     const r = 0.1 - k * 0.07;
-    g.add(ball(0.05 - k * 0.025, i % 2 ? 'team2Light' : 'team', [Math.cos(a) * r * 0.6, 0.32 + k * 0.2, 0.12 - k * 0.32 + Math.sin(a) * r], 4));
+    horn.add(ball(0.05 - k * 0.025, i % 2 ? 'team2Light' : 'team', [Math.cos(a) * r * 0.6, k * 0.2, 0.14 - k * 0.32 + Math.sin(a) * r], 4));
   }
-  g.add(ball(fire ? 0.06 : 0.045, fire ? 'bileGlow' : 'bileLight', [0, 0.53, -0.22], 6));
-  if (fire) g.add(thornShot([0, 0.5, -0.28], 'gun', true));
+  horn.add(ball(fire ? 0.06 : 0.045, fire ? 'bileGlow' : 'bileLight', [0, 0.21, -0.2], 6));
+  if (fire) horn.add(thornShot([0, 0.18, -0.26], 'gun', true));
+  horn.position.set(0, 0.32, 0);
+  horn.userData.turret = true;
+  g.add(horn);
   if (frame === 'wreck') slump(g, -0.04, 0.15);
   return facing(g, view);
 };
@@ -124,12 +134,19 @@ const heavyTank: Builder = (view, frame) => {
     eye(0.04, [-0.1, 0.28, -0.27]),
     eye(0.04, [0.1, 0.28, -0.27]),
     eye(0.03, [0, 0.32, -0.25]),
-    fang(0.05, 0.5, [-0.12, 0.24, -0.38], [0.05, -0.12, 0]),
-    fang(0.05, 0.5, [0.12, 0.24, -0.38], [0.05, 0.12, 0]),
-    ball(0.04, 'bileGlow', [0, 0.22, -0.36], 5),
     ...legs(4, -0.22, 0.3, 0.24, 0.13, 0.16, 0.03, frame),
   );
-  if (fire) g.add(thornShot([0, 0.24, -0.42], 'cannon', true));
+  // Its turret: a crest on the shell carrying two long prongs with a gland of acid between them.
+  const crest = group(
+    plate(0.1, 1.2, 0.7, 1.3, 'team2Light', [0, 0, 0.04]),
+    fang(0.045, 0.42, [-0.07, 0, -0.22], [0, -0.1, 0]),
+    fang(0.045, 0.42, [0.07, 0, -0.22], [0, 0.1, 0]),
+    ball(0.04, 'bileGlow', [0, 0, -0.12], 5),
+  );
+  if (fire) crest.add(thornShot([0, 0, -0.44], 'cannon', true));
+  crest.position.set(0, 0.44, 0);
+  crest.userData.turret = true;
+  g.add(crest);
   if (frame === 'wreck') slump(g, -0.04, 0.15);
   return facing(g, view);
 };
@@ -140,13 +157,14 @@ const heavyTank: Builder = (view, frame) => {
  */
 const harvester: Builder = (view, frame) => {
   const harvest = frame.startsWith('harvest');
-  const k = frame === 'harvest1' ? 1 : 0;
+  // Four frames of harvesting: the mandibles open, close on a crystal, and open again.
+  const k = harvest ? Number(frame.slice(-1)) : 0;
   const head = group(
     plate(0.14, 1.1, 0.6, 0.9, 'team', [0, 0, 0]),
     eye(0.03, [-0.06, 0.02, -0.12]),
     eye(0.03, [0.06, 0.02, -0.12]),
     ...[-1, 1].map((sx) => {
-      const open = harvest ? (k ? 0.15 : 0.75) : 0.45;
+      const open = harvest ? [0.75, 0.45, 0.15, 0.4][k]! : 0.45;
       const geo = new THREE.ConeGeometry(0.04, 0.22, 4);
       geo.rotateX(-Math.PI / 2);
       geo.translate(0, 0, -0.11);
@@ -154,7 +172,7 @@ const harvester: Builder = (view, frame) => {
     }),
   );
   // A crystal caught between the closed mandibles.
-  if (harvest && k) head.add(mesh(new THREE.OctahedronGeometry(0.05, 0), 'gold', [0, -0.09, -0.27]));
+  if (harvest && k === 2) head.add(mesh(new THREE.OctahedronGeometry(0.05, 0), 'gold', [0, -0.09, -0.27]));
   head.position.set(0, 0.22, -0.18);
   if (harvest) head.rotation.x = -0.35;
   const g = group(
@@ -179,6 +197,7 @@ const defender: Builder = (view, frame) => {
   if (fire) head.add(thornShot([0, -0.04, -0.34], 'gun', true));
   head.rotation.y = (-view * Math.PI) / 4;
   head.position.y = 0.66;
+  head.userData.turret = true;
   const g = group(stalk(0.58), head);
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + 0.4;
@@ -390,8 +409,8 @@ const construction: Builder = () => {
 };
 
 /**
- * Walker wall: a ridge of chitin plates bristling with thorns, meeting at a knot with a cluster of thorns on it
- * (bits N1 E2 S4 W8).
+ * Walker wall: a ridge of chitin plates bristling with thorns, meeting at a knot with a cluster of thorns on it;
+ * runs join the neighbours (wallPiece), a plate and a thorn every so often along them.
  */
 const wall: Builder = (mask) => {
   const thorn = (x: number, z: number, h: number, lean: Vec3, mat: 'team' | 'team2Light') => {
@@ -399,20 +418,27 @@ const wall: Builder = (mask) => {
     m.rotation.set(...lean);
     return m;
   };
-  const g = group(
-    plate(0.17, 1.1, 0.75, 1.1, 'teamDark', [0, 0.1, 0]),
-    thorn(0, 0, 0.36, [0, 0, 0], 'team2Light'),
-    thorn(-0.06, 0.04, 0.24, [0.2, 0, 0.4], 'team'),
-    thorn(0.06, 0.04, 0.24, [0.2, 0, -0.4], 'team'),
+  return wallPiece(
+    mask,
+    () =>
+      group(
+        plate(0.17, 1.1, 0.75, 1.1, 'teamDark', [0, 0.1, 0]),
+        thorn(0, 0, 0.36, [0, 0, 0], 'team2Light'),
+        thorn(-0.06, 0.04, 0.24, [0.2, 0, 0.4], 'team'),
+        thorn(0.06, 0.04, 0.24, [0.2, 0, -0.4], 'team'),
+      ),
+    (len) => {
+      // Plates overlap along the run; the last one sits on the cell edge, half of it the neighbour's.
+      const n = Math.max(2, Math.round(len / 0.18));
+      const g = group();
+      for (let i = 1; i <= n; i++) {
+        const x = (len * i) / n;
+        g.add(plate(0.12, 1.3, 0.7, 1, i % 2 ? 'team' : 'teamDark', [x, 0.08, 0]));
+      }
+      g.add(thorn(len * 0.55, 0, 0.2, [0.25, 0, 0], 'team2Light'));
+      return g;
+    },
   );
-  for (const [bit, dx, dz] of WALL_ARMS) {
-    if (!(mask & bit)) continue;
-    for (const t of [0.22, 0.4]) {
-      g.add(plate(0.12, dx ? 1.3 : 1, 0.7, dz ? 1.3 : 1, t < 0.3 ? 'team' : 'teamDark', [dx * t, 0.08, dz * t]));
-    }
-    g.add(thorn(dx * 0.31, dz * 0.31, 0.2, [dz * 0.25, 0, -dx * 0.25], 'team2Light'));
-  }
-  return g;
 };
 
 export const WALKER: Record<string, Builder> = {

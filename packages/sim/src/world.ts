@@ -15,13 +15,17 @@ import { aiStep, createAi, type AiState } from './ai';
 import { findPath, type Cell } from './path';
 import { nextRandom } from './rng';
 import {
+  ALERT_MS,
   BUILDING_RULES,
+  CHASE_CELLS,
   ENEMY_BONUS,
   ENEMY_FACTORY_PAUSE_MS,
   ENEMY_MAX_TANKS,
   FACTORY_BUILDS,
   HARVESTER,
+  MISSION_FOREST,
   OUTCOME_DELAY_MS,
+  QUEUE_MAX,
   RAIDER_WANDER_CELLS,
   TICK_MS,
   TRAINING_MAPS,
@@ -66,8 +70,10 @@ export interface Entity {
   size: number;
   hp: number;
   maxHp: number;
-  /** Facing, 0 = up, clockwise in 45° steps, as in the original sprite sheets. */
+  /** Facing of the hull, 0 = up, clockwise in 45° steps, as in the original sprite sheets. */
   dir: number;
+  /** Facing of the gun (tanks and defenders); turns toward the target on its own while the hull drives on. */
+  turretDir: number;
   /** False while a building is still under construction. */
   complete: boolean;
   buildElapsedMs: number;
@@ -86,6 +92,15 @@ export interface Entity {
   fieldId: number;
   /** A harvester inside a silo is hidden and cannot be shot. */
   hidden: boolean;
+  /** Where an idle tank stood before it went after something it saw; `back` once it is driving back there. */
+  home: (Cell & { back: boolean }) | null;
+  /** Further points of a shift-click route, driven in turn once the current move ends. */
+  waypoints: Waypoint[];
+  /** Who last shot this object and when (tick); 0 = never. */
+  hitBy: number;
+  hitTick: number;
+  /** Why a full harvester stands still: no silo at all, or no way to one. */
+  notice: HarvesterNotice | null;
 
   // Buildings.
   job: Job | null;
@@ -93,7 +108,20 @@ export interface Entity {
   dockedId: number;
   /** Enemy factory: time since the last raider left. */
   pauseMs: number;
+  /** Factory: units ordered after the one in production, paid for when each starts. */
+  queue: UnitType[];
+  /** Factory: where new units drive to; null leaves them by the factory. */
+  rally: { x: number; y: number } | null;
 }
+
+export interface Waypoint {
+  x: number;
+  y: number;
+  /** Attack-move to this point instead of a plain move. */
+  attack: boolean;
+}
+
+export type HarvesterNotice = 'noSilo' | 'siloBlocked';
 
 export interface Projectile {
   id: number;
@@ -107,6 +135,8 @@ export interface Projectile {
   /** Pixels left before the shell falls short. */
   left: number;
   damage: number;
+  /** Who fired it, so the victim knows whom to answer. */
+  shooterId: number;
 }
 
 export type GameEvent =
@@ -114,7 +144,11 @@ export type GameEvent =
   | { kind: 'shot'; id: number; by: ObjectType; x: number; y: number; weapon: 'gun' | 'cannon'; team: Side }
   | { kind: 'hit'; x: number; y: number; weapon: 'gun' | 'cannon' }
   | { kind: 'destroyed'; id: number; type: ObjectType; team: Team; x: number; y: number; size: number; dir: number }
-  | { kind: 'completed'; id: number; type: ObjectType };
+  | { kind: 'completed'; id: number; type: ObjectType }
+  /** Something of `team` was shot (a building or a harvester): the minimap pings the spot. */
+  | { kind: 'underAttack'; team: Side; id: number; x: number; y: number }
+  /** A full harvester cannot unload: no silo, or every silo is out of reach. */
+  | { kind: 'harvesterNotice'; team: Side; id: number; notice: HarvesterNotice; x: number; y: number };
 
 export interface SideState {
   /** How the side looks: its race, team colour and secondary (accent) colour. None of them changes any rule. */
@@ -126,6 +160,8 @@ export interface SideState {
   explored: Uint8Array;
   /** Running totals for the victory and defeat screens; no rule reads them. */
   stats: SideStats;
+  /** Last "under attack" alert, so a long fight does not ping every shot. */
+  alert: { tick: number; x: number; y: number } | null;
 }
 
 export interface SideStats {
@@ -221,6 +257,7 @@ function newEntity(id: number, type: ObjectType, team: Team, x: number, y: numbe
     hp,
     maxHp: hp,
     dir: 4,
+    turretDir: 4,
     complete: true,
     buildElapsedMs: 0,
     buildTotalMs: 0,
@@ -234,9 +271,16 @@ function newEntity(id: number, type: ObjectType, team: Team, x: number, y: numbe
     phase: null,
     fieldId: 0,
     hidden: false,
+    home: null,
+    waypoints: [],
+    hitBy: 0,
+    hitTick: 0,
+    notice: null,
     job: null,
     dockedId: 0,
     pauseMs: 0,
+    queue: [],
+    rally: null,
   };
 }
 
@@ -251,7 +295,7 @@ export interface WorldOptions {
   races?: readonly [Race, Race];
   /** Team colours of the two seats, [player, enemy]; they must differ (other shades of one hue may meet). Default white and cyan. */
   colors?: readonly [TeamColor, TeamColor];
-  /** Secondary colours of the two seats; they may match each other or a main colour. Default olive and white. */
+  /** Secondary colours of the two seats; they may match each other or a main colour. Default turquoise (cyan) and white. */
   colors2?: readonly [TeamColor, TeamColor];
 }
 
@@ -272,8 +316,8 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, op
     byId: new Map(),
     projectiles: [],
     sides: {
-      player: { race: playerRace, color: playerColor, color2: playerColor2, money: mission.money, explored: new Uint8Array(cells), stats: newStats() },
-      enemy: { race: enemyRace, color: enemyColor, color2: enemyColor2, money: 0, explored: new Uint8Array(cells), stats: newStats() },
+      player: { race: playerRace, color: playerColor, color2: playerColor2, money: mission.money, explored: new Uint8Array(cells), stats: newStats(), alert: null },
+      enemy: { race: enemyRace, color: enemyColor, color2: enemyColor2, money: 0, explored: new Uint8Array(cells), stats: newStats(), alert: null },
     },
     tick: 0,
     rngState: seed >>> 0,
@@ -286,7 +330,11 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, op
     pendingOutcome: null,
     events: [],
   };
+  const mapNumber = campaign.maps.indexOf(map) + 1;
+  const forest = mapNumber > 0 ? (MISSION_FOREST[`${mapNumber}.${missionIndex + 1}`] ?? []) : [];
+  for (const [cx, cy] of forest) world.blocked[cy * world.cols + cx] = 1;
   for (const o of mission.objects) {
+    if (forest.some(([cx, cy]) => o.x === cx * CELL && o.y === cy * CELL)) continue;
     // Hit points come from the mission file: placed units are often weaker than freshly built ones.
     addEntity(world, newEntity(world.nextId++, o.type, teamOf(o), o.x, o.y, o.hp));
   }
@@ -338,10 +386,13 @@ function markBuilding(world: World, e: Entity, value: number): void {
 
 /** Reveals the shroud around an object: a square of radius r cells with the four corners cut, like the original. */
 function reveal(world: World, side: Side, e: Entity): void {
-  const r = isUnit(e.type) ? UNIT_SIGHT_CELLS : (e.size / CELL) * 2;
+  const tower = BUILDING_RULES[ObjectType.Defender].weapon!.range / CELL;
+  const r = isUnit(e.type) ? UNIT_SIGHT_CELLS : e.type === ObjectType.Defender ? tower : (e.size / CELL) * 2;
   // Centred on the top-left cell, exactly like the original.
-  const cx = Math.floor(e.x / CELL);
-  const cy = Math.floor(e.y / CELL);
+  revealAround(world, side, Math.floor(e.x / CELL), Math.floor(e.y / CELL), r);
+}
+
+function revealAround(world: World, side: Side, cx: number, cy: number, r: number): void {
   const explored = world.sides[side].explored;
   for (let dy = -r; dy <= r; dy++)
     for (let dx = -r; dx <= r; dx++) {
@@ -422,14 +473,37 @@ function nearestPassable(world: World, goal: Cell, from: Cell, maxRing = 9): Cel
   return null;
 }
 
+/**
+ * The cell a unit between cells starts a new route from: of the cells it overlaps, the one nearest the goal.
+ * Starting from the cell it is leaving made it jerk backwards for a moment whenever it planned a new route.
+ */
+function startCell(world: World, e: Entity, goal: Cell): Cell {
+  const x0 = Math.floor(e.x / CELL);
+  const y0 = Math.floor(e.y / CELL);
+  const x1 = Math.floor((e.x + e.size - 1) / CELL);
+  const y1 = Math.floor((e.y + e.size - 1) / CELL);
+  let best = cellOf(e);
+  let bestD = Infinity;
+  for (let cy = y0; cy <= y1; cy++)
+    for (let cx = x0; cx <= x1; cx++) {
+      if (!cellPassable(world, cx, cy)) continue;
+      const d = (cx - goal.cx) ** 2 + (cy - goal.cy) ** 2;
+      if (d < bestD) {
+        best = { cx, cy };
+        bestD = d;
+      }
+    }
+  return best;
+}
+
 /** Plans a route to `goal`, or as close to it as the map allows (walls and forest can seal a base off). */
 function setPathTo(world: World, e: Entity, goal: Cell): boolean {
-  const from = cellOf(e);
+  const from = startCell(world, e, goal);
   const target = nearestPassable(world, goal, from) ?? goal;
   e.path = [];
   const path = findPath(world.cols, world.rows, (cx, cy) => cellPassable(world, cx, cy), from, target, true);
   if (!path) return false;
-  // Snap back onto the grid first, so diagonal steps never clip a forest corner.
+  // Snap onto the grid first, so diagonal steps never clip a forest corner. The unit already overlaps that cell.
   if (e.x !== from.cx * CELL || e.y !== from.cy * CELL) path.unshift(from);
   e.path = path;
   return path.length > 0;
@@ -448,15 +522,22 @@ function stopMoving(e: Entity): void {
 // Commands
 
 export type Command =
-  | { kind: 'move'; ids: number[]; x: number; y: number }
-  | { kind: 'attackMove'; ids: number[]; x: number; y: number }
+  /** `queue` (shift-click) adds the point to the route of units already on the move instead of replacing it. */
+  | { kind: 'move'; ids: number[]; x: number; y: number; queue?: boolean }
+  | { kind: 'attackMove'; ids: number[]; x: number; y: number; queue?: boolean }
   | { kind: 'attack'; ids: number[]; targetId: number }
   | { kind: 'harvest'; ids: number[]; fieldId: number }
   | { kind: 'defend'; ids: number[]; targetId: number }
   | { kind: 'stop'; ids: number[] }
   | { kind: 'build'; hqId: number; building: BuildingType; cx: number; cy: number }
   | { kind: 'produce'; factoryId: number; unit: UnitType }
-  | { kind: 'cancel'; id: number }
+  /** Where a factory's new units drive to; a point on the factory itself clears it. */
+  | { kind: 'rally'; factoryId: number; x: number; y: number }
+  /**
+   * Cancels construction, or a factory order: `index` counts in productionLine(), without it the last one goes.
+   * The unit in production is refunded in full; queued units were not paid for yet.
+   */
+  | { kind: 'cancel'; id: number; index?: number }
   | { kind: 'destruct'; id: number }
   /** The original's cheat codes: 1298* reveals the map, 12986 adds 1000, 12989 repairs an object. */
   | { kind: 'cheat'; cheat: 'reveal' | 'money' | 'repair'; id?: number };
@@ -504,7 +585,40 @@ function giveOrder(world: World, e: Entity, order: Order): void {
   e.targetId = 0;
   e.repathMs = 0;
   e.phase = null;
+  e.home = null;
+  e.waypoints = [];
+  e.notice = null;
   stopMoving(e);
+}
+
+/** Sends a unit to one cell of a (group) move; `x, y` is the point the person clicked. */
+function moveTo(world: World, u: Entity, slot: Cell | undefined, x: number, y: number, attack: boolean): void {
+  const keep = u.waypoints;
+  giveOrder(world, u, attack ? { kind: 'attackMove', x, y } : { kind: 'move', x, y });
+  u.waypoints = keep;
+  if (!slot || !setPathTo(world, u, slot)) u.order = { kind: 'idle' };
+}
+
+/** A group move or attack-move; with `queue`, units already on the move add the point to their route. */
+function groupMove(world: World, units: Entity[], x: number, y: number, attack: boolean, queue: boolean): void {
+  const slots = formationCells(world, units, { cx: Math.floor(x / CELL), cy: Math.floor(y / CELL) });
+  units.forEach((u, i) => {
+    const slot = slots[i];
+    const onTheWay = u.order.kind === 'move' || u.order.kind === 'attackMove';
+    if (queue && onTheWay && slot) {
+      u.waypoints.push({ x: slot.cx * CELL + CELL / 2, y: slot.cy * CELL + CELL / 2, attack });
+      return;
+    }
+    u.waypoints = [];
+    moveTo(world, u, slot, x, y, attack);
+  });
+}
+
+/** Next point of a shift-click route, once the unit has finished its current move. */
+function nextWaypoint(world: World, e: Entity): void {
+  const wp = e.waypoints.shift();
+  if (!wp) return;
+  moveTo(world, e, { cx: Math.floor(wp.x / CELL), cy: Math.floor(wp.y / CELL) }, wp.x, wp.y, wp.attack);
 }
 
 /** Validates and applies one command from `side`. Invalid commands change nothing. */
@@ -514,23 +628,13 @@ export function issue(world: World, side: Side, cmd: Command): CommandResult {
     case 'move': {
       const units = ownUnits(world, side, cmd.ids);
       if (units.length === 0) return fail('invalid');
-      const slots = formationCells(world, units, { cx: Math.floor(cmd.x / CELL), cy: Math.floor(cmd.y / CELL) });
-      units.forEach((u, i) => {
-        const slot = slots[i];
-        giveOrder(world, u, { kind: 'move', x: cmd.x, y: cmd.y });
-        if (!slot || !setPathTo(world, u, slot)) u.order = { kind: 'idle' };
-      });
+      groupMove(world, units, cmd.x, cmd.y, false, cmd.queue === true);
       return OK;
     }
     case 'attackMove': {
       const units = ownUnits(world, side, cmd.ids).filter((u) => UNIT_RULES[u.type as UnitType].weapon);
       if (units.length === 0) return fail('invalid');
-      const slots = formationCells(world, units, { cx: Math.floor(cmd.x / CELL), cy: Math.floor(cmd.y / CELL) });
-      units.forEach((u, i) => {
-        giveOrder(world, u, { kind: 'attackMove', x: cmd.x, y: cmd.y });
-        const slot = slots[i];
-        if (!slot || !setPathTo(world, u, slot)) u.order = { kind: 'idle' };
-      });
+      groupMove(world, units, cmd.x, cmd.y, true, cmd.queue === true);
       return OK;
     }
     case 'attack': {
@@ -574,8 +678,15 @@ export function issue(world: World, side: Side, cmd: Command): CommandResult {
       return build(world, side, cmd.hqId, cmd.building, cmd.cx, cmd.cy);
     case 'produce':
       return produce(world, side, cmd.factoryId, cmd.unit);
+    case 'rally': {
+      const f = world.byId.get(cmd.factoryId);
+      if (!f || f.team !== side || f.type !== ObjectType.TankFactory) return fail('invalid');
+      const onFactory = cmd.x >= f.x && cmd.x < f.x + f.size && cmd.y >= f.y && cmd.y < f.y + f.size;
+      f.rally = onFactory ? null : { x: cmd.x, y: cmd.y };
+      return OK;
+    }
     case 'cancel':
-      return cancel(world, side, cmd.id);
+      return cancel(world, side, cmd.id, cmd.index);
     case 'destruct': {
       const e = world.byId.get(cmd.id);
       if (!e || e.team !== side || e.hp <= 0) return fail('invalid');
@@ -678,26 +789,46 @@ export function canProduce(world: World, side: Side, unit: UnitType): boolean {
   return (FACTORY_BUILDS as readonly number[]).includes(unit);
 }
 
+/** What a factory makes now and next: the unit in production (if any) first, then its queue. */
+export function productionLine(e: Entity): UnitType[] {
+  return e.job?.kind === 'produce' ? [e.job.unit, ...e.queue] : [...e.queue];
+}
+
 function produce(world: World, side: Side, factoryId: number, unit: UnitType): CommandResult {
   const factory = world.byId.get(factoryId);
   if (!factory || factory.team !== side || factory.type !== ObjectType.TankFactory || !factory.complete) return fail('invalid');
   if (!canProduce(world, side, unit)) return fail('invalid');
-  if (factory.job) return fail('busy');
   const rules = UNIT_RULES[unit];
   const money = world.sides[side];
+  // A busy factory queues the order and charges for it only when it starts on it.
+  if (factory.job || factory.queue.length > 0) {
+    if (productionLine(factory).length >= QUEUE_MAX) return fail('busy');
+    factory.queue.push(unit);
+    return OK;
+  }
   if (money.money < rules.price) return fail('no-money');
-  money.money -= rules.price;
-  factory.job = { kind: 'produce', unit, elapsedMs: 0, totalMs: rules.buildMs, price: rules.price };
+  startProduction(world, factory, unit);
   return OK;
 }
 
-function cancel(world: World, side: Side, id: number): CommandResult {
+function startProduction(world: World, factory: Entity, unit: UnitType): void {
+  const rules = UNIT_RULES[unit];
+  if (factory.team !== 'neutral') world.sides[factory.team].money -= rules.price;
+  factory.job = { kind: 'produce', unit, elapsedMs: 0, totalMs: rules.buildMs, price: rules.price };
+}
+
+function cancel(world: World, side: Side, id: number, index?: number): CommandResult {
   const e = world.byId.get(id);
   if (!e || e.team !== side) return fail('invalid');
-  // Cancelling refunds everything, as in the original.
-  if (e.job?.kind === 'produce') {
-    world.sides[side].money += e.job.price;
-    e.job = null;
+  const line = productionLine(e);
+  if (line.length > 0) {
+    const i = index ?? line.length - 1;
+    if (i < 0 || i >= line.length) return fail('invalid');
+    if (e.job?.kind === 'produce' && i === 0) {
+      // Cancelling refunds everything, as in the original.
+      world.sides[side].money += e.job.price;
+      e.job = null;
+    } else e.queue.splice(e.job?.kind === 'produce' ? i - 1 : i, 1);
     return OK;
   }
   const site = e.job?.kind === 'construct' ? world.byId.get(e.job.siteId) : !e.complete ? e : undefined;
@@ -755,7 +886,41 @@ function updateUnit(world: World, e: Entity): void {
   else tankThink(world, e);
   moveUnit(world, e, rules.stepMs);
   if (e.order.kind === 'move' && e.path.length === 0) e.order = { kind: 'idle' };
+  if (e.order.kind === 'idle' && e.waypoints.length > 0) nextWaypoint(world, e);
   if (rules.weapon && e.targetId) fireAt(world, e, rules.weapon);
+  else if (rules.weapon) turnTurret(e, e.dir);
+  if (e.path.length === 0 && (world.tick + e.id) % UNSTACK_TICKS === 0) unstack(world, e);
+}
+
+/** How often a unit standing on another one checks for a free cell. */
+const UNSTACK_TICKS = 10;
+
+/** Units that stopped on top of each other: the newer one moves to the nearest free cell. */
+function unstack(world: World, e: Entity): void {
+  if (e.hidden || e.order.kind === 'harvest') return;
+  const standing = (o: Entity) => o !== e && isUnit(o.type) && o.hp > 0 && !o.hidden && o.path.length === 0;
+  if (!world.entities.some((o) => standing(o) && o.id < e.id && overlaps(e, o))) return;
+  const c = cellOf(e);
+  for (let r = 1; r <= 3; r++)
+    for (let dy = -r; dy <= r; dy++)
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const cell = { cx: c.cx + dx, cy: c.cy + dy };
+        if (!cellPassable(world, cell.cx, cell.cy)) continue;
+        const probe = { x: cell.cx * CELL, y: cell.cy * CELL, size: CELL } as Entity;
+        if (world.entities.some((o) => o !== e && isUnit(o.type) && o.hp > 0 && !o.hidden && overlaps(probe, o))) continue;
+        // Only a step away along a free route, never through a wall to the other side.
+        if (setPathTo(world, e, cell) && e.path.length <= r + 1) return;
+        stopMoving(e);
+      }
+}
+
+/** Turns a turret one 45° step per tick toward `dir`, the shorter way round; true once it faces that way. */
+function turnTurret(e: Entity, dir: number): boolean {
+  if (e.turretDir === dir) return true;
+  const diff = (dir - e.turretDir + 8) % 8;
+  e.turretDir = (e.turretDir + (diff <= 4 ? 1 : 7)) % 8;
+  return e.turretDir === dir;
 }
 
 function moveUnit(world: World, e: Entity, stepMs: number): void {
@@ -815,6 +980,31 @@ function nearest(e: Entity, candidates: Entity[], range: number): Entity | null 
   return best;
 }
 
+/** Like nearest(), but only targets `e` can actually shoot at: no forest between them. */
+function nearestShot(world: World, e: Entity, candidates: Entity[], range: number): Entity | null {
+  return nearest(e, candidates.filter((c) => gapBetween(e, c) < range && clearShot(world, e, c)), range);
+}
+
+/** True when no forest lies on the straight line between the two centres. Walls and buildings do not hide anything. */
+export function clearShot(world: World, a: Entity, b: Entity): boolean {
+  const from = centerOf(a);
+  const to = centerOf(b);
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const n = Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 3);
+  for (let i = 1; i < n; i++) {
+    const cx = Math.floor((from.x + (dx * i) / n) / CELL);
+    const cy = Math.floor((from.y + (dy * i) / n) / CELL);
+    if (cx >= 0 && cy >= 0 && cx < world.cols && cy < world.rows && world.blocked[cy * world.cols + cx] === 1) return false;
+  }
+  return true;
+}
+
+/** In range and nothing in the way. */
+function canShoot(world: World, e: Entity, t: Entity, range: number): boolean {
+  return gapBetween(e, t) < range && clearShot(world, e, t);
+}
+
 function enemiesOf(world: World, side: Team, filter: (e: Entity) => boolean): Entity[] {
   return world.entities.filter((o) => o.hp > 0 && !o.hidden && o.team !== side && o.team !== 'neutral' && filter(o));
 }
@@ -854,7 +1044,7 @@ function tankThink(world: World, e: Entity): void {
       if (t && gapBetween(t, guard) > 5 * CELL && gapBetween(e, t) >= range) t = null;
       if (!t) {
         const threats = enemiesOf(world, e.team, (o) => o.type !== ObjectType.Wall);
-        t = nearest(e, threats, range) ?? nearest(guard, threats, 4 * CELL);
+        t = nearestShot(world, e, threats, range) ?? nearest(guard, threats, 4 * CELL);
       }
       if (t) {
         engage(world, e, t, range);
@@ -870,15 +1060,62 @@ function tankThink(world: World, e: Entity): void {
       return;
     }
     case 'idle':
-    case 'harvest': {
-      const current = liveTarget(world, e.targetId);
-      if (current && gapBetween(e, current) < range) return;
-      const t = nearest(e, enemiesOf(world, e.team, (o) => isUnit(o.type) || o.type === ObjectType.Defender), range);
-      e.targetId = t ? t.id : 0;
+    case 'harvest':
+      idleTank(world, e, range);
       return;
-    }
   }
 }
+
+/**
+ * An idle tank shoots what comes into range, and goes after what it sees (or what shoots it) up to CHASE_CELLS
+ * from where it stood. Past that it gives up and drives back, firing only at what is in range on the way.
+ */
+function idleTank(world: World, e: Entity, range: number): void {
+  const here = cellOf(e);
+  if (e.home && !e.home.back && Math.max(Math.abs(here.cx - e.home.cx), Math.abs(here.cy - e.home.cy)) > CHASE_CELLS) {
+    e.home = { ...e.home, back: true };
+    stopMoving(e);
+  }
+  const foes = enemiesOf(world, e.team, (o) => isUnit(o.type) || o.type === ObjectType.Defender);
+  const current = liveTarget(world, e.targetId);
+  const inRange = current && current.team !== e.team && canShoot(world, e, current, range) ? current : nearestShot(world, e, foes, range);
+  if (e.home?.back) {
+    // On the way back: shoot over the shoulder, keep driving.
+    e.targetId = inRange ? inRange.id : 0;
+    if (here.cx === e.home.cx && here.cy === e.home.cy && e.path.length === 0) e.home = null;
+    else if (e.path.length === 0 && e.repathMs <= 0) {
+      e.repathMs = 1000;
+      if (!setPathTo(world, e, e.home)) e.home = null;
+    }
+    return;
+  }
+  if (inRange) {
+    e.targetId = inRange.id;
+    stopMoving(e);
+    return;
+  }
+  // Something seen, or something that just shot at us from farther away.
+  const sight = UNIT_SIGHT_CELLS * CELL;
+  const shooter = e.hitBy && world.tick - e.hitTick < HIT_MEMORY_TICKS ? liveTarget(world, e.hitBy) : null;
+  // A target once chosen is followed until it dies or the leash pulls the tank back.
+  const chase =
+    (current && current.team !== e.team ? current : null) ??
+    nearest(e, foes, sight) ??
+    (shooter && shooter.team !== e.team && shooter.team !== 'neutral' ? shooter : null);
+  if (chase) {
+    if (!e.home) e.home = { ...here, back: false };
+    engage(world, e, chase, range);
+    return;
+  }
+  e.targetId = 0;
+  if (e.home) {
+    e.home = { ...e.home, back: true };
+    stopMoving(e);
+  }
+}
+
+/** How long a unit remembers who shot it. */
+const HIT_MEMORY_TICKS = 40;
 
 /**
  * Attack-move: shoot armed enemies in range first, then anything else in range except walls, and keep driving.
@@ -886,7 +1123,7 @@ function tankThink(world: World, e: Entity): void {
  */
 function attackMove(world: World, e: Entity, x: number, y: number, range: number): void {
   const current = liveTarget(world, e.targetId);
-  if (current && gapBetween(e, current) < range) {
+  if (current && canShoot(world, e, current, range)) {
     stopMoving(e);
     return;
   }
@@ -899,9 +1136,9 @@ function attackMove(world: World, e: Entity, x: number, y: number, range: number
     // even out of sight: the shells show where it stands.
     const towerRange = BUILDING_RULES[ObjectType.Defender].weapon!.range;
     t =
-      nearest(e, foes.filter((o) => (isUnit(o.type) && UNIT_RULES[o.type as UnitType].weapon) || o.type === ObjectType.Defender), range) ??
-      nearest(e, foes.filter((o) => o.type === ObjectType.Defender), towerRange) ??
-      nearest(e, foes.filter((o) => o.type !== ObjectType.Wall), range);
+      nearestShot(world, e, foes.filter((o) => (isUnit(o.type) && UNIT_RULES[o.type as UnitType].weapon) || o.type === ObjectType.Defender), range) ??
+      nearestShot(world, e, foes.filter((o) => o.type === ObjectType.Defender), towerRange) ??
+      nearestShot(world, e, foes.filter((o) => o.type !== ObjectType.Wall), range);
     if (t && gapBetween(e, t) >= range) {
       engage(world, e, t, range);
       return;
@@ -910,6 +1147,12 @@ function attackMove(world: World, e: Entity, x: number, y: number, range: number
   if (t) {
     e.targetId = t.id;
     stopMoving(e);
+    return;
+  }
+  // An armed enemy in sight but out of range: go and fight it, then carry on to the goal.
+  const armed = nearest(e, enemiesOf(world, e.team, (o) => (isUnit(o.type) && UNIT_RULES[o.type as UnitType].weapon !== null) || o.type === ObjectType.Defender), UNIT_SIGHT_CELLS * CELL);
+  if (armed) {
+    engage(world, e, armed, range);
     return;
   }
   e.targetId = 0;
@@ -959,10 +1202,10 @@ function firstBlocker(world: World, e: Entity, goal: Cell): Entity | null {
   return null;
 }
 
-/** Shoot `t` if in range, otherwise drive toward it. */
+/** Shoot `t` if in range and in the open, otherwise drive toward it. */
 function engage(world: World, e: Entity, t: Entity, range: number): void {
   e.targetId = t.id;
-  if (gapBetween(e, t) < range) {
+  if (canShoot(world, e, t, range)) {
     stopMoving(e);
     return;
   }
@@ -989,8 +1232,8 @@ function raiderThink(world: World, e: Entity): void {
     return;
   }
   const t =
-    nearest(e, enemiesOf(world, e.team, (o) => !isUnit(o.type)), range) ??
-    nearest(e, enemiesOf(world, e.team, (o) => isUnit(o.type)), range);
+    nearestShot(world, e, enemiesOf(world, e.team, (o) => !isUnit(o.type)), range) ??
+    nearestShot(world, e, enemiesOf(world, e.team, (o) => isUnit(o.type)), range);
   if (t) {
     e.targetId = t.id;
     stopMoving(e);
@@ -1072,10 +1315,12 @@ function harvesterThink(world: World, e: Entity): void {
       const silo = nearestBy(e, silos);
       if (!silo) {
         stopMoving(e);
+        setNotice(world, e, 'noSilo');
         return;
       }
       if (gapBetween(e, silo) <= HARVESTER.dockGap) {
         stopMoving(e);
+        setNotice(world, e, null);
         if (silo.dockedId === 0) {
           silo.dockedId = e.id;
           e.hidden = true;
@@ -1084,8 +1329,15 @@ function harvesterThink(world: World, e: Entity): void {
         return;
       }
       if (e.path.length === 0 || e.repathMs <= 0) {
-        pathToward(world, e, silo);
         e.repathMs = 2000;
+        // The nearest silo first, then the others: walls or forest may cut one off.
+        const reachable = [silo, ...silos.filter((o) => o !== silo).sort((a, b) => gapBetween(e, a) - gapBetween(e, b))].find((s) => {
+          pathToward(world, e, s);
+          const end = e.path.length > 0 ? e.path[e.path.length - 1]! : cellOf(e);
+          return gapBetween({ x: end.cx * CELL, y: end.cy * CELL, size: CELL } as Entity, s) <= HARVESTER.dockGap;
+        });
+        if (!reachable) stopMoving(e);
+        setNotice(world, e, reachable ? null : 'siloBlocked');
       }
       return;
     }
@@ -1112,6 +1364,26 @@ function harvesterThink(world: World, e: Entity): void {
   }
 }
 
+/** Sets why a harvester is stuck, telling the game once each time it becomes stuck. */
+function setNotice(world: World, e: Entity, notice: HarvesterNotice | null): void {
+  if (e.notice === notice) return;
+  e.notice = notice;
+  if (notice && e.team !== 'neutral') {
+    const c = centerOf(e);
+    world.events.push({ kind: 'harvesterNotice', team: e.team, id: e.id, notice, x: c.x, y: c.y });
+  }
+}
+
+/** Centre of `t` after `seconds` more of driving toward its next waypoint (one pixel per step on each axis). */
+function leadPoint(t: Entity, at: { x: number; y: number }, seconds: number): { x: number; y: number } {
+  const wp = t.path[0];
+  if (!isUnit(t.type) || !wp) return at;
+  const px = Math.round((seconds * 1000) / UNIT_RULES[t.type as UnitType].stepMs);
+  const dx = wp.cx * CELL - t.x;
+  const dy = wp.cy * CELL - t.y;
+  return { x: at.x + Math.sign(dx) * Math.min(px, Math.abs(dx)), y: at.y + Math.sign(dy) * Math.min(px, Math.abs(dy)) };
+}
+
 function fireAt(world: World, e: Entity, weapon: Weapon): void {
   const t = liveTarget(world, e.targetId);
   if (!t || e.team === 'neutral') {
@@ -1120,11 +1392,20 @@ function fireAt(world: World, e: Entity, weapon: Weapon): void {
   }
   const from = centerOf(e);
   const to = centerOf(t);
-  e.dir = dirToward(Math.round(to.x - from.x), Math.round(to.y - from.y), e.dir);
-  if (e.reloadMs > 0 || gapBetween(e, t) >= weapon.range) return;
+  // Only the gun turns to the target; the hull keeps facing where it drives. A defender is all turret.
+  const aimed = turnTurret(e, dirToward(Math.round(to.x - from.x), Math.round(to.y - from.y), e.turretDir));
+  if (!isUnit(e.type)) e.dir = e.turretDir;
+  if (!aimed || e.reloadMs > 0 || !canShoot(world, e, t, weapon.range)) return;
   e.reloadMs = weapon.reloadMs;
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
+  // The muzzle flash gives the shooter away: the victim's side sees the cells around it.
+  if (t.team !== 'neutral' && t.team !== e.team) {
+    const c = cellOf(e);
+    revealAround(world, t.team, c.cx, c.cy, 1);
+  }
+  // Aim where a driving target will be when the shell gets there, not where it is now.
+  const aim = leadPoint(t, to, Math.hypot(to.x - from.x, to.y - from.y) / weapon.speed);
+  const dx = aim.x - from.x;
+  const dy = aim.y - from.y;
   const dist = Math.sqrt(dx * dx + dy * dy) || 1;
   const perTick = (weapon.speed * TICK_MS) / 1000;
   const kind = weapon.damage >= 15 ? 'cannon' : 'gun';
@@ -1139,6 +1420,7 @@ function fireAt(world: World, e: Entity, weapon: Weapon): void {
     // Shells are aimed at the target's centre and fall a little past it.
     left: dist + 6,
     damage: weapon.damage,
+    shooterId: e.id,
   });
   world.events.push({ kind: 'shot', id: e.id, by: e.type, x: from.x, y: from.y, weapon: kind, team: e.team });
 }
@@ -1164,11 +1446,24 @@ function updateProjectiles(world: World): void {
     }
     if (hit) {
       hit.hp -= p.damage;
+      hit.hitBy = p.shooterId;
+      hit.hitTick = world.tick;
       world.events.push({ kind: 'hit', x: p.x, y: p.y, weapon: p.weapon });
+      if (hit.team !== 'neutral' && (!isUnit(hit.type) || hit.type === ObjectType.Harvester)) alert(world, hit.team, hit);
     } else if (p.left > 0) keep.push(p);
     else world.events.push({ kind: 'hit', x: p.x, y: p.y, weapon: p.weapon });
   }
   world.projectiles = keep;
+}
+
+/** "Under attack" for the minimap, at most once per ALERT_MS for the same part of the map. */
+function alert(world: World, side: Side, e: Entity): void {
+  const c = centerOf(e);
+  const last = world.sides[side].alert;
+  const near = last && Math.abs(last.x - c.x) < 10 * CELL && Math.abs(last.y - c.y) < 10 * CELL;
+  if (last && near && (world.tick - last.tick) * TICK_MS < ALERT_MS) return;
+  world.sides[side].alert = { tick: world.tick, x: c.x, y: c.y };
+  world.events.push({ kind: 'underAttack', team: side, id: e.id, x: c.x, y: c.y });
 }
 
 function updateBuilding(world: World, e: Entity): void {
@@ -1196,8 +1491,13 @@ function updateBuilding(world: World, e: Entity): void {
         e.job = null;
         e.pauseMs = 0;
         world.events.push({ kind: 'completed', id: u.id, type: u.type });
+        if (e.rally) sendToRally(world, u, e.rally);
       }
     }
+  }
+  // The next queued unit starts as soon as there is money for it.
+  if (!e.job && e.queue.length > 0 && e.team !== 'neutral' && world.sides[e.team].money >= UNIT_RULES[e.queue[0]!].price) {
+    startProduction(world, e, e.queue.shift()!);
   }
   // The original enemy factory; a skirmish factory makes only what its owner orders.
   if (e.type === ObjectType.TankFactory && e.team === 'enemy' && !e.job && !world.ai.enemy && world.mode === 'campaign') {
@@ -1211,12 +1511,24 @@ function updateBuilding(world: World, e: Entity): void {
   const weapon = BUILDING_RULES[e.type as BuildingType]?.weapon;
   if (weapon && e.team !== 'neutral') {
     let t = liveTarget(world, e.targetId);
-    if (!t || gapBetween(e, t) >= weapon.range) {
-      t = nearest(e, enemiesOf(world, e.team, (o) => isUnit(o.type)), weapon.range);
+    if (!t || !canShoot(world, e, t, weapon.range)) {
+      t = nearestShot(world, e, enemiesOf(world, e.team, (o) => isUnit(o.type)), weapon.range);
       e.targetId = t ? t.id : 0;
     }
     if (t) fireAt(world, e, weapon);
   }
+}
+
+/** A new unit drives to its factory's rally point; a harvester sent onto a field starts mining it. */
+function sendToRally(world: World, u: Entity, rally: { x: number; y: number }): void {
+  const field = world.entities.find(
+    (o) => o.type === ObjectType.ResourceField && rally.x >= o.x && rally.x < o.x + o.size && rally.y >= o.y && rally.y < o.y + o.size,
+  );
+  if (field && u.type === ObjectType.Harvester && u.team !== 'neutral') {
+    issue(world, u.team, { kind: 'harvest', ids: [u.id], fieldId: field.id });
+    return;
+  }
+  moveTo(world, u, { cx: Math.floor(rally.x / CELL), cy: Math.floor(rally.y / CELL) }, rally.x, rally.y, false);
 }
 
 /** First free cell around a factory, searched in growing rings like the original. */
@@ -1277,7 +1589,7 @@ export function hashWorld(world: World): number {
   mix(world.sides.player.money);
   mix(world.sides.enemy.money);
   for (const e of world.entities) {
-    for (const v of [e.id, e.type, e.x, e.y, e.hp, e.team === 'enemy' ? 1 : 0, e.cargo, e.targetId, e.path.length]) mix(v);
+    for (const v of [e.id, e.type, e.x, e.y, e.hp, e.turretDir, e.team === 'enemy' ? 1 : 0, e.cargo, e.targetId, e.path.length]) mix(v);
   }
   for (const p of world.projectiles) {
     mix(Math.round(p.x * 16));

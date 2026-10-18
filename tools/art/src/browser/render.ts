@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { CAMERA_DISTANCE, CAMERA_ELEVATION_DEG, CAMERA_FAR, CAMERA_NEAR, frameLayout, PX_PER_CELL, SPRITES, SUPERSAMPLE } from '../catalog';
-import { GROUND_ID, materialId, type MaterialName } from '../materials';
+import { CAMERA_DISTANCE, CAMERA_ELEVATION_DEG, CAMERA_FAR, CAMERA_NEAR, frameLayout, PX_PER_CELL, SPRITES, SUPERSAMPLE, type SpriteDef } from '../catalog';
+import { GHOST_ID, GROUND_ID, materialId, type MaterialName } from '../materials';
 import { MODELS } from './models';
 
 /**
@@ -84,11 +84,54 @@ export interface RawRender {
   depth: string;
 }
 
+/** The turret of a model: the object marked `userData.turret`. */
+function turretOf(model: THREE.Object3D): THREE.Object3D | undefined {
+  let found: THREE.Object3D | undefined;
+  model.traverse((o) => {
+    if (o.userData.turret) found ??= o;
+  });
+  return found;
+}
+
+/**
+ * The model to render for a sprite: whole, its hull without the turret, or the turret alone. The turret is built on
+ * a model facing north, then stands at the hull's centre at its own height, turned to the view, over a ghost disc as
+ * wide as a hull, so the hull's top stops its outline where it sits on it.
+ */
+function modelFor(def: SpriteDef, view: number, frame: string): THREE.Object3D {
+  const build = MODELS[def.model ?? def.name];
+  if (!build) throw new Error(`no model for ${def.name}`);
+  if (def.part === 'hull') {
+    const model = build(view, frame);
+    if (frame !== 'wreck') turretOf(model)?.removeFromParent();
+    return model;
+  }
+  if (def.part !== 'turret') return build(view, frame);
+  const base = SPRITES.find((s) => s.name === def.model)!;
+  const model = build(0, frame === 'fire' ? 'fire' : base.frames[0]!);
+  model.updateMatrixWorld(true);
+  const turret = turretOf(model);
+  if (!turret) throw new Error(`${def.model} has no turret`);
+  const y = turret.getWorldPosition(new THREE.Vector3()).y;
+  const bottom = new THREE.Box3().setFromObject(turret).min.y;
+  turret.removeFromParent();
+  turret.position.set(0, y, 0);
+  turret.rotation.set(0, (-view * Math.PI) / 4, 0);
+  const g = new THREE.Group();
+  g.add(turret);
+  if (bottom > 0.05) {
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, bottom, 12));
+    disc.position.y = bottom / 2;
+    disc.userData.ghost = true;
+    g.add(disc);
+  }
+  return g;
+}
+
 export function renderSprite(name: string, view: number, frame: string): RawRender {
   const def = SPRITES.find((s) => s.name === name);
-  const build = MODELS[name];
-  if (!def || !build) throw new Error(`no model for ${name}`);
-  const model = build(view, frame);
+  if (!def) throw new Error(`no sprite ${name}`);
+  const model = modelFor(def, view, frame);
   const { cam, w, h } = camera(def.cells);
   const W = w * SUPERSAMPLE;
   const H = h * SUPERSAMPLE;
@@ -137,7 +180,15 @@ export function renderSprite(name: string, view: number, frame: string): RawRend
   };
 
   // Pass 1: material ids.
-  for (const m of meshes) m.material = idMat(materialId(m.userData.mat as MaterialName));
+  const ghosts = new Set<THREE.Object3D>();
+  model.traverse((o) => {
+    if (o.userData.ghost) o.traverse((c) => ghosts.add(c));
+  });
+  for (const m of meshes) {
+    m.material = idMat(ghosts.has(m) ? GHOST_ID : materialId(m.userData.mat as MaterialName));
+    // A ghost stands for a neighbour that casts its own shadow in its own sprite.
+    if (ghosts.has(m)) m.castShadow = false;
+  }
   ground.material = idMat(GROUND_ID);
   const mat = read();
 

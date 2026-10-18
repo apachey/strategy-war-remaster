@@ -52,12 +52,12 @@ test('mission 1 opens with its briefing, then the map', async ({ page }) => {
   await page.getByRole('button', { name: 'Почати' }).click();
   await expect(page.locator('#hud')).toContainText('Початок · Перші кроки');
   await expect(page.locator('#money')).toHaveText('$1000');
-  // The campaign is white humans (olive accents) against cyan hovers (white accents).
+  // The campaign is olive humans (turquoise accents) against red hovers (white accents).
   const sides = await page.evaluate(() => {
     const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { race: string; color: string; color2: string }> } } } }).__sw.game.world;
     return [w.sides.player!.race, w.sides.player!.color, w.sides.player!.color2, w.sides.enemy!.race, w.sides.enemy!.color, w.sides.enemy!.color2];
   });
-  expect(sides).toEqual(['human', 'white', 'olive', 'hover', 'cyan', 'white']);
+  expect(sides).toEqual(['human', 'olive', 'cyan', 'hover', 'red', 'white']);
   await page.screenshot({ path: 'test-results/mission-1-1.png' });
   expect(errors).toEqual([]);
 });
@@ -218,5 +218,35 @@ test('the minimap shows the map and moves the camera', async ({ page }) => {
   await page.mouse.click(box.x + box.width / 2, box.y + box.height - 3);
   await expect.poll(camY).toBeLessThan(top);
   await page.screenshot({ path: 'test-results/minimap.png' });
+  expect(errors).toEqual([]);
+});
+
+test('the factory answers a click on its roof, queues tanks and sets a rally point', async ({ page }) => {
+  const errors = await open(page, '?m=7.1');
+  await page.getByRole('button', { name: 'Почати' }).click();
+  const f = await screenOf(page, 2);
+  const z = await page.evaluate(() => (window as unknown as { __sw: Hook }).__sw.camera.scale.x);
+  // The crane on the roof is drawn above the factory's cells.
+  await expect(async () => {
+    await page.mouse.click(f.x, f.y - 18 * z);
+    await expect(page.locator('#panel')).toContainText('Танковий завод', { timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  // The panel redraws while the factory works; a slow press must still count.
+  for (let i = 0; i < 2; i++) {
+    const buggy = await page.evaluate(() => {
+      const r = document.querySelector('#panel button[data-type="101"]')!.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    await page.mouse.click(buggy.x, buggy.y, { delay: 150 });
+  }
+  await expect(page.locator('#panel')).toContainText('(+1)');
+  await expect(page.locator('#money')).toHaveText('$900');
+  await page.mouse.click(f.x + 60 * z, f.y + 20 * z, { button: 'right' });
+  const rally = await page.evaluate(() => {
+    const sw = (window as unknown as { __sw: { game: { world: { entities: Array<{ type: number; team: string; rally: unknown }> } } } }).__sw;
+    return sw.game.world.entities.find((e) => e.type === 2 && e.team === 'player')!.rally;
+  });
+  expect(rally).not.toBeNull();
+  await page.screenshot({ path: 'test-results/factory-queue.png' });
   expect(errors).toEqual([]);
 });

@@ -146,7 +146,7 @@ body.duo .panel.side-2 { left: calc(50% + 4 * var(--u)); }
 body.duo #help { display: none; }
 body.duo.paused #help { display: block; left: 50%; right: auto; transform: translateX(-50%); bottom: 50%; max-width: 640px; text-align: center; color: var(--ink); }
 
-#help { position: fixed; right: calc(4 * var(--u)); bottom: calc(4 * var(--u)); max-width: 380px; padding: 0 var(--u); color: var(--muted); text-align: right; }
+#help { pointer-events: none; position: fixed; right: calc(4 * var(--u)); bottom: calc(4 * var(--u)); max-width: 380px; padding: 0 var(--u); color: var(--muted); text-align: right; }
 
 .toast { position: fixed; left: 50%; top: calc(30 * var(--u)); transform: translateX(-50%); padding: 0 calc(2 * var(--u)); color: #ffd9d0; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
 .toast.show { opacity: 1; }

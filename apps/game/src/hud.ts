@@ -11,6 +11,8 @@ import {
   SKIRMISH_MONEY,
   skirmishLayout,
   TICKS_PER_SECOND,
+  productionLine,
+  QUEUE_MAX,
   UNIT_RULES,
   type BuildingType,
   type Difficulty,
@@ -623,12 +625,19 @@ export class PlayerPanel {
     this.money = n === 1 && !duo ? $('money') : ensure('div', `badge-${n}`, `badge side-${n}`);
     $('money').hidden = duo;
     c.onToast = (text) => this.toast(text);
-    this.panel.onclick = (ev) => this.onClick(ev);
     this.panel.oncontextmenu = (ev) => this.onRightClick(ev);
     if (duo) {
       const look = skin(this.own.race, this.own.color, this.own.color2);
       for (const el of [this.panel, this.money, this.toastEl]) applySkin(el, look);
     }
+    // Buttons act on press: the panel redraws while something is being built, and a redraw between press and
+    // release used to swallow the click. Gamepad and keyboard presses come as clicks with no pointer behind them.
+    this.panel.onpointerdown = (ev) => {
+      if (ev.button === 0) this.onClick(ev);
+    };
+    this.panel.onclick = (ev) => {
+      if (ev.detail === 0) this.onClick(ev);
+    };
   }
 
   private get own(): SideState {
@@ -768,7 +777,7 @@ export class PlayerPanel {
     } else if (!e.complete) {
       rows.push(gauge(siteName(raceOf(this.c.world, e.team) ?? 'human'), e.buildElapsedMs / e.buildTotalMs, 'work', `${Math.floor((e.buildElapsedMs / e.buildTotalMs) * 100)}%`));
     } else if (e.job?.kind === 'produce') {
-      rows.push(gauge(`${T.producing}: ${objectName(raceOf(this.c.world, e.team), e.job.unit)}`, e.job.elapsedMs / e.job.totalMs, 'work', `${Math.floor((e.job.elapsedMs / e.job.totalMs) * 100)}%`));
+      rows.push(gauge(`${T.producing}: ${objectName(raceOf(this.c.world, e.team), e.job.unit)}${e.queue.length > 0 ? ` (+${e.queue.length})` : ''}`, e.job.elapsedMs / e.job.totalMs, 'work', `${Math.floor((e.job.elapsedMs / e.job.totalMs) * 100)}%`));
     } else if (e.job?.kind === 'construct') rows.push(chip(T.constructing, false));
     const cmds = own && isUnit(e.type) ? this.unitButtons() : '';
     let html = `<div class="sel">${face}<div class="stats"><div class="title ${team}">${this.name(e)}</div>${rows.join('')}</div>${cmds}</div>`;
@@ -784,7 +793,7 @@ export class PlayerPanel {
       for (const type of FACTORY_BUILDS) html += this.produceButton(type, e);
       html += '</div>';
       html += this.queue(e);
-      if (e.job) html += `<div class="buttons"><button data-action="cancel" data-id="${e.id}">${T.cancel}</button></div>`;
+      if (productionLine(e).length > 0) html += `<div class="buttons"><button data-action="cancel" data-id="${e.id}">${T.cancel}</button></div>`;
     } else if (!e.complete) {
       html += `<div class="buttons"><button data-action="cancel" data-id="${e.id}">${T.cancel}</button></div>`;
     }
@@ -800,7 +809,8 @@ export class PlayerPanel {
 
   private produceButton(type: UnitType, factory: Entity): string {
     const price = UNIT_RULES[type].price;
-    const disabled = factory.job || price > this.c.money ? ' disabled' : '';
+    const line = productionLine(factory).length;
+    const disabled = line >= QUEUE_MAX || (line === 0 && price > this.c.money) ? ' disabled' : '';
     return `<button class="build" data-action="produce" data-type="${type}" data-id="${factory.id}"${disabled}>${img(portraitOf(this.own, type, 24))}<span>${objectName(this.ownRace, type)}</span><small>$ ${price}</small></button>`;
   }
 
@@ -810,12 +820,11 @@ export class PlayerPanel {
   }
 
   /**
-   * The factory's queue: the tank being built with its progress, then the ones waiting (when the simulation keeps a
-   * queue). Right click on one cancels it.
+   * The factory's queue: the tank being built with its progress, then the ones waiting. Right click on one cancels it.
    */
   private queue(factory: Entity): string {
     const job = factory.job?.kind === 'produce' ? factory.job : null;
-    const waiting = ((factory as Entity & { queue?: UnitType[] }).queue ?? []) as UnitType[];
+    const waiting = factory.queue;
     if (!job && waiting.length === 0) return '';
     const T = t();
     const icon = (type: UnitType, i: number, progress: number | null) =>
@@ -830,10 +839,8 @@ export class PlayerPanel {
     ev.preventDefault();
     const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-queue]');
     if (!btn) return;
-    // `index` counts along the factory's production line (running tank first); a simulation without a queue ignores
-    // it and cancels the running tank, the only one there is.
-    const cancel = { kind: 'cancel', id: Number(btn.dataset.id), index: Number(btn.dataset.queue) };
-    this.c.run(cancel as { kind: 'cancel'; id: number });
+    // `index` counts along the factory's production line, the running tank first.
+    this.c.run({ kind: 'cancel', id: Number(btn.dataset.id), index: Number(btn.dataset.queue) });
     this.key = '';
   }
 

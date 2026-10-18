@@ -29,16 +29,13 @@ function think(world: World, ehq: Entity): void {
       else issue(world, 'player', { kind: 'move', ids: [u.id], x: field.x + 15, y: field.y + 15 });
       continue;
     }
-    if (u.path.length > 0) continue;
+    // Attack-move drives on its own and breaks through walls in the way; it turns idle when done.
+    if (u.path.length > 0 || u.order.kind === 'attackMove') continue;
     const range = UNIT_RULES[u.type as UnitType].weapon!.range;
     const current = u.order.kind === 'attack' ? world.byId.get(u.order.targetId) : undefined;
     if (current && gapBetween(u, current) < range) continue;
-    const enemies = world.entities
-      .filter((e) => e.team === 'enemy' && e.hp > 0 && isVisibleTo(world, 'player', e))
-      .sort((a, b) => gapBetween(u, a) - gapBetween(u, b) || a.id - b.id);
-    // Head for the HQ; if already stuck in front of something, shoot the closest enemy object instead.
-    const target = isVisibleTo(world, 'player', ehq) && u.order.kind !== 'attack' ? ehq : enemies[0];
-    if (target) issue(world, 'player', { kind: 'attack', ids: [u.id], targetId: target.id });
-    else issue(world, 'player', { kind: 'move', ids: [u.id], x: ehq.x, y: ehq.y });
+    // Head for the HQ; stuck in front of it (walls, forest), attack-move there instead.
+    if (isVisibleTo(world, 'player', ehq) && u.order.kind !== 'attack') issue(world, 'player', { kind: 'attack', ids: [u.id], targetId: ehq.id });
+    else issue(world, 'player', { kind: 'attackMove', ids: [u.id], x: ehq.x, y: ehq.y });
   }
 }

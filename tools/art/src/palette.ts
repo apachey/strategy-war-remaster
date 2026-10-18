@@ -1,6 +1,6 @@
 /**
- * The shared palette of style B: 43 colours for units and buildings plus 19 for the ground (fir trees, soil, sand and
- * the hover race's plates).
+ * The shared palette of style B: 43 colours for units and buildings, 5 for fire in the effects, plus 19 for the
+ * ground (fir trees, soil, sand and the hover race's plates).
  * Every sprite and tile is quantised to these colours, so units, buildings and terrain always sit together.
  * Colours are grouped into ramps, dark to light; a 3D material picks a ramp and the lighting picks the step inside
  * it, which gives hand-pixelled shading instead of smooth gradients.
@@ -21,6 +21,8 @@ export const RAMPS = {
   gold: ['#996600', '#cc9933', '#ffcc00', '#ffff33'],
   concrete: ['#4d4a3c', '#7a7660', '#a8a388', '#d4cfb2'],
   fire: ['#ff8a1c', '#ffffcc'],
+  // Explosions and burning buildings, from embers to white heat (effects only).
+  blaze: ['#4a1406', '#94300c', '#d85a14', '#ffb02c', '#fff48a'],
   signal: ['#006633', '#33ff66'],
   // The walkers' eyes as drawn, magenta; the game recolours them to `glowRamp` of the secondary colour.
   glow: ['#3a0a30', '#701a5c', '#a83088', '#d860b4', '#ffa0e0'],

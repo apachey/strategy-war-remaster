@@ -24,10 +24,10 @@ function lightTank(world: World) {
 }
 
 describe('races', () => {
-  it('the campaign is white humans with olive accents against cyan hovers with white accents', () => {
+  it('the campaign is olive humans with turquoise accents against red hovers with white accents', () => {
     const w = createWorld(campaign.maps[0]!, 0);
-    expect(w.sides.player).toMatchObject({ race: 'human', color: 'white', color2: 'olive' });
-    expect(w.sides.enemy).toMatchObject({ race: 'hover', color: 'cyan', color2: 'white' });
+    expect(w.sides.player).toMatchObject({ race: 'human', color: 'olive', color2: 'cyan' });
+    expect(w.sides.enemy).toMatchObject({ race: 'hover', color: 'red', color2: 'white' });
     expect(raceOf(w, 'enemy')).toBe('hover');
     expect(raceOf(w, 'neutral')).toBeNull();
   });
@@ -38,7 +38,7 @@ describe('races', () => {
     expect(w.sides.enemy).toMatchObject({ race: 'human', color: 'red' });
     const d = createSkirmish(3, { opponent: 'human' });
     expect([d.sides.player.race, d.sides.enemy.race]).toEqual(['human', 'hover']);
-    expect([d.sides.player.color, d.sides.enemy.color]).toEqual(['white', 'cyan']);
+    expect([d.sides.player.color, d.sides.enemy.color]).toEqual(['olive', 'red']);
   });
 
   it('refuses both sides in the same colour', () => {
@@ -61,16 +61,16 @@ describe('races', () => {
     }
     // Every shade of a ramp differs from every other colour's (no two swatches look the same).
     expect(new Set(grid.map((c) => TEAM_COLORS[c][2])).size).toBe(24);
-    expect(DEFAULT_COLORS).toEqual(['white', 'cyan']);
-    expect(DEFAULT_SECOND_COLORS).toEqual(['olive', 'white']);
+    expect(DEFAULT_COLORS).toEqual(['olive', 'red']);
+    expect(DEFAULT_SECOND_COLORS).toEqual(['cyan', 'white']);
     for (const c of [...DEFAULT_COLORS, ...DEFAULT_SECOND_COLORS]) expect(grid).toContain(c);
   });
 
-  it('secondary colours default to olive and white and may repeat any colour', () => {
+  it('secondary colours default to turquoise and white and may repeat any colour', () => {
     const c = createWorld(campaign.maps[0]!, 0);
-    expect([c.sides.player.color2, c.sides.enemy.color2]).toEqual(['olive', 'white']);
+    expect([c.sides.player.color2, c.sides.enemy.color2]).toEqual(['cyan', 'white']);
     const d = createSkirmish(3, { opponent: 'human' });
-    expect([d.sides.player.color2, d.sides.enemy.color2]).toEqual(['olive', 'white']);
+    expect([d.sides.player.color2, d.sides.enemy.color2]).toEqual(['cyan', 'white']);
     // Both sides in black accents, and the second side's accent equal to its own main colour.
     const w = createSkirmish(3, { opponent: 'hard', colors: ['blue', 'red'], colors2: ['black', 'red'] });
     expect(w.sides.player).toMatchObject({ color: 'blue', color2: 'black' });

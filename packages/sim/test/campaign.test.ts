@@ -18,9 +18,9 @@ function play(mission: (typeof MISSIONS)[number], difficulty: Difficulty, seed: 
 
 /**
  * Missions the script cannot crack at a level, even though a person can: 7.1 "Holdup" leaves almost no
- * resource, and against a computer enemy that keeps its tanks home the script loses the tower fight.
+ * resource, and against the normal computer enemy, which keeps its tanks home, the script loses the tower fight.
  */
-const SCRIPT_LIMITS: Partial<Record<Difficulty, string[]>> = { easy: ['7.1'], normal: ['7.1'] };
+const SCRIPT_LIMITS: Partial<Record<Difficulty, string[]>> = { normal: ['7.1'] };
 
 describe('campaign gate: the scripted player wins', () => {
   it('every mission against the original enemy (raiders are random, so with one of three seeds)', () => {

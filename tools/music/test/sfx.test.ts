@@ -4,13 +4,17 @@ import { SAMPLE_RATE } from '../src/synth';
 
 const NAMES = [
   'shot_light', 'shot_middle', 'shot_heavy', 'shot_defender', 'shot_alien', 'impact', 'explosion_small', 'explosion_big',
-  'harvest', 'unload', 'build_start', 'build_done', 'unit_ready', 'select', 'order', 'error', 'click', 'alert',
+  'build_start', 'build_done', 'unit_ready', 'select', 'order', 'error', 'click', 'alert',
   'self_destruct', 'victory', 'defeat',
+  'harvest_human', 'harvest_hover', 'harvest_walker', 'amb_wind', 'amb_forest', 'amb_crystals', 'amb_base', 'amb_factory',
 ];
 
 describe('sound effects', () => {
   it('has every effect the game asks for, once', () => {
-    expect(SFX.map((s) => s.name).sort()).toEqual([...NAMES].sort());
+    expect(SFX.filter((s) => !s.name.startsWith('voice_')).map((s) => s.name).sort()).toEqual([...NAMES].sort());
+    // 3 races x 4 units x 3 actions x 3 variants.
+    expect(SFX.filter((s) => s.name.startsWith('voice_'))).toHaveLength(108);
+    expect(new Set(SFX.map((s) => s.name)).size).toBe(SFX.length);
   });
 
   for (const s of SFX) {
@@ -34,8 +38,9 @@ describe('sound effects', () => {
           sum += v * v;
         }
         expect(bad).toBe(0);
-        // The fade leaves nothing to click at the end.
-        expect(Math.abs(c[n - 1]!)).toBeLessThan(1e-3);
+        // The fade leaves nothing to click at the end; a loop's end runs into its start.
+        if (s.loop) expect(Math.abs(c[n - 1]! - c[0]!)).toBeLessThan(0.05);
+        else expect(Math.abs(c[n - 1]!)).toBeLessThan(1e-3);
       }
       expect(peak).toBeCloseTo(10 ** (-1 / 20), 3);
       // RMS above -30 dBFS: not silent, not a lone spike.

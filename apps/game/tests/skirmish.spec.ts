@@ -84,9 +84,9 @@ test('the skirmish screen picks a map, an opponent and money, then plays', async
   await expect(page.locator('#modal')).toContainText('Ви');
   await expect(page.locator('#modal')).toContainText('Компʼютер');
   // Each side wears a colour the other one cannot pick.
-  await expect(page.locator('#modal [data-color0="white"]')).toHaveClass(/active/);
-  await expect(page.locator('#modal [data-color0="cyan"]')).toBeDisabled();
-  await expect(page.locator('#modal [data-color1="white"]')).toBeDisabled();
+  await expect(page.locator('#modal [data-color0="olive"]')).toHaveClass(/active/);
+  await expect(page.locator('#modal [data-color0="red"]')).toBeDisabled();
+  await expect(page.locator('#modal [data-color1="olive"]')).toBeDisabled();
   await page.screenshot({ path: 'test-results/skirmish-setup.png' });
   // Choices redraw the screen without loading anything; Start loads the match and goes straight in.
   await page.getByRole('button', { name: 'Важкий ШІ' }).click();
@@ -112,7 +112,7 @@ test('each side picks its race and colours; objects carry their race names', asy
   await expect(page.locator('#modal')).toContainText('Другий колір');
   await expect(page.locator('#modal [data-second0]')).toHaveCount(24);
   await expect(page.locator('#modal [data-second0]:disabled, #modal [data-second1]:disabled')).toHaveCount(0);
-  await expect(page.locator('#modal [data-second0="olive"]')).toHaveClass(/active/);
+  await expect(page.locator('#modal [data-second0="cyan"]')).toHaveClass(/active/);
   await page.locator('#modal [data-second0="black"]').click();
   await page.locator('#modal [data-second1="red"]').click();
   await expect(page.locator('#modal button.active')).toContainText(['Ходуни', 'Ховери']);
@@ -226,8 +226,8 @@ test('the Skirmish button on the main screen opens the last skirmish setup', asy
   // A stored setup with both sides in one colour gives the second side the next free colour in the list.
   expect(decodeURIComponent(page.url())).toContain('r=hover,walker');
   expect(decodeURIComponent(page.url())).toContain('c=pink,brown');
-  // An unknown colour falls back to the side's default secondary colour (olive); a known one stays.
-  expect(decodeURIComponent(page.url())).toContain('c2=olive,lime');
+  // An unknown colour falls back to the side's default secondary colour (cyan); a known one stays.
+  expect(decodeURIComponent(page.url())).toContain('c2=cyan,lime');
   await expect(page.locator('#modal h1')).toHaveText('Пошук бази');
 });
 

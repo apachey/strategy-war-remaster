@@ -111,12 +111,12 @@ export const SPRITE_TEAM_COLOR: TeamColor = 'olive';
 export const SPRITE_SECOND_COLOR: TeamColor = 'red';
 
 /**
- * Main colours by seat: white humans with olive accents (close to the original's olive army and white base) against
- * cyan hovers with white accents.
+ * Main colours by seat: olive humans with turquoise accents (the original's olive army) against red hovers with white
+ * accents, which read as foreign at a glance and never blend with the turquoise firs or the yellow crystals.
  */
-export const DEFAULT_COLORS: readonly [TeamColor, TeamColor] = ['white', 'cyan'];
+export const DEFAULT_COLORS: readonly [TeamColor, TeamColor] = ['olive', 'red'];
 /** Secondary colours by seat when none is chosen; any colour may be a secondary, also the other side's. */
-export const DEFAULT_SECOND_COLORS: readonly [TeamColor, TeamColor] = ['olive', 'white'];
+export const DEFAULT_SECOND_COLORS: readonly [TeamColor, TeamColor] = ['cyan', 'white'];
 /** The campaign is the original's war: humans against the hover race. */
 export const CAMPAIGN_RACES: readonly [Race, Race] = ['human', 'hover'];
 
