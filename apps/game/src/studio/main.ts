@@ -392,7 +392,7 @@ function sound(): void {
       .map((n) => `<button data-loop="${n}">▶ ${({ harvest_human: 'Збір: бур', harvest_hover: 'Збір: всмоктування', harvest_walker: 'Збір: щелепи', amb_wind: 'Вітер', amb_forest: 'Ліс', amb_crystals: 'Кристали', amb_base: 'База', amb_factory: 'Завод' } as Record<string, string>)[n]}</button>`)
       .join('')}<button data-stop>■ Стоп</button></div>
     <h3>Музика</h3>
-    <div class="music">${['tension-2', 'tension-3', 'battle-2', 'battle-3', 'victory', 'defeat']
+    <div class="music">${['main-theme', 'tension-2', 'tension-3', 'battle-2', 'battle-3', 'victory', 'defeat']
       .map((n) => `<figure><figcaption>${n}</figcaption><audio controls preload="none" src="v11/sound/music/${n}.m4a"></audio></figure>`).join('')}</div>`;
   for (const r of RACES) applySkin($(`[data-race-demo="${r}"]`, body), skin(r, state.own.color, state.own.color2));
   body.addEventListener('click', (ev) => {
