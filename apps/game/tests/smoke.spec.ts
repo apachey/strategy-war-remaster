@@ -40,6 +40,9 @@ const hook = (page: Page) => page.evaluate(() => {
   return { tick: g.world.tick, money: sw.players[0]!.money, started: g.started, difficulty: g.difficulty };
 });
 
+// The main screen and the outcome scenes draw live 3D with software rendering on CI, two tests at a time.
+test.describe.configure({ timeout: 90_000 });
+
 test('mission 1 opens with its briefing, then the map', async ({ page }) => {
   const errors = await open(page, '?m=1.1');
   await expect(page.locator('#modal')).toContainText('Перші кроки');
