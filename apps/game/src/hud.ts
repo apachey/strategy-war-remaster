@@ -37,11 +37,17 @@ const scene3dReady = import('./ui/scene3d').then((m) => (scene3d = m));
 
 const dress = (s: SideState): Dress => ({ race: s.race, color: s.color, color2: s.color2 });
 
+type SkirmishSetup = Extract<Setup, { kind: 'skirmish' }>;
+
 /** A portrait of an object type as a side would build it, `size` art pixels; empty until the models have loaded. */
-function portraitOf(s: SideState, type: ObjectType, size = 40): string {
+function portraitOf(s: SideState, type: ObjectType, size = 64): string {
+  return portraitFor(dress(s), type, size);
+}
+
+function portraitFor(d: Dress, type: ObjectType, size = 64): string {
   if (!scene3d) return '';
-  const name = spriteName(s.race, type === ObjectType.EnemyTank ? ObjectType.MiddleTank : type);
-  return scene3d.portrait(dress(s), name.startsWith(`${s.race}_`) ? name.slice(s.race.length + 1) : name, size);
+  const name = spriteName(d.race, type === ObjectType.EnemyTank ? ObjectType.MiddleTank : type);
+  return scene3d.portrait(d, name.startsWith(`${d.race}_`) ? name.slice(d.race.length + 1) : name, size);
 }
 
 const img = (src: string, cls = '') => (src ? `<img${cls ? ` class="${cls}"` : ''} src="${src}" alt="">` : '');
@@ -55,14 +61,14 @@ const inApp = () => '__TAURI_INTERNALS__' in window;
 
 export interface HudActions {
   /** Opens another setup (a mission or a skirmish); `load` continues a save. */
-  open(setup: Setup, load?: Slot): void;
+  open(setup: Setup, load?: Slot, start?: boolean): void;
   restart(): void;
   save(slot: Slot): void;
   load(slot: Slot): void;
   setLang(lang: Lang): void;
   setDifficulty(difficulty: Difficulty): void;
   /** The skirmish the "Skirmish" button opens: the last one played. */
-  lastSkirmish(): Extract<Setup, { kind: 'skirmish' }>;
+  lastSkirmish(): SkirmishSetup;
   /** Music and effects volume, 0..1. */
   volumes(): { music: number; sfx: number };
   setVolumes(music: number, sfx: number): void;
@@ -80,12 +86,16 @@ export class Hud {
   private shownOutcome = false;
   private scene: PixelScene | null = null;
   readonly panels: PlayerPanel[];
+  /** The skirmish screen's choices before Start loads them. */
+  private draft: SkirmishSetup | null = null;
 
   constructor(
     private readonly game: Game,
     private readonly actions: HudActions,
     /** Opened on the main screen rather than a mission or skirmish. */
     private readonly menu = false,
+    /** Straight into the match: Start on the skirmish screen loaded it. */
+    startNow = false,
   ) {
     document.body.classList.toggle('duo', game.twoPlayers);
     document.body.classList.toggle('menu', menu);
@@ -101,7 +111,7 @@ export class Hud {
     $('btn-saves').onclick = () => this.showSaves();
     $('btn-settings').onclick = () => this.showSettings();
     this.applyLang();
-    if (game.loaded) game.started = true;
+    if (game.loaded || startNow) game.started = true;
     else this.showBriefing();
     void scene3dReady.then(() => {
       for (const p of this.panels) p.refresh();
@@ -177,7 +187,7 @@ export class Hud {
        <div class="options">
          <div class="option"><span>${T.difficultyLabel}</span>${levels('difficulty', DIFFICULTIES, g.difficulty, (d) => T.difficulty[d], DIFFICULTY_ICONS)}</div>
          <p class="hint">${T.difficultyHint[g.difficulty]}</p>
-         <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}${LANG_NAMES[l]}`)}</div>
+         <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}<span class="sr">${LANG_NAMES[l]}</span>`)}</div>
        </div>
        <div class="row"><button class="primary" data-go>${T.start}</button></div>`,
     );
@@ -192,34 +202,37 @@ export class Hud {
   }
 
   /**
-   * The skirmish start screen: map preview with the goal, money and language beside it, then map, opponent and both
-   * sides next to each other (race, main colour grid, secondary colour grid). It fits a 1280×720 window without
-   * scrolling. Any change reopens the game.
+   * The skirmish start screen, one full screen: the map list, a large preview and the match options on top, then both
+   * sides next to each other (race, how their army will look, main and secondary colour grids). It fits a 1280×720
+   * window without scrolling. Choices change a draft and redraw only this screen; Start loads the match when the draft
+   * differs from the one already loaded.
    */
   private showSkirmishSetup(): void {
-    const s = this.game.setup as Extract<Setup, { kind: 'skirmish' }>;
+    const s = (this.draft ??= { ...(this.game.setup as SkirmishSetup) });
     const T = t();
     const maps = campaign.maps.map((_, i) => i);
     const m = this.modal(
-      `<div class="head"><canvas class="preview" width="1" height="1"></canvas><div>
-       <div class="kicker">${T.skirmish}</div>
-       <h1>${mapName(s.mapIndex)}</h1>
-       <p class="goal">${s.opponent === 'human' ? T.duoGoal : T.skirmishGoal}</p>
-       <div class="option"><span>${T.moneyLabel}</span>${choice('money', SKIRMISH_MONEY.map(String), String(s.money), (v) => `$${v}`)}</div>
-       <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}${LANG_NAMES[l]}`)}</div>
-       </div></div>
-       <div class="options">
-         <div class="option"><span>${T.mapLabel}</span>${choice('map', maps.map(String), String(s.mapIndex), (i) => `${Number(i) + 1}. ${mapName(Number(i))}`)}</div>
-         <div class="option"><span>${T.opponentLabel}</span>${levels('opponent', OPPONENTS, s.opponent, (o) => T.opponent[o], OPPONENT_ICONS)}</div>
-         <p class="hint">${T.opponentHint[s.opponent]}</p>
-         ${s.opponent === 'human' ? `<p class="hint pads">${T.helpDuo}</p>` : ''}
-         <div class="sides">${[0, 1].map((i) => sideOptions(s, i)).join('')}</div>
+      `<header><div class="kicker">${T.skirmish}</div><h1>${mapName(s.mapIndex)}</h1>
+         <div class="lang">${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}<span class="sr">${LANG_NAMES[l]}</span>`)}</div></header>
+       <div class="top">
+         <nav class="maps"><span>${T.mapLabel}</span>${choice('map', maps.map(String), String(s.mapIndex), (i) => `${Number(i) + 1}. ${mapName(Number(i))}`)}</nav>
+         <figure class="map"><canvas class="preview" width="1" height="1"></canvas></figure>
+         <div class="match">
+           <div class="option"><span>${T.opponentLabel}</span><div class="levels">${levels('opponent', OPPONENTS, s.opponent, (o) => T.opponent[o], OPPONENT_ICONS)}</div></div>
+           <p class="hint">${T.opponentHint[s.opponent]}${s.opponent === 'human' ? ` ${T.helpDuo}` : ''}</p>
+           <div class="option"><span>${T.moneyLabel}</span><div class="money">${choice('money', SKIRMISH_MONEY.map(String), String(s.money), (v) => `$${v}`)}</div></div>
+           <p class="goal">${s.opponent === 'human' ? T.duoGoal : T.skirmishGoal}</p>
+         </div>
        </div>
-       <div class="row"><button data-campaign>${T.campaign}</button><button class="primary" data-go>${T.start}</button></div>`,
+       <div class="sides">${[0, 1].map((i) => sideOptions(s, i)).join('')}</div>
+       <footer><button data-campaign>${T.campaign}</button><button class="primary" data-go>${T.start}</button></footer>`,
     );
-    m.querySelector('.card')!.classList.add('wide', 'setup');
+    m.querySelector('.card')!.classList.add('setup', 'screen');
     drawPreview(m.querySelector('canvas')!, s.mapIndex, s.colors);
-    const change = (patch: Partial<typeof s>) => this.actions.open({ ...s, ...patch });
+    const change = (patch: Partial<SkirmishSetup>) => {
+      this.draft = { ...s, ...patch };
+      this.showSkirmishSetup();
+    };
     m.querySelectorAll<HTMLButtonElement>('[data-map]').forEach((b) => (b.onclick = () => change({ mapIndex: Number(b.dataset.map) })));
     m.querySelectorAll<HTMLButtonElement>('[data-opponent]').forEach((b) => (b.onclick = () => change({ opponent: b.dataset.opponent as Opponent })));
     for (const i of [0, 1] as const) {
@@ -231,7 +244,14 @@ export class Hud {
     m.querySelectorAll<HTMLButtonElement>('[data-money]').forEach((b) => (b.onclick = () => change({ money: Number(b.dataset.money) })));
     m.querySelector<HTMLButtonElement>('[data-campaign]')!.onclick = () => this.showMissions();
     this.bindLang(m);
-    this.bindGo(m);
+    m.querySelector<HTMLButtonElement>('[data-go]')!.onclick = () => {
+      if (JSON.stringify(s) === JSON.stringify(this.game.setup)) {
+        this.closeModal();
+        this.game.started = true;
+      } else this.actions.open(s, undefined, true);
+    };
+    // The army previews need the 3D models; draw them once those are in.
+    if (!scene3d) void scene3dReady.then(() => this.draft === s && $('modal').querySelector('.setup') && this.showSkirmishSetup());
   }
 
   private bindLang(m: HTMLElement): void {
@@ -276,15 +296,20 @@ export class Hud {
       `<h1 class="logo">${T.title.toUpperCase()}</h1>
        <p class="subtitle">${T.subtitle}</p>
        <div class="menu-buttons">
-         ${readSave('quick') ? `<button class="primary" data-continue>${T.continueGame}</button>` : ''}
-         <button data-campaign>${T.campaign}</button>
-         <button data-skirmish>${T.skirmish}</button>
-         <button data-duo>${T.duo}</button>
-         <button data-saves>${T.load}</button>
-         <button data-settings>${T.settings}</button>
-         ${inApp() ? `<button data-exit>${T.exit}</button>` : ''}
+         ${[
+           readSave('quick') ? `<button class="primary" data-continue>${T.continueGame}</button>` : '',
+           `<button data-campaign>${T.campaign}</button>`,
+           `<button data-skirmish>${T.skirmish}</button>`,
+           `<button data-duo>${T.duo}</button>`,
+           `<button data-saves>${T.load}</button>`,
+           `<button data-settings>${T.settings}</button>`,
+           inApp() ? `<button data-exit>${T.exit}</button>` : '',
+         ]
+           .filter(Boolean)
+           .map((b, i) => b.replace('>', `><i class="no">0${i + 1}</i>`))
+           .join('')}
        </div>
-       <div class="option lang">${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}${LANG_NAMES[l]}`)}</div>`,
+       <div class="option lang">${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}<span class="sr">${LANG_NAMES[l]}</span>`)}</div>`,
     );
     m.classList.add('over-scene');
     m.querySelector('.card')!.classList.add('menu');
@@ -408,7 +433,7 @@ export class Hud {
        <div class="options">
          ${slider('music', T.musicLabel, v.music)}
          ${slider('sfx', T.sfxLabel, v.sfx)}
-         <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}${LANG_NAMES[l]}`)}</div>
+         <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}<span class="sr">${LANG_NAMES[l]}</span>`)}</div>
          <div class="option"><span>${T.selectionLabel}</span>${choice('selection', ['corners', 'ellipse'] as const, this.actions.selection(), (v) => T.selection[v])}</div>
        </div>
        <h2>${T.about}</h2>
@@ -507,37 +532,70 @@ function swatches(attr: string, label: string, current: TeamColor, taken: TeamCo
  * One side's race, team colour and secondary colour on the skirmish screen. The colour the other side wears cannot be
  * picked, so the two sides never look alike (other shades of its hue can); any secondary colour can, also one already worn.
  */
-function sideOptions(s: Extract<Setup, { kind: 'skirmish' }>, i: number): string {
+function sideOptions(s: SkirmishSetup, i: number): string {
   const T = t();
   const who = s.opponent === 'human' ? T.playerName(i + 1) : i === 0 ? T.you : T.computer;
-  return `<div class="side" data-side="${i}"><div class="who"><b>${who}</b>${choice(`race${i}`, RACES, s.races[i]!, (r) => T.race[r])}</div>
-    <div class="palettes">${swatches(`color${i}`, T.colorLabel, s.colors[i]!, s.colors[1 - i]!)}${swatches(`second${i}`, T.color2Label, s.colors2[i]!, null, true)}</div></div>`;
+  const look: Dress = { race: s.races[i]!, color: s.colors[i]!, color2: s.colors2[i]! };
+  const army = ARMY.map((type) => img(portraitFor(look, type, 64))).join('');
+  return `<div class="side" data-side="${i}"><div class="who"><b>${who}</b><div class="races">${choice(`race${i}`, RACES, s.races[i]!, (r) => T.race[r])}</div></div>
+    <div class="look"><div class="army" style="--c: ${TEAM_COLORS[look.color][1]}">${army}</div>
+    <div class="palettes">${swatches(`color${i}`, T.colorLabel, s.colors[i]!, s.colors[1 - i]!)}${swatches(`second${i}`, T.color2Label, s.colors2[i]!, null, true)}</div></div></div>`;
 }
 
-/** A small map of the skirmish: forest, crystal fields and the two starts in their team colours. */
+/** What the skirmish screen shows of each side's army: its HQ and the three tanks. */
+const ARMY = [ObjectType.PlayerHQ, ObjectType.LightTank, ObjectType.MiddleTank, ObjectType.HeavyTank] as const;
+
+/** A small map of the skirmish in the game's colours: sand, fir forest, crystal fields and the two starts. */
 function drawPreview(canvas: HTMLCanvasElement, mapIndex: number, colors: readonly [TeamColor, TeamColor]): void {
   const map = campaign.maps[mapIndex]!;
   const { cols, rows, blocked } = buildBlockedGrid(map);
   const layout = skirmishLayout(map);
-  const px = Math.max(2, Math.floor(Math.min(470 / cols, 200 / rows)));
+  const px = Math.max(3, Math.floor(Math.min(440 / cols, 330 / rows)));
   canvas.width = cols * px;
   canvas.height = rows * px;
   const g = canvas.getContext('2d');
   if (!g) return;
-  g.fillStyle = '#d8c491';
-  g.fillRect(0, 0, canvas.width, canvas.height);
-  g.fillStyle = '#2f6b3d';
-  for (let i = 0; i < blocked.length; i++) if (blocked[i]) g.fillRect((i % cols) * px, Math.floor(i / cols) * px, px, px);
-  g.fillStyle = '#f0c43a';
-  for (const f of layout.fields) g.fillRect(f.cx * px, f.cy * px, 2 * px, 2 * px);
+  const noise = (i: number) => ((i * 2654435761) >>> 0) % 7;
+  for (let i = 0; i < blocked.length; i++) {
+    const x = (i % cols) * px;
+    const y = Math.floor(i / cols) * px;
+    if (blocked[i]) {
+      g.fillStyle = noise(i) < 3 ? '#1f4a40' : '#24564a';
+      g.fillRect(x, y, px, px);
+      // A fir: a light dot on its sunny side.
+      g.fillStyle = '#3f8a72';
+      g.fillRect(x + Math.floor(px / 3), y + Math.floor(px / 4), Math.max(1, Math.floor(px / 3)), Math.max(1, Math.floor(px / 3)));
+    } else {
+      g.fillStyle = ['#d8c491', '#d2bd88', '#dcc999', '#d5c08c', '#d8c491', '#cfb984', '#dbc795'][noise(i)]!;
+      g.fillRect(x, y, px, px);
+    }
+  }
+  for (const f of layout.fields) {
+    const cx = (f.cx + 1) * px;
+    const cy = (f.cy + 1) * px;
+    g.fillStyle = '#a87a12';
+    g.beginPath();
+    g.moveTo(cx, cy - px * 1.1);
+    g.lineTo(cx + px * 0.9, cy);
+    g.lineTo(cx, cy + px * 1.1);
+    g.lineTo(cx - px * 0.9, cy);
+    g.fill();
+    g.fillStyle = '#f0c43a';
+    g.fillRect(cx - px * 0.3, cy - px * 0.6, px * 0.6, px * 0.9);
+  }
   layout.starts.forEach((s, i) => {
-    g.fillStyle = TEAM_COLORS[colors[i]!][2];
+    const ramp = TEAM_COLORS[colors[i]!];
+    g.fillStyle = '#000';
+    g.fillRect(s.cx * px - 2, s.cy * px - 2, 2 * px + 4, 2 * px + 4);
+    g.fillStyle = ramp[2];
     g.fillRect(s.cx * px, s.cy * px, 2 * px, 2 * px);
-    g.fillStyle = '#ffffff';
-    g.font = `bold ${Math.max(9, px * 2)}px Menlo, monospace`;
+    g.fillStyle = ramp[4];
+    g.fillRect(s.cx * px, s.cy * px, 2 * px, Math.max(1, Math.floor(px / 3)));
+    g.fillStyle = '#fff';
+    g.font = `${Math.max(12, Math.floor(px * 1.6))}px Shardfall, Menlo, monospace`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.fillText(String(i + 1), (s.cx + 1) * px, (s.cy + 1) * px);
+    g.fillText(String(i + 1), (s.cx + 1) * px, (s.cy + 1) * px + 1);
   });
 }
 
@@ -660,6 +718,7 @@ export class PlayerPanel {
       getLang(),
       c.money,
       c.placing?.type ?? null,
+      c.aiming,
       c.focus,
       c.cursor !== null,
       sel.map((e) => [e.id, e.hp, e.order.kind, e.phase, e.cargo, e.complete, e.job ? Math.floor(('elapsedMs' in e.job ? e.job.elapsedMs : 0) / 500) : -1, Math.floor(e.buildElapsedMs / 500)]),
@@ -686,26 +745,33 @@ export class PlayerPanel {
     const c = this.c;
     if (sel.length === 0) return `<div class="hint">${c.cursor ? T.padHint : T.hint}</div>`;
     if (sel.length > 1) {
-      const counts = new Map<string, number>();
-      for (const e of sel) counts.set(this.name(e), (counts.get(this.name(e)) ?? 0) + 1);
-      const list = [...counts].map(([name, n]) => `${name} ×${n}`).join(', ');
-      return `<div class="title">${T.squad}: ${sel.length}</div><div class="info">${list}</div>${this.unitButtons()}`;
+      // A squad: a small portrait per unit with its hit points underneath, the commands on the right.
+      const faces = sel
+        .slice(0, 12)
+        .map((e) => `<span class="mini">${img(portraitOf(this.sideOf(e.team), e.type, 24))}${meter(e.hp / e.maxHp, hpTone(e))}</span>`)
+        .join('');
+      const more = sel.length > 12 ? `<span class="more">+${sel.length - 12}</span>` : '';
+      return `<div class="sel"><div class="stats"><div class="title">${T.squad}: ${sel.length}</div><div class="squad">${faces}${more}</div></div>${this.unitButtons()}</div>`;
     }
     const e = sel[0]!;
     const own = c.isOwn(e);
-    const hp = e.type === ObjectType.ResourceField ? `${T.resource}: ${e.hp}` : `${T.hp}: ${Math.max(0, e.hp)}/${e.maxHp}`;
-    let status = '';
-    if (isUnit(e.type)) {
-      status = e.type === ObjectType.Harvester && e.phase ? T.phase[e.phase] : T.order[e.order.kind];
-      if (e.type === ObjectType.Harvester) status += ` · ${T.cargo} ${e.cargo}/50`;
-    } else if (!e.complete) status = `${siteName(raceOf(this.c.world, e.team) ?? 'human')} ${Math.floor((e.buildElapsedMs / e.buildTotalMs) * 100)}%`;
-    else if (e.job?.kind === 'produce') status = `${T.producing}: ${objectName(raceOf(this.c.world, e.team), e.job.unit)} ${Math.floor((e.job.elapsedMs / e.job.totalMs) * 100)}%`;
-    else if (e.job?.kind === 'construct') status = T.constructing;
     const team = e.team === 'neutral' ? 'neutral' : own ? 'own' : 'foe';
     const face = img(portraitOf(this.sideOf(e.team), e.type), 'portrait');
-    let html = `<div class="sel">${face}<div><div class="title ${team}">${this.name(e)}</div><div class="info">${hp}${status ? ` · ${status}` : ''}</div></div></div>`;
+    const rows: string[] = [];
+    if (e.type === ObjectType.ResourceField) rows.push(gauge(T.resource, e.hp / Math.max(e.hp, e.maxHp), 'cargo', `${e.hp}`));
+    else rows.push(gauge(T.hp, e.hp / e.maxHp, hpTone(e), `${Math.max(0, e.hp)}/${e.maxHp}`));
+    if (isUnit(e.type)) {
+      rows.push(chip(e.type === ObjectType.Harvester && e.phase ? T.phase[e.phase] : T.order[e.order.kind], e.order.kind === 'idle' && !e.phase));
+      if (e.type === ObjectType.Harvester) rows.push(gauge(T.cargo, e.cargo / 50, 'cargo', `${e.cargo}/50`));
+    } else if (!e.complete) {
+      rows.push(gauge(siteName(raceOf(this.c.world, e.team) ?? 'human'), e.buildElapsedMs / e.buildTotalMs, 'work', `${Math.floor((e.buildElapsedMs / e.buildTotalMs) * 100)}%`));
+    } else if (e.job?.kind === 'produce') {
+      rows.push(gauge(`${T.producing}: ${objectName(raceOf(this.c.world, e.team), e.job.unit)}`, e.job.elapsedMs / e.job.totalMs, 'work', `${Math.floor((e.job.elapsedMs / e.job.totalMs) * 100)}%`));
+    } else if (e.job?.kind === 'construct') rows.push(chip(T.constructing, false));
+    const cmds = own && isUnit(e.type) ? this.unitButtons() : '';
+    let html = `<div class="sel">${face}<div class="stats"><div class="title ${team}">${this.name(e)}</div>${rows.join('')}</div>${cmds}</div>`;
     if (!own) return html;
-    if (isUnit(e.type)) return html + this.unitButtons();
+    if (isUnit(e.type)) return html;
     if (e.type === hqType(c.side) && e.complete) {
       html += '<div class="buttons">';
       for (const type of HQ_BUILDS) html += this.buildButton(type, BUILDING_RULES[type].price, e.job !== null && type !== ObjectType.Wall);
@@ -769,8 +835,13 @@ export class PlayerPanel {
     this.key = '';
   }
 
+  /** Move, Attack and Stop as a column of icon buttons on the right of the panel; Move and Attack then wait for a click. */
   private unitButtons(): string {
-    return `<div class="buttons"><button data-action="stop">${t().stop}${this.c.cursor ? ' <small>↓</small>' : ''}</button></div>`;
+    const T = t();
+    const armed = this.c.ownUnits().some((u) => UNIT_RULES[u.type as UnitType].weapon);
+    const cmd = (action: 'move' | 'attack' | 'stop', label: string, disabled = false) =>
+      `<button class="cmd${this.c.aiming === action ? ' active' : ''}" data-action="${action}"${disabled ? ' disabled' : ''}>${ICONS[action]}<span>${label}</span>${action === 'stop' && this.c.cursor ? '<small>↓</small>' : ''}</button>`;
+    return `<div class="buttons cmds">${cmd('move', T.move)}${cmd('attack', T.attack, !armed)}${cmd('stop', T.stop)}</div>`;
   }
 
   private onClick(ev: MouseEvent): void {
@@ -794,12 +865,45 @@ export class PlayerPanel {
         if (confirm(t().destructConfirm)) c.run({ kind: 'destruct', id });
         break;
       case 'stop':
+        c.aiming = null;
         c.run({ kind: 'stop', ids: c.ownUnits().map((u) => u.id) });
+        break;
+      case 'move':
+      case 'attack':
+        c.aiming = c.aiming === btn.dataset.action ? null : btn.dataset.action;
         break;
     }
     this.key = '';
   }
 }
+
+/** Pixel icons for the unit commands, 9 × 9, drawn in the button's text colour. */
+const ICONS = Object.fromEntries(
+  Object.entries({
+    move: ['.........', '.........', '##...##..', '.##...##.', '..##...##', '.##...##.', '##...##..', '.........', '.........'],
+    attack: ['....#....', '..#####..', '.#..#..#.', '.#.....#.', '####.####', '.#.....#.', '.#..#..#.', '..#####..', '....#....'],
+    stop: ['.........', '.#######.', '.#.....#.', '.#.###.#.', '.#.###.#.', '.#.###.#.', '.#.....#.', '.#######.', '.........'],
+  }).map(([name, rows]) => {
+    const rects = rows.flatMap((row, y) => [...row].map((ch, x) => (ch === '#' ? `<rect x="${x}" y="${y}" width="1" height="1"/>` : ''))).join('');
+    return [name, `<svg class="icon" viewBox="0 0 9 9" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true">${rects}</svg>`];
+  }),
+) as Record<'move' | 'attack' | 'stop', string>;
+
+type Tone = 'good' | 'mid' | 'bad' | 'cargo' | 'work';
+
+/** Health colour by what is left, as on the map's bars. */
+const hpTone = (e: Entity): Tone => (e.hp / e.maxHp > 0.6 ? 'good' : e.hp / e.maxHp > 0.3 ? 'mid' : 'bad');
+
+/** A segmented bar filled to `value` (0..1). */
+const meter = (value: number, tone: Tone) =>
+  `<span class="meter ${tone}"><i style="width: ${Math.round(Math.min(1, Math.max(0, value)) * 100)}%"></i></span>`;
+
+/** A labelled bar: the label and the number above, the bar below. */
+const gauge = (label: string, value: number, tone: Tone, text: string) =>
+  `<div class="gauge"><span class="label">${label}</span><b>${text}</b>${meter(value, tone)}</div>`;
+
+/** A status light: what the object is doing, dimmed while it waits. */
+const chip = (text: string, idle: boolean) => `<div class="chip${idle ? ' idle' : ''}">${text}</div>`;
 
 /** The element with this id, created under <body> when the page does not have it yet. */
 function ensure(tag: string, id: string, className: string): HTMLElement {

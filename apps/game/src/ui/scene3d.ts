@@ -139,6 +139,13 @@ async function groundTexture(kind: Ground): Promise<THREE.Texture> {
   const g = c.getContext('2d')!;
   if (f) g.drawImage(img, f.x, f.y, f.w, f.h, 0, 0, f.w, f.h);
   else (g.fillStyle = RAMPS.sand[2]), g.fillRect(0, 0, c.width, c.height);
+  if (kind === 'forest') {
+    // Forest floor: the sand's own dunes and grain, darkened to mossy soil.
+    g.globalCompositeOperation = 'multiply';
+    g.fillStyle = '#5c7a54';
+    g.fillRect(0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'source-over';
+  }
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.magFilter = THREE.NearestFilter;
@@ -183,24 +190,85 @@ const POST_FRAGMENT = `
 uniform sampler2D scene;
 uniform vec2 px;
 uniform vec3 skyTop;
+uniform vec3 skyMid;
 uniform vec3 skyBottom;
+uniform vec3 haze;
+uniform vec3 hill;
 uniform float sky;
+uniform float stars;
+uniform float horizon;
 varying vec2 vUv;
+
+// Ordered 4×4 dither threshold in [0, 1) for a pixel.
+float bayer2(vec2 a) { a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }
+float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
+float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+
+vec4 objectAt(vec2 uv) { return texture2D(scene, uv); }
+
 void main() {
-  vec4 c = texture2D(scene, vUv);
+  vec2 p = vUv / px;
+  float d = bayer4(p);
+  vec4 c = objectAt(vUv);
   if (c.a < 0.75) {
-    float near = max(max(texture2D(scene, vUv + vec2(px.x, 0.0)).a, texture2D(scene, vUv - vec2(px.x, 0.0)).a),
-                     max(texture2D(scene, vUv + vec2(0.0, px.y)).a, texture2D(scene, vUv - vec2(0.0, px.y)).a));
-    if (near > 0.75) { gl_FragColor = vec4(0.04, 0.03, 0.02, 1.0); return; }
+    // Outline: the colour of the object next to this pixel, much darker, as the sprites have.
+    vec4 best = vec4(0.0);
+    vec4 n1 = objectAt(vUv + vec2(px.x, 0.0)); if (n1.a > best.a) best = n1;
+    vec4 n2 = objectAt(vUv - vec2(px.x, 0.0)); if (n2.a > best.a) best = n2;
+    vec4 n3 = objectAt(vUv + vec2(0.0, px.y)); if (n3.a > best.a) best = n3;
+    vec4 n4 = objectAt(vUv - vec2(0.0, px.y)); if (n4.a > best.a) best = n4;
+    if (best.a > 0.75) { gl_FragColor = vec4(best.rgb * 0.32, 1.0); return; }
   }
   if (c.a < 0.25) {
-    // Sky in four flat bands, darker at the top.
-    float t = floor(vUv.y * 4.0) / 3.0;
-    gl_FragColor = sky > 0.5 ? vec4(mix(skyBottom, skyTop, t), 1.0) : vec4(0.0);
+    if (sky < 0.5) { gl_FragColor = vec4(0.0); return; }
+    float y = vUv.y - horizon;
+    // Far mountains: a ragged silhouette on the horizon, hazy at the foot.
+    float x = p.x * px.x * 6.2831;
+    float ridge = 0.035 + 0.025 * sin(x * 1.3 + 1.7) + 0.015 * sin(x * 3.7 + 0.4) + 0.008 * sin(x * 9.1);
+    if (y < ridge) {
+      float k = clamp(1.0 - y / max(ridge, 0.001), 0.0, 1.0);
+      gl_FragColor = vec4(mix(hill, haze, k * 0.6 > d ? 1.0 : 0.0), 1.0);
+      return;
+    }
+    // Sky: three colours blended through an ordered dither, no hard bands.
+    float t = clamp(y / max(1.0 - horizon, 0.2), 0.0, 1.0);
+    float levels = 7.0;
+    float q = floor(t * levels + d) / levels;
+    vec3 col = q < 0.5 ? mix(skyBottom, skyMid, q * 2.0) : mix(skyMid, skyTop, q * 2.0 - 1.0);
+    // Stars high up, and two moons.
+    if (stars > 0.5 && t > 0.35 && hash(floor(p)) > 0.994) col = mix(col, vec3(1.0, 0.96, 0.85), 0.5 + 0.5 * hash(floor(p) + 7.0));
+    vec2 m1 = vec2(0.80, horizon + (1.0 - horizon) * 0.72);
+    vec2 m2 = vec2(0.70, horizon + (1.0 - horizon) * 0.86);
+    vec2 aspect = vec2(px.y / px.x, 1.0);
+    float r1 = length((vUv - m1) * aspect);
+    float r2 = length((vUv - m2) * aspect);
+    if (stars > 0.5 && r1 < 0.055) {
+      float lit = length((vUv - m1 - vec2(0.02, 0.012)) * aspect) < 0.055 ? 1.0 : 0.0;
+      col = lit > 0.5 ? vec3(0.93, 0.88, 0.78) : vec3(0.42, 0.40, 0.48);
+    } else if (stars > 0.5 && r2 < 0.022) col = vec3(0.70, 0.78, 0.86);
+    gl_FragColor = vec4(col, 1.0);
     return;
   }
-  gl_FragColor = vec4(c.rgb, 1.0);
+  vec3 col = c.rgb;
+  if (sky > 0.5 && c.a < 0.75) {
+    // Ground thins into haze towards the horizon.
+    float k = clamp((vUv.y - (horizon - 0.22)) / 0.22, 0.0, 1.0);
+    col = mix(col, haze, (k * 0.75 > d ? 1.0 : 0.0) * 0.7);
+  }
+  gl_FragColor = vec4(col, 1.0);
 }`;
+
+/** Colours of a scene's sky; `stars` adds stars and the two moons. */
+export interface Sky {
+  top: string;
+  mid: string;
+  bottom: string;
+  haze: string;
+  hill: string;
+  stars: boolean;
+}
+
+const DUSK: Sky = { top: '#0c0e2a', mid: '#3c2c5c', bottom: '#e8975a', haze: '#c88a68', hill: '#4a3050', stars: true };
 
 /**
  * A scene drawn at w×h pixels into a canvas the page scales up. `update` runs before each frame with the time in
@@ -221,7 +289,7 @@ export class PixelScene {
     readonly canvas: HTMLCanvasElement,
     readonly w: number,
     readonly h: number,
-    sky: [string, string] | null = ['#2a2238', '#c8875a'],
+    readonly sky: Sky | null = DUSK,
   ) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(1);
@@ -237,9 +305,14 @@ export class PixelScene {
         uniforms: {
           scene: { value: this.target.texture },
           px: { value: new THREE.Vector2(1 / w, 1 / h) },
-          skyTop: { value: new THREE.Color(sky?.[0] ?? '#000000') },
-          skyBottom: { value: new THREE.Color(sky?.[1] ?? '#000000') },
+          skyTop: { value: new THREE.Color(sky?.top ?? '#000000') },
+          skyMid: { value: new THREE.Color(sky?.mid ?? '#000000') },
+          skyBottom: { value: new THREE.Color(sky?.bottom ?? '#000000') },
+          haze: { value: new THREE.Color(sky?.haze ?? '#000000') },
+          hill: { value: new THREE.Color(sky?.hill ?? '#000000') },
           sky: { value: sky ? 1 : 0 },
+          stars: { value: sky?.stars ? 1 : 0 },
+          horizon: { value: 0.5 },
         },
         transparent: true,
       }),
@@ -249,6 +322,14 @@ export class PixelScene {
 
   render(t = 0): void {
     this.update(t);
+    if (this.sky) {
+      // Where the far ground meets the sky on screen, for the mountains and the haze.
+      this.camera.updateMatrixWorld();
+      const dir = this.camera.getWorldDirection(new THREE.Vector3());
+      dir.y = 0;
+      const far = this.camera.position.clone().add(dir.normalize().multiplyScalar(45)).setY(0).project(this.camera);
+      (this.post.material as THREE.ShaderMaterial).uniforms.horizon!.value = (far.y + 1) / 2;
+    }
     this.renderer.setRenderTarget(this.target);
     this.renderer.clear();
     this.renderer.render(this.scene, this.camera);
@@ -318,9 +399,10 @@ function frames(name: string, dress: Dress, view: number, names: string[]): { gr
   return { group, show };
 }
 
+/** Puts a model on the ground; `ry` turns it further (a model built for a view is already turned that way). */
 function place(o: THREE.Object3D, x: number, z: number, ry = 0): THREE.Object3D {
   o.position.set(x, 0, z);
-  o.rotation.y = ry;
+  o.rotation.y += ry;
   return o;
 }
 
@@ -331,6 +413,20 @@ function scenery(scene: THREE.Scene, dress: Dress, forest: boolean, spots: [numb
       scene.add(place(model('fir', dress, i % 4, 'idle'), x, z));
       scene.add(shadow(0.35, x, z));
     });
+}
+
+/** A belt of firs between two depths, thicker towards the back: the forest the map stands in. */
+function treeline(scene: THREE.Scene, dress: Dress, count: number, x0: number, x1: number, z0: number, z1: number, seed = 1): void {
+  let r = seed * 9301 + 49297;
+  const rand = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+  for (let i = 0; i < count; i++) {
+    const k = Math.sqrt(rand());
+    const x = x0 + rand() * (x1 - x0);
+    const z = z0 + k * (z1 - z0);
+    const fir = place(model('fir', dress, Math.floor(rand() * 4), 'idle'), x, z, rand() * Math.PI * 2);
+    fir.scale.setScalar(0.85 + rand() * 0.5);
+    scene.add(fir);
+  }
 }
 
 // Scenes --------------------------------------------------------------------------------------------------------------
@@ -348,37 +444,41 @@ export interface OutcomeScene {
  * behind them. Defeat: the camera looks down on the loser's headquarters in ruins, black and burning, with the
  * winner's tanks standing round it.
  */
-export async function outcomeScene(canvas: HTMLCanvasElement, o: OutcomeScene, w = 320, h = 180): Promise<PixelScene> {
-  const s = new PixelScene(canvas, w, h, o.won ? ['#1c2240', '#e8a060'] : ['#120c10', '#5a2a1a']);
+export async function outcomeScene(canvas: HTMLCanvasElement, o: OutcomeScene, w = 480, h = 270): Promise<PixelScene> {
+  const s = new PixelScene(
+    canvas,
+    w,
+    h,
+    o.won ? DUSK : { top: '#060509', mid: '#24121a', bottom: '#7a3018', haze: '#5a2a1a', hill: '#1e1216', stars: false },
+  );
   const scene = s.scene;
   scene.add(await groundMesh(o.ground, 40));
   const ticks: ((t: number) => void)[] = [];
   if (o.won) {
+    // The beaten headquarters burns at the back; in front of it the winners stand in a line facing the camera.
     const hq = model(sprite(o.foe.race, 'hq'), o.foe, 0, 'idle0', true);
-    scene.add(place(hq, 0.5, -3.2));
-    const f1 = fire(o.foe, 0.2, 0.9, -3.0, 0.22);
-    const f2 = fire(o.foe, 1.1, 0.5, -3.5, 0.18);
+    scene.add(place(hq, 0, -3.6));
+    const f1 = fire(o.foe, -0.3, 0.9, -3.4, 0.22);
+    const f2 = fire(o.foe, 0.6, 0.5, -3.9, 0.18);
     scene.add(f1.group, f2.group);
     ticks.push(f1.tick, f2.tick);
-    const kinds = ['heavy_tank', 'middle_tank', 'light_tank', 'middle_tank', 'heavy_tank', 'harvester'];
-    const column: { g: THREE.Group; show: (i: number) => void; x: number }[] = [];
-    kinds.forEach((k, i) => {
-      const f = frames(sprite(o.own.race, k), o.own, 6, k === 'harvester' ? ['move0', 'move1'] : ['move0', 'move1', 'fire']);
-      const x = 2.4 - i * 1.15;
-      place(f.group, x, -0.6 + (i % 2) * 0.55);
-      scene.add(f.group, shadow(0.4, x, -0.6 + (i % 2) * 0.55));
-      column.push({ g: f.group, show: f.show, x });
-    });
-    scenery(scene, o.own, o.forest, [[-3.2, -2.4], [-2.6, -3.4], [3.6, -2.2], [4.3, -3.6], [-4.4, -1.2]]);
+    // Every one faces the camera, the flanks turned a little inwards.
+    const line: [string, number, number, number][] = [
+      ['light_tank', -3.0, -0.2, -0.45],
+      ['middle_tank', -1.6, 0.25, -0.25],
+      ['heavy_tank', 0, 0.7, 0],
+      ['middle_tank', 1.6, 0.25, 0.25],
+      ['light_tank', 3.0, -0.2, 0.45],
+      ['harvester', -4.4, -1.5, -0.6],
+    ];
+    for (const [k, x, z, ry] of line) scene.add(place(model(sprite(o.own.race, k), o.own, 4, 'move0'), x, z, ry), shadow(0.42, x, z));
+    if (o.forest || o.ground === 'forest') treeline(scene, o.own, o.ground === 'forest' ? 70 : 40, -14, 14, -6, -16, 3);
+    if (o.ground === 'forest') scenery(scene, o.own, true, [[-5.6, -2.2], [5.4, -2.6], [6.2, -0.8], [-6.4, -0.6], [4.6, -4.2], [-4.8, -4.6]]);
     s.update = (t) => {
       for (const tk of ticks) tk(t);
-      column.forEach((c, i) => {
-        const step = Math.floor(t * 7) % 2;
-        c.show(Math.floor(t * 0.8 + i) % 5 === 0 && i % 2 === 0 ? 2 : step);
-      });
-      // Low and looking up, the scene kept to the left of the screen: the card with the numbers sits on the right.
-      s.camera.position.set(2.2 + Math.sin(t * 0.12) * 0.8, 0.45, 5.6);
-      s.camera.lookAt(2.2, 1.0, -1.5);
+      // Low, slowly swaying from side to side, looking a little up at the line.
+      s.camera.position.set(Math.sin(t * 0.15) * 1.2, 1.1, 6.6);
+      s.camera.lookAt(0, 0.85, -1.2);
     };
   } else {
     const ruin = model(sprite(o.own.race, 'hq'), o.own, 0, 'idle0', true);
@@ -396,12 +496,13 @@ export async function outcomeScene(canvas: HTMLCanvasElement, o: OutcomeScene, w
       const view = Math.round(((Math.atan2(-x, z) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8;
       scene.add(place(model(sprite(o.foe.race, k), o.foe, view, 'move0'), x, z), shadow(0.4, x, z));
     });
-    scenery(scene, o.own, o.forest, [[-3.4, -2.8], [3.1, -3.1], [-3.8, 2.4], [3.6, 2.6]]);
+    scenery(scene, o.own, o.forest || o.ground === 'forest', [[-3.4, -2.8], [3.1, -3.1], [-3.8, 2.4], [3.6, 2.6]]);
+    if (o.forest || o.ground === 'forest') treeline(scene, o.own, o.ground === 'forest' ? 60 : 30, -9, 11, -4.5, -11, 5);
     s.update = (t) => {
       for (const tk of ticks) tk(t);
       const a = t * 0.08;
-      s.camera.position.set(1.4 + Math.sin(a) * 5, 6.2, Math.cos(a) * 5);
-      s.camera.lookAt(1.4, 0.2, 0);
+      s.camera.position.set(Math.sin(a) * 6.4, 3.4, Math.cos(a) * 6.4);
+      s.camera.lookAt(0, 0.5, 0);
     };
   }
   s.render(0);
@@ -409,8 +510,8 @@ export async function outcomeScene(canvas: HTMLCanvasElement, o: OutcomeScene, w
 }
 
 /** The main screen: two armies trading fire across the sand while the camera drifts along the line. */
-export async function battleScene(canvas: HTMLCanvasElement, a: Dress, b: Dress, w = 320, h = 180): Promise<PixelScene> {
-  const s = new PixelScene(canvas, w, h, ['#18142a', '#b0704a']);
+export async function battleScene(canvas: HTMLCanvasElement, a: Dress, b: Dress, w = 480, h = 270): Promise<PixelScene> {
+  const s = new PixelScene(canvas, w, h, { top: '#0e0c22', mid: '#3a2846', bottom: '#b8744a', haze: '#a8785a', hill: '#3e2a3c', stars: true });
   const scene = s.scene;
   scene.add(await groundMesh('sand', 60));
   const units: { show: (i: number) => void; phase: number }[] = [];
@@ -429,6 +530,7 @@ export async function battleScene(canvas: HTMLCanvasElement, a: Dress, b: Dress,
   scene.add(place(model(sprite(a.race, 'hq'), a, 0, 'idle0'), -6, 4.2), place(model(sprite(b.race, 'hq'), b, 0, 'idle0'), 6, -4.4));
   scene.add(place(model('resource', a, 0, 'idle'), 1.5, 0.1));
   scenery(scene, a, true, [[-8, 1], [-7.2, -2.5], [8.5, 2.2], [7.8, 0.4], [-2.5, -5], [3, 5.5]]);
+  treeline(scene, a, 50, -22, 22, -8, -20, 7);
   s.update = (t) => {
     for (const u of units) u.show((t * 0.9 + u.phase) % 1 < 0.12 ? 1 : 0);
     s.camera.position.set(Math.sin(t * 0.07) * 3, 4.6, 11);
@@ -457,7 +559,7 @@ function portraitFrame(kind: string): { frame: string; view: number } {
  * A close-up of one kind of unit or building of a race in a side's colours, `size` art pixels square, from a
  * three-quarter view in front; returns a PNG data URL, cached.
  */
-export function portrait(dress: Dress, kind: string, size = 40): string {
+export function portrait(dress: Dress, kind: string, size = 64): string {
   const id = `${dress.race}/${dress.color}/${dress.color2}/${kind}/${size}`;
   const hit = portraits.get(id);
   if (hit) return hit;

@@ -24,7 +24,7 @@ const $$ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode =
 const state = {
   own: { race: 'human', color: 'white', color2: 'olive' } as Dress,
   foe: { race: 'hover', color: 'cyan', color2: 'white' } as Dress,
-  k: window.devicePixelRatio >= 2 ? 1.5 : 2,
+  k: 2,
   systemFont: false,
 };
 
@@ -89,7 +89,7 @@ function header(): void {
     colorSelect('Другий', state.own.color2, (c) => ((state.own = { ...state.own, color2: c }), dressChanged())),
     toggles('Ворог', RACES, state.foe.race, (r) => RACE_UA[r], (r) => ((state.foe = { ...state.foe, race: r }), dressChanged())),
     colorSelect('Колір ворога', state.foe.color, (c) => ((state.foe = { ...state.foe, color: c }), dressChanged())),
-    toggles('Піксель шрифту', ['1.5', '2', '3'], String(state.k), (v) => `×${v}`, (v) => {
+    toggles('Піксель шрифту', ['2', '3'], String(state.k), (v) => `×${v}`, (v) => {
       state.k = Number(v);
       document.documentElement.style.setProperty('--k', v);
     }),
@@ -216,7 +216,7 @@ function cursors(): void {
 
 function flags(): void {
   const s = section('flags', 'Прапорці мов', 'Піксельні прапорці майорять на кнопках мови: 6 кадрів, кожен стовпчик тканини на хвилі.');
-  $('.body', s).innerHTML = `<div class="buttons"><button class="active">${flagHtml('uk')}Українська</button><button>${flagHtml('en')}English</button></div>
+  $('.body', s).innerHTML = `<div class="buttons"><button data-lang="uk" class="active" title="Українська">${flagHtml('uk')}</button><button data-lang="en" title="English">${flagHtml('en')}</button></div>
     <div class="flags-big">${flagHtml('uk')}${flagHtml('en')}</div>`;
   $('.controls', s).append(toggles('Вітер', ['0', '0.9', '0.45'], '0.9', (v) => ({ '0': 'Штиль', '0.9': 'Звичайний', '0.45': 'Сильний' })[v]!, (v) => {
     document.documentElement.style.setProperty('--wave', v === '0' ? 'paused' : 'running');
@@ -302,7 +302,7 @@ function portraits(): void {
 
 function scenes(): void {
   const s = section('scenes', 'Сцени перемоги, поразки й меню', 'Живий низькополігональний 3D у низькій роздільності, з землею мапи. Перемога: колона ваших танків, штаб ворога горить. Поразка: ваш штаб у руїнах, довкола ворожі танки. Меню: бій двох рас.');
-  const opts = { scene: 'won', ground: 'sand' as 'sand' | 'plates' | 'forest', forest: true, res: 320 };
+  const opts = { scene: 'won', ground: 'sand' as 'sand' | 'plates' | 'forest', forest: true, res: 480 };
   let live: PixelScene | null = null;
   const canvas = document.createElement('canvas');
   canvas.className = 'scene';
@@ -324,7 +324,7 @@ function scenes(): void {
     toggles('Сцена', ['won', 'lost', 'menu'], 'won', (v) => ({ won: 'Перемога', lost: 'Поразка', menu: 'Меню' })[v]!, (v) => ((opts.scene = v), void draw())),
     toggles('Земля', ['sand', 'plates', 'forest'], 'sand', (v) => ({ sand: 'Пісок', plates: 'Плити', forest: 'Ліс' })[v]!, (v) => ((opts.ground = v), void draw())),
     toggles('Ялинки', ['on', 'off'], 'on', (v) => (v === 'on' ? 'Є' : 'Немає'), (v) => ((opts.forest = v === 'on'), void draw())),
-    toggles('Роздільність', ['240', '320', '480'], '320', (v) => `${v}×${Math.round((Number(v) * 9) / 16)}`, (v) => ((opts.res = Number(v)), void draw())),
+    toggles('Роздільність', ['320', '480', '640'], '480', (v) => `${v}×${Math.round((Number(v) * 9) / 16)}`, (v) => ((opts.res = Number(v)), void draw())),
   );
   onDress(() => void draw());
   void draw();

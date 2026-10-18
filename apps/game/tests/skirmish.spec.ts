@@ -19,6 +19,15 @@ const sw = (page: Page) => page.evaluate(() => {
   };
 });
 
+/** Start on the skirmish screen: the page loads the chosen match and starts it without asking again. */
+async function startMatch(page: Page, url: RegExp): Promise<void> {
+  await page.getByRole('button', { name: 'Почати' }).click();
+  await page.waitForURL(url);
+  await page.waitForURL(/go=1/);
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __sw: Hook }).__sw.game.started)).toBe(true);
+}
+
 async function open(page: Page, query: string): Promise<string[]> {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -71,7 +80,7 @@ test('the skirmish screen picks a map, an opponent and money, then plays', async
   const errors = await open(page, '?s=4');
   await expect(page.locator('#modal')).toContainText('Скірміш');
   await expect(page.locator('#modal h1')).toHaveText('Арена');
-  await expect(page.locator('#modal button.active')).toContainText(['$3000', 'Українська', '4. Арена', 'Нормальний ШІ', 'Хюмани', 'Ховери']);
+  await expect(page.locator('#modal button.active')).toContainText(['Українська', '4. Арена', 'Нормальний ШІ', '$3000', 'Хюмани', 'Ховери']);
   await expect(page.locator('#modal')).toContainText('Ви');
   await expect(page.locator('#modal')).toContainText('Компʼютер');
   // Each side wears a colour the other one cannot pick.
@@ -79,14 +88,12 @@ test('the skirmish screen picks a map, an opponent and money, then plays', async
   await expect(page.locator('#modal [data-color0="cyan"]')).toBeDisabled();
   await expect(page.locator('#modal [data-color1="white"]')).toBeDisabled();
   await page.screenshot({ path: 'test-results/skirmish-setup.png' });
+  // Choices redraw the screen without loading anything; Start loads the match and goes straight in.
   await page.getByRole('button', { name: 'Важкий ШІ' }).click();
-  await page.waitForURL(/vs=hard/);
-  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await page.getByRole('button', { name: '6. Шукач' }).click();
-  await page.waitForURL(/s=6/);
-  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await expect(page.locator('#modal h1')).toHaveText('Шукач');
-  await page.getByRole('button', { name: 'Почати' }).click();
+  expect(page.url()).toContain('s=4');
+  await startMatch(page, /s=6/);
   await expect(page.locator('#hud')).toContainText('Скірміш · Шукач · Важкий ШІ');
   await expect(page.locator('#money')).toHaveText('$3000');
   const s = await sw(page);
@@ -99,30 +106,20 @@ test('the skirmish screen picks a map, an opponent and money, then plays', async
 test('each side picks its race and colours; objects carry their race names', async ({ page }) => {
   const errors = await open(page, '?s=4&vs=hard');
   await page.locator('#modal [data-race0="walker"]').click();
-  await page.waitForURL(/r=walker%2Chover|r=walker,hover/);
-  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await page.locator('#modal [data-color0="blue"]').click();
-  await page.waitForURL(/c=blue/);
-  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await page.locator('#modal [data-color1="red"]').click();
-  await page.waitForURL(/c=blue%2Cred|c=blue,red/);
-  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   // Secondary colours: black accents for the first side, and red on red for the second (its own main colour).
   await expect(page.locator('#modal')).toContainText('Другий колір');
   await expect(page.locator('#modal [data-second0]')).toHaveCount(24);
   await expect(page.locator('#modal [data-second0]:disabled, #modal [data-second1]:disabled')).toHaveCount(0);
   await expect(page.locator('#modal [data-second0="olive"]')).toHaveClass(/active/);
   await page.locator('#modal [data-second0="black"]').click();
-  await page.waitForURL(/c2=black/);
-  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await page.locator('#modal [data-second1="red"]').click();
-  await page.waitForURL(/c2=black%2Cred|c2=black,red/);
-  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await expect(page.locator('#modal button.active')).toContainText(['Ходуни', 'Ховери']);
   await expect(page.locator('#modal [data-color1="blue"]')).toBeDisabled();
   await expect(page.locator('#modal [data-color0="black"]')).toHaveAttribute('title', 'Чорний');
   await page.screenshot({ path: 'test-results/skirmish-setup-races.png' });
-  await page.getByRole('button', { name: 'Почати' }).click();
+  await startMatch(page, /c2=black%2Cred|c2=black,red/);
   const sides = await page.evaluate(() => {
     const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { race: string; color: string; color2: string }> } } } }).__sw.game.world;
     return { player: [w.sides.player!.race, w.sides.player!.color, w.sides.player!.color2], enemy: [w.sides.enemy!.race, w.sides.enemy!.color, w.sides.enemy!.color2] };
@@ -158,17 +155,15 @@ test('the colour grids pick dark and light shades and fit a 1280×720 window', a
   const hues = await grid.evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.color0));
   expect(hues.slice(0, 8)).toEqual(['pink', 'peach', 'sunny', 'lime', 'sky', 'lightblue', 'lilac', 'white']);
   expect(hues.slice(16)).toEqual(['crimson', 'brown', 'olive', 'forest', 'cyan', 'indigo', 'purple', 'black']);
-  const pick = async (attr: string, color: string, url: RegExp) => {
+  const pick = async (attr: string, color: string) => {
     await page.locator(`#modal [data-${attr}="${color}"]`).click();
-    await page.waitForURL(url);
-    await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
     await expect(page.locator(`#modal [data-${attr}="${color}"]`)).toHaveClass(/active/);
   };
   // A dark main colour and a light accent for the first side, a light main colour and a dark accent for the second.
-  await pick('color0', 'crimson', /c=crimson/);
-  await pick('second0', 'sky', /c2=sky/);
-  await pick('color1', 'pink', /c=crimson%2Cpink|c=crimson,pink/);
-  await pick('second1', 'indigo', /c2=sky%2Cindigo|c2=sky,indigo/);
+  await pick('color0', 'crimson');
+  await pick('second0', 'sky');
+  await pick('color1', 'pink');
+  await pick('second1', 'indigo');
   // Only the other side's exact colour is taken; the other shades of its hue stay free.
   await expect(page.locator('#modal [data-color1="crimson"]')).toBeDisabled();
   await expect(page.locator('#modal [data-color0="pink"]')).toBeDisabled();
@@ -186,7 +181,7 @@ test('the colour grids pick dark and light shades and fit a 1280×720 window', a
   expect(start!.x + start!.width).toBeLessThanOrEqual(1280);
   expect(start!.y + start!.height).toBeLessThanOrEqual(720);
   await page.screenshot({ path: 'test-results/skirmish-setup-grid.png' });
-  await page.getByRole('button', { name: 'Почати' }).click();
+  await startMatch(page, /c2=sky%2Cindigo|c2=sky,indigo/);
   const sides = await page.evaluate(() => {
     const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { color: string; color2: string }> } } } }).__sw.game.world;
     return [w.sides.player!.color, w.sides.player!.color2, w.sides.enemy!.color, w.sides.enemy!.color2];

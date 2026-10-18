@@ -1,7 +1,7 @@
 /*
  * The pixel interface. Frames and buttons are 9-slice images drawn per race in ui/skin.ts and handed down as custom
  * properties (--frame, --btn-*); one art pixel of them is --u. Text is the Shardfall pixel font from ui/font.ts at
- * --k CSS pixels per font pixel (1.5 on Retina screens, 2 elsewhere), so every glyph pixel lands on the screen grid.
+ * --k CSS pixels per font pixel (2: whole device pixels on any screen), so every glyph pixel lands on the screen grid.
  */
 :root {
   --ink: #efe3c2;
@@ -13,10 +13,11 @@
   --player: #49b3c7;
   --enemy: #e0614f;
   --u: 2px;
-  --k: 1.5;
+  --k: 2;
   --t: calc(12px * var(--k));
   --t2: calc(24px * var(--k));
-  font: var(--t) / 1.34 Shardfall, Menlo, monospace;
+  /* Lines are a whole number of font pixels, so every glyph pixel lands on the screen grid. */
+  font: var(--t) / calc(16px * var(--k)) Shardfall, Menlo, monospace;
   color: var(--ink);
   -webkit-font-smoothing: none;
   font-smooth: never;
@@ -68,8 +69,56 @@ body.paused #topbar::after {
 }
 
 .panel { position: fixed; left: calc(4 * var(--u)); bottom: calc(4 * var(--u)); min-width: 300px; max-width: 560px; padding: var(--u) calc(2 * var(--u)); }
-.panel .sel { display: flex; gap: calc(4 * var(--u)); align-items: flex-start; }
-.panel .portrait { flex: none; width: calc(32 * var(--u)); height: calc(32 * var(--u)); image-rendering: pixelated; }
+/*
+ * The selection: a big portrait (64 art pixels, 1.5 CSS pixels each, so 3 screen pixels on a Retina Mac) framed like
+ * a monitor, then the stats as segmented bars and a status light, then Move / Attack / Stop as a column on the right.
+ */
+.panel .sel { display: flex; gap: calc(4 * var(--u)); align-items: stretch; }
+.panel .portrait {
+  flex: none; width: calc(48 * var(--u)); height: calc(48 * var(--u)); image-rendering: pixelated;
+  background: radial-gradient(circle at 50% 40%, #2a3a3c, #0b0e10 75%);
+  border: var(--u) solid #000; outline: var(--u) solid var(--line); outline-offset: 0;
+  box-shadow: inset 0 0 0 var(--u) rgb(255 255 255 / 0.06);
+}
+.panel .stats { flex: 1; min-width: calc(80 * var(--u)); display: flex; flex-direction: column; gap: var(--u); }
+.panel .gauge { display: grid; grid-template-columns: 1fr auto; column-gap: calc(2 * var(--u)); color: var(--muted); }
+.panel .gauge b { color: var(--ink); font-weight: 400; }
+.panel .gauge .meter { grid-column: 1 / -1; }
+.panel .meter {
+  position: relative; display: block; height: calc(4 * var(--u)); background: #0b0a08;
+  border: var(--u) solid #000; box-shadow: 0 0 0 var(--u) var(--line);
+}
+.panel .meter i {
+  position: absolute; inset: 0 auto 0 0; background: var(--tone);
+  /* Cells of three pixels with a one pixel gap, and a lit top row. */
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 calc(3 * var(--u)), transparent 0 calc(4 * var(--u)));
+  mask: repeating-linear-gradient(90deg, #000 0 calc(3 * var(--u)), transparent 0 calc(4 * var(--u)));
+  box-shadow: inset 0 var(--u) 0 rgb(255 255 255 / 0.35);
+}
+.panel .meter.good { --tone: #6ee06e; }
+.panel .meter.mid { --tone: #f0c43a; }
+.panel .meter.bad { --tone: #e05a3a; }
+.panel .meter.cargo { --tone: #f0c43a; }
+.panel .meter.work { --tone: var(--accent); }
+.panel .chip { color: var(--ink); display: flex; align-items: center; gap: calc(2 * var(--u)); }
+.panel .chip::before {
+  content: ''; width: calc(3 * var(--u)); height: calc(3 * var(--u)); background: #6ee06e;
+  box-shadow: 0 0 calc(2 * var(--u)) #6ee06e;
+}
+.panel .chip.idle { color: var(--muted); }
+.panel .chip.idle::before { background: #a99d7f; box-shadow: none; animation: blink 1.2s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0.2; } }
+.panel .squad { display: flex; flex-wrap: wrap; gap: var(--u); max-width: calc(6 * 26 * var(--u)); }
+.panel .squad .mini { display: flex; flex-direction: column; width: calc(24 * var(--u)); background: #0b0e10; }
+.panel .squad .mini img { width: calc(24 * var(--u)); height: calc(24 * var(--u)); image-rendering: pixelated; }
+.panel .squad .meter { height: calc(2 * var(--u)); border-width: 0; box-shadow: none; }
+.panel .squad .more { align-self: center; color: var(--muted); padding: 0 var(--u); }
+.panel .buttons.cmds { flex-direction: column; flex-wrap: nowrap; margin: 0; gap: var(--u); justify-content: space-between; }
+.panel .cmd { display: flex; align-items: center; gap: calc(2 * var(--u)); min-width: calc(62 * var(--u)); padding-right: calc(7 * var(--u)); text-align: left; flex: 1; }
+.panel .cmd .icon { width: calc(9 * var(--u)); height: calc(9 * var(--u)); flex: none; color: var(--accent); }
+.panel .cmd[data-action='attack'] .icon { color: #e05a3a; }
+.panel .cmd:disabled .icon { color: #5a5444; }
+.panel .cmd.active { outline: var(--u) solid var(--accent); outline-offset: calc(-2 * var(--u)); }
 .panel .title { color: var(--accent); }
 .panel .title.foe { color: var(--enemy); }
 .panel .title.neutral { color: var(--gold); }
@@ -119,26 +168,51 @@ body.duo .toast.side-2 { left: 75%; }
 #modal .options .option + .option { margin-top: calc(2 * var(--u)); }
 /* Difficulty and opponent: big buttons with skulls. */
 #modal button.level { min-width: 92px; text-align: center; }
-#modal button.level .icons { display: block; color: var(--accent); letter-spacing: var(--u); min-height: 1.34em; }
+#modal button.level .icons { display: block; color: var(--accent); letter-spacing: var(--u); min-height: calc(16px * var(--k)); }
 #modal button.level.active .icons { color: #fff; }
 /* Language: a waving flag next to the name. */
 #modal button .flag, .lang .flag { display: inline-block; vertical-align: middle; margin-right: calc(2 * var(--u)); width: calc(16 * var(--u)); height: calc(11 * var(--u)); image-rendering: pixelated; background-size: 600% 100%; animation: wave var(--wave-time, 0.9s) steps(6) infinite; animation-play-state: var(--wave, running); }
 @keyframes wave { to { background-position: 120% 0; } }
-/* The skirmish setup: both sides next to each other, each with its race and two colour grids. */
-#modal .card.setup { width: min(900px, calc(100vw - 32px)); max-height: calc(100vh - 24px); }
-#modal .setup .head { display: flex; align-items: flex-start; gap: calc(5 * var(--u)); }
-#modal .setup .head .preview { flex: none; margin: 0; }
-#modal .setup .head .goal { margin: 0 0 calc(3 * var(--u)); }
-#modal .setup .options { margin-top: calc(3 * var(--u)); padding-top: calc(3 * var(--u)); }
-/* The setup has to fit a 1280×720 window: the opponent's icons sit next to its name, not above it. */
+/*
+ * The skirmish setup fills the window: title bar, then maps | preview | match options, then the two sides, then the
+ * buttons. Everything has to fit 1280×720 without scrolling.
+ */
+#modal .card.screen {
+  position: fixed; inset: calc(2 * var(--u)); width: auto; max-height: none; overflow: hidden;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; gap: calc(3 * var(--u)); padding: calc(2 * var(--u)) calc(5 * var(--u));
+  background-color: #15120d;
+}
+#modal:has(.screen) { background: #0b0a08; }
+#modal .screen header { display: flex; align-items: baseline; gap: calc(4 * var(--u)); border-bottom: var(--u) solid var(--line); }
+#modal .screen header h1 { margin: 0; }
+#modal .screen header .kicker { text-transform: uppercase; letter-spacing: calc(1 * var(--u)); }
+#modal .screen header .lang { margin-left: auto; display: flex; gap: var(--u); }
+#modal .screen .top { display: grid; grid-template-columns: auto auto 1fr; gap: calc(5 * var(--u)); align-items: start; min-height: 0; }
+#modal .screen .maps { display: grid; grid-template-columns: 1fr 1fr; gap: var(--u); align-content: start; }
+#modal .screen .maps > span, #modal .screen .option > span { grid-column: 1 / -1; display: block; color: var(--muted); min-width: 0; }
+#modal .screen .maps button { text-align: left; }
+#modal .screen .map { margin: 0; }
+#modal .screen .map .preview { margin: 0 0 var(--u); }
+#modal .screen .match .goal { color: var(--gold); margin-top: calc(3 * var(--u)); }
+#modal .screen .match .option { display: block; }
+#modal .screen .match .option + .hint { margin: var(--u) 0 calc(3 * var(--u)); color: var(--muted); }
+#modal .screen .levels, #modal .screen .money { display: flex; flex-wrap: wrap; gap: var(--u); }
 #modal .setup button.level { min-width: 0; }
 #modal .setup button.level .icons { display: inline; margin-right: calc(2 * var(--u)); min-height: 0; }
-#modal .setup .options .option + .option { margin-top: var(--u); }
-#modal .setup .options .hint { margin: var(--u) 0 calc(2 * var(--u)) 108px; }
-#modal .sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: calc(3 * var(--u)); margin: calc(3 * var(--u)) 0; }
-#modal .side { padding: 0 var(--u); }
-#modal .side .who { display: flex; flex-wrap: wrap; align-items: center; gap: calc(2 * var(--u)); margin-bottom: calc(2 * var(--u)); }
+#modal .screen footer { display: flex; justify-content: space-between; }
+/* Each side: name and race on top, then its army in its colours beside the colour grids. */
+#modal .sides { display: grid; grid-template-columns: 1fr 1fr; gap: calc(5 * var(--u)); min-height: 0; }
+#modal .side { padding: calc(2 * var(--u)) calc(3 * var(--u)); background: rgb(0 0 0 / 0.25); border-top: var(--u) solid var(--line); }
+#modal .side .who { display: flex; flex-wrap: wrap; align-items: center; gap: calc(3 * var(--u)); margin-bottom: calc(2 * var(--u)); }
 #modal .side .who b { min-width: 84px; }
+#modal .side .races { display: flex; gap: var(--u); }
+#modal .side .look { display: flex; align-items: flex-end; gap: calc(4 * var(--u)); flex-wrap: wrap; }
+#modal .side .army {
+  display: grid; grid-template-columns: repeat(2, calc(32 * var(--u))); grid-auto-rows: calc(32 * var(--u)); gap: var(--u);
+  padding: var(--u); background: radial-gradient(ellipse at 50% 70%, color-mix(in srgb, var(--c) 35%, #14110c), #0b0a08 80%);
+  border: var(--u) solid #000; outline: var(--u) solid var(--line);
+}
+#modal .side .army img { width: 100%; height: 100%; image-rendering: pixelated; }
 #modal .side .palettes { display: flex; flex-wrap: wrap; align-items: flex-end; gap: calc(5 * var(--u)); }
 #modal .colors span { display: block; margin-bottom: var(--u); color: var(--muted); }
 /* Eight hues across, three shades down: light on top, dark at the bottom. */
@@ -168,16 +242,52 @@ body.duo .toast.side-2 { left: 75%; }
 #modal .volume output { min-width: 48px; text-align: right; }
 
 /* Main screen, victory and defeat: a low-resolution 3D scene behind a pixel card. */
-#scene { position: fixed; inset: 0; z-index: 9; display: none; width: 100vw; height: 100vh; image-rendering: pixelated; background: #0b0a08; }
+#scene { position: fixed; inset: 0; z-index: 9; display: none; width: 100vw; height: 100vh; object-fit: cover; image-rendering: pixelated; background: #0b0a08; }
 body.menu #scene, body.outcome #scene { display: block; }
 body.menu #topbar, body.menu #help, body.menu .panel, body.menu .minimap, body.menu #stage { display: none; }
 #modal.over-scene { background: none; }
-#modal .card.menu { width: auto; min-width: 340px; text-align: center; padding: calc(4 * var(--u)) calc(8 * var(--u)); }
-#modal h1.logo { margin: 0 0 var(--u); font-size: calc(36px * var(--k)); line-height: 1; color: var(--gold); text-shadow: calc(var(--k) * 1px) calc(var(--k) * 1px) 0 #a87a12, calc(var(--k) * 2px) calc(var(--k) * 2px) 0 #0a0806; letter-spacing: calc(var(--k) * 1px); }
-#modal .subtitle { color: var(--muted); margin: 0 0 calc(6 * var(--u)); }
+/*
+ * The main screen: no dialog, a dark glass strip down the left edge over the battle, the name in big machined
+ * letters and the menu as numbered blades with chamfered corners, lit in the player's accent colour on hover.
+ */
+#modal.over-scene { align-items: stretch; justify-content: flex-start; }
+#modal .card.menu {
+  width: min(460px, 100vw); max-height: none; height: 100vh; box-sizing: border-box; border: 0; border-image: none;
+  display: flex; flex-direction: column; justify-content: center; text-align: left;
+  padding: calc(8 * var(--u)) calc(10 * var(--u));
+  background: linear-gradient(90deg, rgba(8, 7, 12, 0.92), rgba(8, 7, 12, 0.72) 75%, rgba(8, 7, 12, 0));
+}
+#modal h1.logo {
+  margin: 0; font-size: calc(36px * var(--k)); line-height: 1; letter-spacing: calc(var(--k) * 2px);
+  color: transparent; background: linear-gradient(180deg, #fff2b8 0 30%, #f0c43a 30% 60%, #d0801a 60% 100%);
+  -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(calc(var(--k) * 1px) calc(var(--k) * 1px) 0 #4a2a08) drop-shadow(0 0 calc(var(--k) * 6px) rgba(240, 196, 58, 0.35));
+}
+#modal .subtitle {
+  margin: calc(2 * var(--u)) 0 calc(10 * var(--u)); padding-top: calc(2 * var(--u)); color: var(--accent);
+  text-transform: uppercase; letter-spacing: calc(var(--k) * 2px);
+  border-top: var(--u) solid var(--accent); width: max-content; max-width: 100%;
+}
 #modal .menu-buttons { display: flex; flex-direction: column; gap: calc(2 * var(--u)); }
-#modal .menu-buttons button { font-size: var(--t); padding: calc(2 * var(--u)) calc(6 * var(--u)); }
+#modal .menu-buttons button {
+  position: relative; text-align: left; font-size: var(--t); padding: calc(3 * var(--u)) calc(6 * var(--u)) calc(3 * var(--u)) calc(4 * var(--u));
+  border: 0; border-image: none; background: rgba(255, 255, 255, 0.05); color: var(--ink);
+  border-left: calc(2 * var(--u)) solid var(--line);
+  clip-path: polygon(0 0, calc(100% - 4 * var(--u)) 0, 100% calc(4 * var(--u)), 100% 100%, calc(4 * var(--u)) 100%, 0 calc(100% - 4 * var(--u)));
+  transition: padding-left 80ms steps(2), background 80ms steps(2);
+}
+#modal .menu-buttons button .no { font-style: normal; color: var(--muted); margin-right: calc(4 * var(--u)); }
+#modal .menu-buttons button:hover, #modal .menu-buttons button:focus-visible {
+  background: rgba(255, 255, 255, 0.12); border-left-color: var(--accent); padding-left: calc(7 * var(--u)); outline: none;
+}
+#modal .menu-buttons button:hover .no { color: var(--accent); }
+#modal .menu-buttons button.primary { border-left-color: var(--accent); background: rgba(240, 196, 58, 0.14); }
+#modal .card.menu .lang { margin-top: calc(8 * var(--u)); }
 #modal .card.outcome { width: min(520px, calc(100vw - 32px)); position: absolute; right: 6vw; bottom: 8vh; }
 #modal .stats { display: grid; grid-template-columns: 1fr auto; gap: var(--u) calc(8 * var(--u)); margin: calc(3 * var(--u)) 0; }
 #modal .stats span:nth-child(odd) { color: var(--muted); }
 #modal .stats span:nth-child(even) { text-align: right; font-weight: 700; }
+/* Language buttons show only the waving flag; the name is there for screen readers and tests. */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+button[data-lang] { padding: var(--u) calc(2 * var(--u)); min-width: 0; }
+button[data-lang] .flag { margin-right: 0 !important; }

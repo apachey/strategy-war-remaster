@@ -6,8 +6,8 @@ import opentype from 'opentype.js';
  * with 2 below the line for descenders and 2 above the capitals for Ї and Й. `$` and `◆` both draw the crystal,
  * the game's money. A bold cut is the same bitmaps thickened one pixel to the right.
  *
- * At `font-size: 12px` one font pixel is one CSS pixel; the interface uses whole and half multiples of that so the
- * pixels land on the screen's grid.
+ * At `font-size: 12px` one font pixel is one CSS pixel; the interface uses whole multiples of that (and line heights
+ * of whole font pixels) so the pixels land on the screen's grid.
  */
 
 /** Font units per bitmap pixel and per em (12 pixels: 10 above the baseline, 2 below). */
@@ -211,10 +211,41 @@ export function glyph(ch: string, bold = false): Bitmap | null {
   const spec = GLYPHS[ch] ?? GLYPHS[SAME[ch] ?? ''];
   if (!spec) return null;
   const [top, body] = spec.split(' ') as [string, string];
-  let rows = body.split('/');
-  // Bold: every stroke one pixel wider to the right, except where that would close a one-pixel gap (Ш, м, ж).
-  if (bold) rows = rows.map((r) => [...`${r}.`].map((c, i) => (c === '#' || (r[i - 1] === '#' && r[i + 1] !== '#') ? '#' : '.')).join(''));
+  let rows = techno(body.split('/'));
+  if (bold) rows = embolden(rows);
   return { top: Number(top), rows, width: Math.max(...rows.map((r) => r.length)) };
+}
+
+/**
+ * Bold: every stroke one pixel wider to the right. A glyph whose strokes stand one pixel apart (Ш, м, ж) cannot grow
+ * that way without closing the gap, so its stems (columns inked in most rows) are doubled instead and it gets wider.
+ */
+function embolden(rows: string[]): string[] {
+  if (rows.some((r) => r.includes('#.#'))) {
+    const width = Math.max(...rows.map((r) => r.length));
+    const stem = [...Array(width).keys()].map((x) => rows.filter((r) => r[x] === '#').length * 2 > rows.length);
+    return rows.map((r) => [...r.padEnd(width, '.')].map((c, x) => (stem[x] ? c + c : c)).join(''));
+  }
+  return rows.map((r) => [...`${r}.`].map((c, i) => (c === '#' || (r[i - 1] === '#' && r[i + 1] !== '#') ? '#' : '.')).join(''));
+}
+
+/**
+ * The futuristic cut: round bowls get square top-right and bottom-left corners and keep the chamfer on the other
+ * two, so O, C, S, 0 and the rest lean like machined plates. A corner is a gap with ink on both sides of it and
+ * nothing on its inner diagonal.
+ */
+function techno(rows: string[]): string[] {
+  const at = (x: number, y: number) => rows[y]?.[x] === '#';
+  const out = rows.map((r) => [...r]);
+  for (let y = 0; y < rows.length; y++)
+    for (let x = 0; x < rows[y]!.length; x++) {
+      if (at(x, y)) continue;
+      // Top-right corner: two pixels of ink to the left and below (a bowl, not a terminal or a leg), empty inside.
+      if (at(x - 1, y) && at(x - 2, y) && at(x, y + 1) && at(x, y + 2) && !at(x - 1, y + 1) && !at(x + 1, y) && !at(x, y - 1)) out[y]![x] = '#';
+      // Bottom-left corner: two pixels of ink to the right and above, empty inside (up-right).
+      if (at(x + 1, y) && at(x + 2, y) && at(x, y - 1) && at(x, y - 2) && !at(x + 1, y - 1) && !at(x - 1, y) && !at(x, y + 1)) out[y]![x] = '#';
+    }
+  return out.map((r) => r.join(''));
 }
 
 /** Every character the font draws. */

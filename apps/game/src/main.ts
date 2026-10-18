@@ -34,13 +34,16 @@ const difficulty = urlDifficulty && DIFFICULTIES.includes(urlDifficulty) ? urlDi
 const menuMode = !['m', 's', 'load'].some((k) => params.has(k));
 markOptions.selection = settings.selection;
 // Pixel font scale: 1.5 CSS px per font pixel on Retina (3 device pixels), 2 elsewhere.
-document.documentElement.style.setProperty('--k', window.devicePixelRatio >= 2 ? '1.5' : '2');
+// Two CSS pixels per font pixel on every screen: whole device pixels, so the letters stay crisp.
+document.documentElement.style.setProperty('--k', '2');
 
-function open(setup: Setup, load?: Slot): void {
+/** Loads a mission or a skirmish; `start` skips its start screen (the skirmish screen already showed the choices). */
+function open(setup: Setup, load?: Slot, start = false): void {
   const p = new URLSearchParams(location.search);
-  for (const key of ['m', 's', 'vs', 'money', 'r', 'c', 'd', 'load']) p.delete(key);
+  for (const key of ['m', 's', 'vs', 'money', 'r', 'c', 'c2', 'd', 'load', 'go']) p.delete(key);
   for (const [k, v] of Object.entries(setupQuery(setup))) p.set(k, v);
   if (load) p.set('load', load);
+  if (start) p.set('go', '1');
   if (setup.kind === 'skirmish') {
     settings.skirmish = setup;
     saveSettings(settings);
@@ -113,7 +116,7 @@ async function start(): Promise<void> {
     toMenu: () => {
       location.search = params.has('lang') ? `lang=${params.get('lang')}` : '';
     },
-  }, menuMode);
+  }, menuMode, params.get('go') === '1');
   if (game.loaded) hud.toast(t().loaded);
 
   // Views: the whole window for one player, left and right halves for two ------------------------------------------
@@ -199,10 +202,15 @@ async function start(): Promise<void> {
     }
     if (ev.button === 2) {
       if (p1.placing) p1.placing = null;
+      else if (p1.aiming) p1.aiming = null;
       else p1.order(p.x, p.y);
       return;
     }
     if (ev.button !== 0) return;
+    if (p1.aiming) {
+      p1.aim(p.x, p.y);
+      return;
+    }
     if (p1.placing) {
       p1.place(p.x, p.y, ev.shiftKey);
       return;
@@ -272,6 +280,7 @@ async function start(): Promise<void> {
     switch (ev.code) {
       case 'Escape':
         if (p1.placing) p1.placing = null;
+        else if (p1.aiming) p1.aiming = null;
         else p1.select([]);
         break;
       case 'Space':
@@ -310,6 +319,7 @@ async function start(): Promise<void> {
     if (ns || we) return { kind: 'scroll', dir: (ns + we) as ScrollDir };
     if (p1.placing) return { kind: 'normal' };
     const p = v1.toWorld(mouseScreen.x, mouseScreen.y);
+    if (p1.aiming) return { kind: p1.aiming };
     const hit = p1.pick(p.x, p.y);
     const units = p1.selected().filter((e) => p1.isOwn(e) && isUnit(e.type));
     if (units.length === 0) return { kind: hit ? 'select' : 'normal' };

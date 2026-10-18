@@ -129,6 +129,7 @@ export class Gamepads {
 
     if (down(B.A)) {
       if (c.placing) c.place(at.x, at.y);
+      else if (c.aiming) c.aim(at.x, at.y, SLACK);
       else s.box = { x: at.x, y: at.y, sx: s.sx, sy: s.sy };
     }
     if (up(B.A) && s.box) {
@@ -142,6 +143,7 @@ export class Gamepads {
     }
     if (down(B.B)) {
       if (c.placing) c.placing = null;
+      else if (c.aiming) c.aiming = null;
       else c.order(at.x, at.y, SLACK);
     }
     if (down(B.X)) panel.pressFocus();
