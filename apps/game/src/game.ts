@@ -125,6 +125,8 @@ export class Commander {
   onToast: (text: string) => void = () => {};
   /** Feedback sounds for this person's own actions. */
   onSound: (name: 'select' | 'order' | 'error' | 'build_start' | 'self_destruct') => void = () => {};
+  /** An order the units acknowledge in their own voice: `ids` are the units, `action` what they answer. */
+  onOrder: (ids: number[], action: 'move' | 'attack' | 'harvest') => void = () => {};
 
   constructor(
     readonly game: Game,
@@ -222,7 +224,9 @@ export class Commander {
       this.onSound('error');
     } else if (cmd.kind === 'build') this.onSound('build_start');
     else if (cmd.kind === 'destruct') this.onSound('self_destruct');
-    else if (cmd.kind === 'move' || cmd.kind === 'attack' || cmd.kind === 'harvest' || cmd.kind === 'defend') this.onSound('order');
+    else if (cmd.kind === 'move' || cmd.kind === 'defend') this.onOrder(cmd.ids, 'move');
+    else if (cmd.kind === 'attack' || cmd.kind === 'attackMove') this.onOrder(cmd.ids, 'attack');
+    else if (cmd.kind === 'harvest') this.onOrder(cmd.ids, 'harvest');
     return result;
   }
 

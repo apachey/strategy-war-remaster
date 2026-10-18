@@ -28,6 +28,7 @@ interface Entry {
   channels: number;
   gain: number;
   description: string;
+  loop?: true;
 }
 
 /** In-place radix-2 FFT of a real frame; returns magnitudes of the first half. */
@@ -108,12 +109,12 @@ function main(): void {
     for (const c of channels) for (const v of c) (peak = Math.max(peak, Math.abs(v))), (sum += v * v);
     const rms = Math.sqrt(sum / (mono.length * channels.length));
     const seconds = Math.round((mono.length / SAMPLE_RATE) * 1000) / 1000;
-    const entry: Entry = { name: s.name, seconds, channels: channels.length, gain: s.gain, description: s.description };
+    const entry: Entry = { name: s.name, seconds, channels: channels.length, gain: s.gain, description: s.description, ...(s.loop ? { loop: true as const } : {}) };
     const at = index.findIndex((e) => e.name === s.name);
     if (at >= 0) index[at] = entry;
     else index.push(entry);
     console.log(
-      `${s.name.padEnd(16)} ${seconds.toFixed(3)} s  ${channels.length === 1 ? 'mono  ' : 'stereo'}  peak ${db(peak)} dB  rms ${db(rms)} dB  centroid ${Math.round(centroid(mono))} Hz`,
+      `${s.name.padEnd(34)} ${seconds.toFixed(3)} s  ${channels.length === 1 ? 'mono  ' : 'stereo'}  peak ${db(peak)} dB  rms ${db(rms)} dB  centroid ${Math.round(centroid(mono))} Hz`,
     );
   }
   const order = SFX.map((s) => s.name);
