@@ -1,6 +1,6 @@
-# Strategy War Remaster
+# Shardfall (Strategy War Remaster)
 
-Fan remaster of the 2004 J2ME real-time strategy Strategy War (Jiří Mikula / tadpole / Redboss) for macOS.
+Shardfall is a fan remaster of the 2004 J2ME real-time strategy Strategy War (Jiří Mikula / tadpole / Redboss) for macOS.
 Pavlo (GitHub `apachey`) directs; Claude writes the code and art. Talk to Pavlo in Ukrainian; code, comments and
 commit messages are in English.
 
@@ -11,6 +11,11 @@ commit messages are in English.
   `&r=walker,hover&c=blue,red&c2=white,black` sets the two sides' races, team colours and secondary colours.
   The game draws the style B atlases (`src/assets.ts` recolours them per side, `src/render.ts`), plays the music and
   sound effects (`src/audio.ts`, `src/soundscape.ts`) and has a minimap (`src/minimap.ts`).
+  `src/ui/` is the pixel interface: the Shardfall font (`font.ts`, bitmaps turned into a TrueType font at start-up),
+  race skins for frames and buttons (`skin.ts`, 9-slice images as CSS custom properties), cursors, flags, selection
+  marks and health bars (`marks.ts`), and `scene3d.ts`, which renders the tools/art models live at low resolution for
+  the main screen, victory/defeat scenes and portraits. No URL query opens the main screen. `studio.html`
+  (`pnpm --filter @sw/game exec vite --config vite.studio.config.ts`) shows every interface piece with its switches.
 - `apps/desktop` — Tauri 2 shell that packages `apps/game/dist` as a universal macOS app and .dmg (Apple Silicon and
   Intel). Its `package.json` version is the game's version: a new version reaching `main` becomes a GitHub release
   with the .dmg and `docs/INSTALL.md` (the friends' install guide, UA and EN) as notes.

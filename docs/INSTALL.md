@@ -1,4 +1,4 @@
-# Strategy War Remaster: як встановити
+# Shardfall: як встановити
 
 Фанатський ремайстер мобільної стратегії Strategy War (Jiří Mikula, 2004) для Mac. Безкоштовно, для друзів.
 
@@ -7,8 +7,8 @@
 
 ## Встановлення
 
-1. Відкрий файл `StrategyWarRemaster-….dmg` (його можна отримати від друга або завантажити зі сторінки релізу).
-2. У вікні, що відкрилося, перетягни **Strategy War Remaster** у папку **Applications**.
+1. Відкрий файл `Shardfall-….dmg` (його можна отримати від друга або завантажити зі сторінки релізу).
+2. У вікні, що відкрилося, перетягни **Shardfall** у папку **Applications**.
 3. Закрий вікно й витягни диск (значок у Finder → Eject).
 
 ## Перший запуск
@@ -17,20 +17,20 @@
 
 **macOS 15 Sequoia і новіші**
 
-1. Відкрий **Applications** і двічі клацни **Strategy War Remaster**. З'явиться вікно, що програму не вдалося відкрити; натисни **Готово** (Done).
+1. Відкрий **Applications** і двічі клацни **Shardfall**. З'явиться вікно, що програму не вдалося відкрити; натисни **Готово** (Done).
 2. Відкрий **Системні параметри → Приватність і безпека**, прокрути вниз до розділу **Безпека**.
-3. Біля рядка про Strategy War Remaster натисни **Усе одно відкрити** (Open Anyway) і підтверди паролем або Touch ID.
+3. Біля рядка про Shardfall натисни **Усе одно відкрити** (Open Anyway) і підтверди паролем або Touch ID.
 4. У наступному вікні натисни **Відкрити**. Далі гра запускається як звичайна програма.
 
 **macOS 12–14**
 
-1. У папці **Applications** клацни **Strategy War Remaster** правою кнопкою (або з Control) і вибери **Відкрити**.
+1. У папці **Applications** клацни **Shardfall** правою кнопкою (або з Control) і вибери **Відкрити**.
 2. У вікні з попередженням натисни **Відкрити**.
 
 **Якщо macOS пише, що програму "пошкоджено"**, відкрий **Термінал** і виконай:
 
 ```sh
-xattr -cr "/Applications/Strategy War Remaster.app"
+xattr -cr "/Applications/Shardfall.app"
 ```
 
 Потім запусти гру ще раз.
@@ -48,7 +48,7 @@ xattr -cr "/Applications/Strategy War Remaster.app"
 
 ---
 
-# Strategy War Remaster: how to install
+# Shardfall: how to install
 
 A fan remaster of the mobile strategy game Strategy War (Jiří Mikula, 2004) for the Mac. Free, for friends.
 
@@ -57,8 +57,8 @@ A fan remaster of the mobile strategy game Strategy War (Jiří Mikula, 2004) fo
 
 ## Install
 
-1. Open `StrategyWarRemaster-….dmg` (from a friend, or from the release page).
-2. Drag **Strategy War Remaster** into the **Applications** folder.
+1. Open `Shardfall-….dmg` (from a friend, or from the release page).
+2. Drag **Shardfall** into the **Applications** folder.
 3. Close the window and eject the disk image.
 
 ## First launch
@@ -67,20 +67,20 @@ The game is not signed with an Apple certificate (that costs money), so macOS as
 
 **macOS 15 Sequoia and later**
 
-1. Open **Applications** and double-click **Strategy War Remaster**. A "Not Opened" window appears; click **Done**.
+1. Open **Applications** and double-click **Shardfall**. A "Not Opened" window appears; click **Done**.
 2. Open **System Settings → Privacy & Security** and scroll down to **Security**.
-3. Next to the line about Strategy War Remaster click **Open Anyway** and confirm with your password or Touch ID.
+3. Next to the line about Shardfall click **Open Anyway** and confirm with your password or Touch ID.
 4. Click **Open** in the next window. From then on the game starts like any other app.
 
 **macOS 12–14**
 
-1. In **Applications**, right-click (or Control-click) **Strategy War Remaster** and choose **Open**.
+1. In **Applications**, right-click (or Control-click) **Shardfall** and choose **Open**.
 2. Click **Open** in the warning.
 
 **If macOS says the app "is damaged"**, open **Terminal** and run:
 
 ```sh
-xattr -cr "/Applications/Strategy War Remaster.app"
+xattr -cr "/Applications/Shardfall.app"
 ```
 
 Then start the game again.

@@ -4,6 +4,7 @@ import { isUnit, TICK_MS, UNIT_RULES, BUILDING_RULES, type Entity, type GameEven
 import { ART_PX_PER_CELL, groundPiece, type Art } from './assets';
 import { Fog } from './fog';
 import type { Commander } from './game';
+import { Marks } from './ui/marks';
 
 /** Map pixels per art pixel: the sprites are drawn at 32 px per 15 px cell. */
 const ART = CELL / ART_PX_PER_CELL;
@@ -12,9 +13,6 @@ const DIRS = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] as const;
 
 const C = {
   select: 0x9dff7a,
-  field: 0xf0c43a,
-  hpGood: 0x6ee06e,
-  hpBad: 0xe05a3a,
   ghostOk: 0x6ee06e,
   ghostBad: 0xe05a3a,
 };
@@ -120,7 +118,7 @@ export class Renderer {
   private readonly objects = new Container({ sortableChildren: true });
   private readonly shots = new Container();
   private readonly fx = new Container();
-  private readonly overlay = new Graphics();
+  private readonly sel = new Marks();
   private readonly fog: Fog;
   private readonly ui = new Graphics();
   private readonly ghost = new Sprite();
@@ -160,7 +158,7 @@ export class Renderer {
     this.plated = platedCells(game.world);
     this.fog = new Fog(game.world, game.side);
     this.ghost.visible = false;
-    this.camera.addChild(this.ground, this.decor, this.marks, this.decals, this.objects, this.shots, this.fx, this.overlay, this.fog.sprite, this.ui);
+    this.camera.addChild(this.ground, this.decor, this.marks, this.decals, this.objects, this.shots, this.fx, this.sel.over, this.fog.sprite, this.ui);
     this.objects.addChild(this.ghost);
     this.ghost.zIndex = 1e9;
     const names = Object.keys(art.effects.textures).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
@@ -404,7 +402,7 @@ export class Renderer {
     const game = this.game;
     const world = game.world;
     const selected = new Set(game.selection);
-    this.overlay.clear();
+    this.sel.clear();
     this.ui.clear();
 
     this.updateFog();
@@ -420,9 +418,9 @@ export class Renderer {
       seen.add(e.id);
       this.drawObject(e, x, y, walls);
       if (!isUnit(e.type) && e.type !== ObjectType.ResourceField) this.burn(e, dtMs);
-      if (selected.has(e.id)) this.drawSelection(e, x, y);
+      if (selected.has(e.id)) this.sel.selection(e, x, y, game.side);
       const showHp = selected.has(e.id) || (e.hp < e.maxHp && e.type !== ObjectType.ResourceField);
-      if (showHp) this.drawBars(e, x, y);
+      if (showHp) this.sel.bars(e, x, y);
     }
     for (const [id, s] of this.sprites) {
       if (seen.has(id)) continue;
@@ -707,50 +705,6 @@ export class Renderer {
   private sideColor(side: Side): number {
     const ramp = TEAM_COLORS[this.game.world.sides[side].color];
     return Number.parseInt(ramp[2].slice(1), 16);
-  }
-
-  private drawSelection(e: Entity, x: number, y: number): void {
-    const w = 1 / this.camera.scale.x;
-    const own = e.team === this.game.side;
-    const color = own ? C.select : e.team === 'neutral' ? C.field : C.hpBad;
-    const len = Math.max(3, e.size / 4);
-    const g = this.overlay;
-    const s = e.size;
-    // Corner brackets like the original selection frame.
-    for (const [ox, oy, sx, sy] of [
-      [x, y, 1, 1],
-      [x + s, y, -1, 1],
-      [x, y + s, 1, -1],
-      [x + s, y + s, -1, -1],
-    ] as const) {
-      g.moveTo(ox + sx * len, oy).lineTo(ox, oy).lineTo(ox, oy + sy * len).stroke({ width: w * 1.5, color });
-    }
-    if (own && isUnit(e.type)) {
-      const weapon = UNIT_RULES[e.type as UnitType].weapon;
-      if (weapon) g.rect(x - weapon.range, y - weapon.range, s + weapon.range * 2, s + weapon.range * 2).stroke({ width: w, color, alpha: 0.25 });
-    }
-    if (own && e.type === ObjectType.Defender) {
-      const range = BUILDING_RULES[e.type as BuildingType].weapon!.range;
-      g.rect(x - range, y - range, s + range * 2, s + range * 2).stroke({ width: w, color, alpha: 0.25 });
-    }
-  }
-
-  private drawBars(e: Entity, x: number, y: number): void {
-    const g = this.overlay;
-    const w = e.size;
-    const k = Math.max(0, e.hp / e.maxHp);
-    // Above the sprite: buildings and units stand taller than their footprint.
-    const top = y - (e.size > CELL ? 9 : 6);
-    g.rect(x, top, w, 2).fill({ color: 0x000000, alpha: 0.6 });
-    g.rect(x, top, w * k, 2).fill(k > 0.4 ? C.hpGood : C.hpBad);
-    let progress = -1;
-    if (!e.complete && e.buildTotalMs > 0) progress = e.buildElapsedMs / e.buildTotalMs;
-    if (e.job?.kind === 'produce') progress = e.job.elapsedMs / e.job.totalMs;
-    if (e.type === ObjectType.Harvester) progress = e.cargo / 50;
-    if (progress >= 0) {
-      g.rect(x, top - 3, w, 2).fill({ color: 0x000000, alpha: 0.6 });
-      g.rect(x, top - 3, w * progress, 2).fill(e.type === ObjectType.Harvester ? C.field : 0x8fb8ff);
-    }
   }
 
   /** A gamepad player's crosshair. */

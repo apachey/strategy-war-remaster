@@ -118,6 +118,8 @@ export class Commander {
   readonly groups = new Map<number, number[]>();
   /** Building waiting to be placed, and the HQ that will build it. */
   placing: { type: BuildingType; hqId: number } | null = null;
+  /** A Move or Attack panel button waiting for its target: the next click on the map gives the order. */
+  aiming: 'move' | 'attack' | null = null;
   /** Gamepad focus in the selection panel's buttons. */
   focus = 0;
   /** Where a gamepad player's cursor points, in map pixels; null for mouse players. */
@@ -191,6 +193,7 @@ export class Commander {
     this.selection = add ? [...new Set([...this.selection.filter((id) => this.world.byId.get(id)?.team === this.side), ...own])] : list;
     if (own.length > 0) this.onSound('select');
     this.placing = null;
+    this.aiming = null;
     this.focus = 0;
   }
 
@@ -272,6 +275,27 @@ export class Commander {
     }
     this.run({ kind: 'move', ids, x, y, queue: mods.queue });
     return 'move';
+  }
+
+  /**
+   * The click after a Move or Attack button. Move drives there whatever is under the cursor; Attack fires on an enemy
+   * it hits, or drives there fighting whatever comes into range on the way.
+   */
+  aim(x: number, y: number, slack = 0): void {
+    const kind = this.aiming;
+    this.aiming = null;
+    const units = this.ownUnits();
+    if (!kind || units.length === 0) return;
+    const ids = units.map((u) => u.id);
+    if (kind === 'move') {
+      this.run({ kind: 'move', ids, x, y });
+      return;
+    }
+    const armed = units.filter((u) => UNIT_RULES[u.type as UnitType].weapon).map((u) => u.id);
+    if (armed.length === 0) return;
+    const target = this.pick(x, y, slack);
+    if (target && this.isFoe(target)) this.run({ kind: 'attack', ids: armed, targetId: target.id });
+    else this.run({ kind: 'attackMove', ids: armed, x, y });
   }
 
   startPlacing(type: BuildingType): void {

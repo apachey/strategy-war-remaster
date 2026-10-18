@@ -1,0 +1,66 @@
+/* Shardfall Studio: the game's own pixel stylesheet plus a scrolling page of sections. */
+html, body.studio { height: auto; overflow: auto; user-select: text; }
+html.system-font, html.system-font * { font-family: -apple-system, system-ui, sans-serif !important; -webkit-font-smoothing: auto; }
+body.studio { background: #14110c; }
+#top {
+  position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
+  padding: 10px 16px; background: #1b1710ee; border-bottom: var(--u) solid var(--line);
+}
+#top h1 { margin: 0 12px 0 0; font-size: var(--t2); color: var(--gold); text-shadow: var(--u) var(--u) 0 #4a2a08; }
+#top h1 small { font-size: var(--t); color: var(--muted); font-weight: 400; margin-left: 8px; }
+#toc { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 8px 16px; }
+#toc { position: sticky; top: 0; z-index: 4; gap: 4px; background: #14110cf0; border-bottom: var(--u) solid var(--line); }
+#toc a { color: var(--muted); text-decoration: none; padding: 2px 10px; border: var(--u) solid transparent; }
+#toc a:hover { color: var(--ink); }
+#toc a.active { color: var(--gold); border-color: var(--line); background: #241f17; }
+#studio .dress { display: flex; flex-wrap: wrap; padding: 6px 8px; margin-bottom: 6px; background: #0b0a08; border-left: calc(2 * var(--u)) solid var(--accent); }
+#studio { display: flex; flex-direction: column; gap: 16px; padding: 0 16px 48px; max-width: 1280px; margin: 0 auto; }
+#studio section { scroll-margin-top: 90px; min-width: 0; }
+#studio h2 { margin: 0 0 4px; color: var(--accent); }
+#studio h3 { margin: 14px 0 6px; color: var(--accent2); }
+#studio .note { margin: 0 0 8px; color: var(--muted); max-width: 900px; }
+.toggles { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0 14px 6px 0; }
+.toggles > span { color: var(--muted); margin-right: 4px; }
+.toggles select { font: inherit; color: var(--ink); background: #241f17; border: var(--u) solid var(--line); padding: 2px 4px; }
+.toggles input[type='range'] { width: 160px; accent-color: var(--accent); }
+#studio .buttons { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+#studio .demo { flex: 1 1 300px; min-width: 0; }
+#studio .skins, #studio .voices { display: flex; flex-wrap: wrap; gap: 12px; }
+#studio section#skins .body, #studio section#sound .voices { display: flex; flex-wrap: wrap; gap: 12px; }
+#studio .states { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+#studio .states img { width: 48px; height: 48px; image-rendering: pixelated; }
+#studio figure { margin: 0; display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+#studio figcaption { color: var(--muted); }
+#studio .tiles { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+#studio .try { padding: 8px; background: #c9b27a22; border: var(--u) dashed var(--line); }
+#studio img.cur { width: 64px; height: 64px; image-rendering: pixelated; background: #c9b27a; }
+#studio .try { width: 96px; }
+#studio img.portrait { width: 120px; height: 120px; image-rendering: pixelated; background: #2a2418; }
+#studio .glyphs { display: flex; flex-wrap: wrap; gap: 4px; }
+#studio .glyphs canvas { height: 48px; image-rendering: pixelated; background: #241f17; }
+#studio .sample { margin: 4px 0; outline: none; }
+#studio .sample.big { font-size: var(--t2); color: var(--gold); }
+#studio .flags-big .flag { width: calc(16 * 12px); height: calc(11 * 12px); margin: 12px 12px 0 0; }
+#studio canvas.marks, #studio canvas.scene { display: block; max-width: 100%; image-rendering: pixelated; }
+#studio canvas.scene { width: 960px; aspect-ratio: 16 / 9; height: auto; }
+#studio iframe.game { width: 100%; aspect-ratio: 16 / 9; border: 0; background: #000; }
+#studio .row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 4px 0; }
+#studio .row > span { min-width: 90px; color: var(--muted); }
+#studio .music { display: flex; flex-wrap: wrap; gap: 12px; }
+#studio .music audio { width: 260px; }
+#studio .compare { position: relative; max-width: 900px; line-height: 0; }
+#studio .compare img { width: 100%; image-rendering: pixelated; }
+#studio .compare img.before { position: absolute; inset: 0; clip-path: inset(0 calc(100% - var(--cut)) 0 0); }
+#studio .compare .cut { position: absolute; top: 0; bottom: 0; left: var(--cut); width: var(--u); background: var(--gold); }
+#studio .compare .tag { position: absolute; top: 8px; line-height: 1.3; padding: 2px 6px; background: #000a; }
+#studio .compare .tag.l { left: 8px; } #studio .compare .tag.r { right: 8px; }
+#studio .compare input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: ew-resize; margin: 0; }
+#studio .changes { color: var(--ink); max-width: 900px; }
+body.studio { color-scheme: dark; }
+#studio .flag { display: inline-block; vertical-align: middle; margin-right: calc(2 * var(--u)); width: calc(16 * var(--u)); height: calc(11 * var(--u)); image-rendering: pixelated; background-size: 600% 100%; animation: wave var(--wave-time, 0.9s) steps(6) infinite; animation-play-state: var(--wave, running); }
+#studio .flags-big .flag { width: calc(16 * 12px); height: calc(11 * 12px); margin: 12px 12px 0 0; }
+#studio button.level .icons { color: var(--accent); letter-spacing: var(--u); margin-right: calc(2 * var(--u)); }
+#studio button.build { padding-right: calc(7 * var(--u)); }
+#studio figure.shot { display: block; max-width: 900px; margin: 12px 0; line-height: calc(16px * var(--k)); } #studio figure.shot img { width: 100%; image-rendering: pixelated; }
+#studio img.portrait.small { width: 64px; height: 64px; }
+#studio .faces .portrait { display: block; width: 192px; height: 192px; image-rendering: pixelated; background-color: #0b0e10; background-image: radial-gradient(circle at 50% 40%, #2a3a3c, #0b0e10 75%); }
