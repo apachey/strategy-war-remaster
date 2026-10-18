@@ -1,10 +1,11 @@
 import { CELL, ObjectType, TEAM_COLORS } from '@sw/data';
-import { isUnit } from '@sw/sim';
+import { isUnit, type Side } from '@sw/sim';
 import type { View } from './view';
 
 /** Largest side of the minimap in screen points. */
 const MAX = 168;
 const REDRAW_MS = 200;
+const PING_MS = 4000;
 
 /**
  * A small map in the top right corner of a view: forest, crystal fields, what this person has explored, every object
@@ -16,6 +17,8 @@ export class Minimap {
   private readonly g: CanvasRenderingContext2D | null;
   private sinceDraw = REDRAW_MS;
   private readonly px: number;
+  /** Places under attack, blinking red for PING_MS. */
+  private pings: Array<{ x: number; y: number; ms: number }> = [];
 
   constructor(
     private readonly view: View,
@@ -62,7 +65,16 @@ export class Minimap {
     this.canvas.style.left = `${r.x + r.w - this.canvas.offsetWidth - 12}px`;
   }
 
+  /** Marks a spot where `side` is under attack, if it is this view's side. */
+  ping(side: Side, x: number, y: number): void {
+    if (side !== this.view.commander.side) return;
+    this.pings.push({ x, y, ms: PING_MS });
+    this.sinceDraw = REDRAW_MS;
+  }
+
   update(dtMs: number): void {
+    for (const p of this.pings) p.ms -= dtMs;
+    this.pings = this.pings.filter((p) => p.ms > 0);
     this.sinceDraw += dtMs;
     if (this.sinceDraw < REDRAW_MS || !this.g) return;
     this.sinceDraw = 0;
@@ -93,5 +105,13 @@ export class Minimap {
     g.strokeStyle = '#ffffff';
     g.lineWidth = 1;
     g.strokeRect((tl.x / CELL) * p + 0.5, (tl.y / CELL) * p + 0.5, ((br.x - tl.x) / CELL) * p - 1, ((br.y - tl.y) / CELL) * p - 1);
+    // Attack pings: a red square that blinks, then shrinks onto the spot.
+    for (const ping of this.pings) {
+      if (Math.floor(ping.ms / 400) % 2 === 1) continue;
+      const r = 3 + 6 * (ping.ms / PING_MS);
+      g.strokeStyle = '#ff3b2f';
+      g.lineWidth = 2;
+      g.strokeRect((ping.x / CELL) * p - r, (ping.y / CELL) * p - r, r * 2, r * 2);
+    }
   }
 }

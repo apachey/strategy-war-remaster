@@ -10,6 +10,8 @@ import {
   raceOf,
   SKIRMISH_MONEY,
   skirmishLayout,
+  productionLine,
+  QUEUE_MAX,
   UNIT_RULES,
   type BuildingType,
   type Difficulty,
@@ -427,7 +429,14 @@ export class PlayerPanel {
     this.money = n === 1 && !duo ? $('money') : ensure('div', `badge-${n}`, `badge side-${n}`);
     $('money').hidden = duo;
     c.onToast = (text) => this.toast(text);
-    this.panel.onclick = (ev) => this.onClick(ev);
+    // Buttons act on press: the panel redraws while something is being built, and a redraw between press and
+    // release used to swallow the click. Gamepad and keyboard presses come as clicks with no pointer behind them.
+    this.panel.onpointerdown = (ev) => {
+      if (ev.button === 0) this.onClick(ev);
+    };
+    this.panel.onclick = (ev) => {
+      if (ev.detail === 0) this.onClick(ev);
+    };
   }
 
   get element(): HTMLElement {
@@ -525,6 +534,7 @@ export class PlayerPanel {
       if (e.type === ObjectType.Harvester) status += ` · ${T.cargo} ${e.cargo}/50`;
     } else if (!e.complete) status = `${siteName(raceOf(this.c.world, e.team) ?? 'human')} ${Math.floor((e.buildElapsedMs / e.buildTotalMs) * 100)}%`;
     else if (e.job?.kind === 'produce') status = `${T.producing}: ${objectName(raceOf(this.c.world, e.team), e.job.unit)} ${Math.floor((e.job.elapsedMs / e.job.totalMs) * 100)}%`;
+    if (e.queue.length > 0) status += ` (+${e.queue.length})`;
     else if (e.job?.kind === 'construct') status = T.constructing;
     const team = e.team === 'neutral' ? '' : own ? 'own' : 'foe';
     let html = `<div class="title ${team}">${this.name(e)}</div><div class="info">${hp}${status ? ` · ${status}` : ''}</div>`;
@@ -539,7 +549,7 @@ export class PlayerPanel {
       html += '<div class="buttons">';
       for (const type of FACTORY_BUILDS) html += this.produceButton(type, e);
       html += '</div>';
-      if (e.job) html += `<div class="buttons"><button data-action="cancel" data-id="${e.id}">${T.cancel}</button></div>`;
+      if (productionLine(e).length > 0) html += `<div class="buttons"><button data-action="cancel" data-id="${e.id}">${T.cancel}</button></div>`;
     } else if (!e.complete) {
       html += `<div class="buttons"><button data-action="cancel" data-id="${e.id}">${T.cancel}</button></div>`;
     }
@@ -555,7 +565,9 @@ export class PlayerPanel {
 
   private produceButton(type: UnitType, factory: Entity): string {
     const price = UNIT_RULES[type].price;
-    const disabled = factory.job || price > this.c.money ? ' disabled' : '';
+    // A busy factory queues the order and charges for it when it starts.
+    const line = productionLine(factory).length;
+    const disabled = line >= QUEUE_MAX || (line === 0 && price > this.c.money) ? ' disabled' : '';
     return `<button class="build" data-action="produce" data-type="${type}" data-id="${factory.id}"${disabled}>${objectName(this.ownRace, type)}<small>$${price}</small></button>`;
   }
 

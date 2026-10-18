@@ -60,6 +60,8 @@ body.duo #help { display: none; }
 body.duo.paused #help { display: block; left: 50%; right: auto; transform: translateX(-50%); bottom: 50%; max-width: 560px; text-align: center; padding: 10px 14px; background: var(--panel); border-radius: 8px; color: var(--ink); font-size: 12px; }
 
 #help {
+  /* Clicks go through to the map: a building under the help box could not be selected. */
+  pointer-events: none;
   position: fixed; right: 12px; bottom: 12px; max-width: 320px; padding: 6px 10px; border-radius: 8px;
   background: var(--panel); color: var(--muted); font-size: 11px; text-align: right;
 }

@@ -36,15 +36,20 @@ export interface Weapon {
   range: number;
 }
 
-const LIGHT_GUN = { damage: 7, speed: 400 } as const;
-const CANNON = { damage: 15, speed: 50 } as const;
+// Remaster: the gun shell is 15% slower (400 in the original) and the cannon shell 30% faster (50), so the
+// slow cannons hit what they aim at more often and the light gun no longer looks like a laser.
+const LIGHT_GUN = { damage: 7, speed: 340 } as const;
+const CANNON = { damage: 15, speed: 65 } as const;
+
+/** Remaster: every weapon reaches one cell less than in the original, so nothing fires out of its own sight. */
+export const RANGE_CHANGE_CELLS = -1;
 
 export interface UnitRules {
   price: number;
   hp: number;
   /** Milliseconds per pixel of movement (the original's step delay). */
   stepMs: number;
-  /** Original "range" in cells; also how far a unit looks for targets on its own. */
+  /** Weapon range in cells: the original's minus RANGE_CHANGE_CELLS. */
   rangeCells: number;
   weapon: Weapon | null;
   /** Production time at the factory: the original counts one 100 ms step per hit point. */
@@ -57,8 +62,8 @@ function unit(type: UnitType, gun: typeof LIGHT_GUN | typeof CANNON | null): Uni
     price: b.price,
     hp: b.hp,
     stepMs: b.stepDelayMs,
-    rangeCells: b.rangeCells,
-    weapon: gun && { ...gun, reloadMs: 2000, range: b.rangeCells * CELL },
+    rangeCells: b.rangeCells + RANGE_CHANGE_CELLS,
+    weapon: gun && { ...gun, reloadMs: 2000, range: (b.rangeCells + RANGE_CHANGE_CELLS) * CELL },
     buildMs: b.hp * 100,
   };
 }
@@ -80,10 +85,13 @@ export interface BuildingRules {
   weapon: Weapon | null;
 }
 
+/** Remaster prices that differ from the original. A factory cost 700, more than mission 2 starts with. */
+const PRICE_CHANGES: Partial<Record<BuildingType, number>> = { [ObjectType.TankFactory]: 500 };
+
 function building(type: Exclude<BuildingType, typeof ObjectType.ResourceField>, cells: number, weapon: Weapon | null = null): BuildingRules {
   const b = ORIGINAL_BALANCE.buildings[type];
   // Walls go up instantly; everything else takes one 100 ms step per hit point, like units.
-  return { price: b.price, hp: b.hp, cells, buildMs: type === ObjectType.Wall ? 0 : b.hp * 100, weapon };
+  return { price: PRICE_CHANGES[type] ?? b.price, hp: b.hp, cells, buildMs: type === ObjectType.Wall ? 0 : b.hp * 100, weapon };
 }
 
 export const BUILDING_RULES: Record<BuildingType, BuildingRules> = {
@@ -93,8 +101,8 @@ export const BUILDING_RULES: Record<BuildingType, BuildingRules> = {
   [ObjectType.EnemyHQ]: building(ObjectType.EnemyHQ, 2),
   [ObjectType.ResourceField]: { price: 0, hp: 0, cells: 2, buildMs: 0, weapon: null },
   [ObjectType.Wall]: building(ObjectType.Wall, 1),
-  // The turret turns one step and fires a cannon shell every 2.5 s at units within 5 cells.
-  [ObjectType.Defender]: building(ObjectType.Defender, 1, { ...CANNON, reloadMs: 2500, range: 5 * CELL }),
+  // The turret turns one step and fires a cannon shell every 2.5 s at units within 5 cells (4 in the remaster).
+  [ObjectType.Defender]: building(ObjectType.Defender, 1, { ...CANNON, reloadMs: 2500, range: (5 + RANGE_CHANGE_CELLS) * CELL }),
 };
 
 /** What the HQ can build and the factory can produce, in menu order. */
@@ -117,8 +125,30 @@ export const ENEMY_MAX_TANKS = 10;
 /** Raiders wander to a random cell up to this far away when they see nothing to shoot. */
 export const RAIDER_WANDER_CELLS = 10;
 
-/** Fog reveal radius in cells: units see 2 cells around them, buildings twice their footprint. */
-export const UNIT_SIGHT_CELLS = 2;
+/**
+ * Fog reveal radius in cells: units see 4 cells around them (2 in the original), buildings twice their footprint
+ * and a defender as far as it shoots.
+ */
+export const UNIT_SIGHT_CELLS = 4;
+
+// ---------------------------------------------------------------------------------------------------------------
+// Remaster: version 1.1 gameplay. None of this exists in the original.
+
+/** An idle tank chases what it sees up to this many cells from where it stood, then drives back. */
+export const CHASE_CELLS = 6;
+/** Units a factory can have ordered at once, the one in production included. */
+export const QUEUE_MAX = 5;
+/** A side hears "under attack" at most this often for the same spot. */
+export const ALERT_MS = 8000;
+/** Cells (cx, cy) that become forest in a mission, keyed "map.mission" from 1, with any objects on them removed. */
+export const MISSION_FOREST: Record<string, ReadonlyArray<readonly [number, number]>> = {
+  // Mission 1.1: the three-wall gate in the middle let a tank drive straight to the enemy base.
+  '1.1': [
+    [10, 5],
+    [11, 5],
+    [12, 5],
+  ],
+};
 
 /** Delay between the HQ falling and the mission result, like the original's 2 s pause. */
 export const OUTCOME_DELAY_MS = 2000;
@@ -161,6 +191,8 @@ export interface AiBrain {
   focusFire: boolean;
   /** Home tanks answer an attack on any building within this many cells. */
   guardCells: number;
+  /** A building shot by something farther away sends the free home tanks after the shooter this long after the first hit. */
+  defendDelayMs: number;
 }
 
 export const AI_BRAINS = {
@@ -179,6 +211,7 @@ export const AI_BRAINS = {
     targeting: 'hq',
     focusFire: false,
     guardCells: 3,
+    defendDelayMs: 6000,
   },
   normal: {
     thinkMs: 1000,
@@ -195,6 +228,7 @@ export const AI_BRAINS = {
     targeting: 'nearest',
     focusFire: false,
     guardCells: 8,
+    defendDelayMs: 2000,
   },
   hard: {
     thinkMs: 500,
@@ -211,6 +245,7 @@ export const AI_BRAINS = {
     targeting: 'economy',
     focusFire: true,
     guardCells: 10,
+    defendDelayMs: 0,
   },
   /** Scripted player for tests: builds an economy and goes straight for the enemy HQ. */
   autoplay: {
@@ -228,6 +263,7 @@ export const AI_BRAINS = {
     targeting: 'hq',
     focusFire: true,
     guardCells: 8,
+    defendDelayMs: 0,
   },
 } as const satisfies Record<string, AiBrain>;
 export type AiBrainName = keyof typeof AI_BRAINS;

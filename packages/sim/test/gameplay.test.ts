@@ -111,7 +111,7 @@ describe('economy', () => {
     expect(silo.complete).toBe(true);
 
     expect(issue(w, 'player', { kind: 'build', hqId: hq.id, building: ObjectType.TankFactory, cx: 2, cy: 7 })).toEqual({ ok: true });
-    expect(w.sides.player.money).toBe(400);
+    expect(w.sides.player.money).toBe(600);
     expect(issue(w, 'player', { kind: 'cancel', id: hq.id })).toEqual({ ok: true });
     expect(w.sides.player.money).toBe(1100);
     expect(w.entities.some((e) => e.type === ObjectType.TankFactory)).toBe(false);
@@ -200,7 +200,7 @@ describe('combat', () => {
     expect(raider.hp).toBeLessThan(100);
   });
 
-  it('a defender turret fires cannon shells at enemy units within 5 cells', () => {
+  it('a defender turret fires cannon shells at enemy units within 4 cells', () => {
     const w = arena([
       { type: ObjectType.PlayerHQ, x: 0, y: 0, hp: 150 },
       { type: ObjectType.EnemyHQ, x: 270, y: 270, hp: 150 },
@@ -212,7 +212,7 @@ describe('combat', () => {
     expect(w.projectiles.length).toBe(1);
     run(w, 2);
     expect(raider.hp === 85 || raider.hp === 100).toBe(true);
-    expect(BUILDING_RULES[ObjectType.Defender].weapon!.range).toBe(75);
+    expect(BUILDING_RULES[ObjectType.Defender].weapon!.range).toBe(60);
   });
 
   it('an enemy factory sends out a raider after 45 s of quiet and 10 s of building', () => {
