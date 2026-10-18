@@ -171,6 +171,9 @@ export class Renderer {
       this.fxFrames.get(key)!.push(art.effects.textures[name]!);
     }
     this.drawGround();
+    // The ground never changes: bake its tiles into one texture at art resolution, one texel per art pixel. Drawn as
+    // hundreds of separate quads, their edges could show thin seams at fractional zoom or scroll on some GPUs.
+    this.ground.cacheAsTexture({ resolution: ART_PX_PER_CELL / CELL, antialias: false, scaleMode: 'nearest' });
   }
 
   private sheetOf(team: Side | 'neutral'): Spritesheet {
