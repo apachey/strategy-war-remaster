@@ -74,8 +74,8 @@ export function logo(word = 'SHARDFALL'): { url: string; w: number; h: number } 
   return cached;
 }
 
-/** The wordmark as an `<img>` scaled by whole pixels, with the name as its text. */
+/** The wordmark as an `<img>` scaled by whole pixels, with the name as hidden text for screen readers and tests. */
 export function logoHtml(scale = 3, word = 'SHARDFALL'): string {
   const l = logo(word);
-  return `<img class="wordmark" src="${l.url}" alt="${word}" width="${l.w * scale}" height="${l.h * scale}">`;
+  return `<img class="wordmark" src="${l.url}" alt="" width="${l.w * scale}" height="${l.h * scale}"><span class="sr">${word}</span>`;
 }
