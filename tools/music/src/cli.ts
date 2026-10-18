@@ -30,8 +30,8 @@ const outDir = resolve(repo, arg('out') ?? 'assets/music');
 const SLOWER = 1.5;
 /** Beats of desert before the tune starts. */
 const INTRO = 16;
-/** Beats of the original tune the theme keeps (its D minor half). */
-const HALF = 32;
+/** Beats of the original tune the theme keeps: its opening phrase, before it leaves D minor. */
+const PHRASE = 16;
 
 const later = (notes: Note[], by: number) => notes.map((n) => ({ ...n, start: n.start + by }));
 
@@ -58,17 +58,23 @@ function partsFor(song: Song): Part[] {
 
 /**
  * Main theme: the wind and a drone on D with the throat singer and a slow brass swell, taiko calling in the dark;
- * then the first half of the original tune, twice, sung by the wailing voice over war drums and low strings, about
+ * then the original tune's opening phrase four times, building up, sung by the wailing voice over war drums and low strings, about
  * two thirds of its old speed; it closes with an Eb to D brass cadence (Phrygian, the sound of the desert) and a last boom.
  */
 function mainTheme(original: Song): Arrangement {
   const spb = (original.tempo / 1e6) * SLOWER;
-  // Only the D minor first half of the tune, played twice: its C major middle (from beat 32) sounded off-theme to
-  // Pavlo.
+  // Only the tune's opening D minor phrase (16 beats), four times, building up: the original modulates after it (to F
+  // minor at beat 20, C major at 32), which Pavlo found off-mood. Bass joins on the second pass, drums on the third.
   const song: Song = {
     ...original,
-    tracks: original.tracks.map((t) => ({ ...t, notes: t.notes.filter((n) => n.start < HALF - 0.01).flatMap((n) => [n, { ...n, start: n.start + HALF }]) })),
+    tracks: original.tracks.map((t) => {
+      const bass = (t.program ?? 0) >= 32 && (t.program ?? 0) < 40;
+      const notes = t.notes.filter((n) => n.start < PHRASE - 0.01);
+      const from = notes[0]?.channel === 9 ? 2 : bass ? 1 : 0;
+      return { ...t, notes: [0, 1, 2, 3].filter((k) => k >= from).flatMap((k) => notes.map((n) => ({ ...n, start: n.start + k * PHRASE }))) };
+    }),
   };
+
   const len = Math.ceil(Math.max(...song.tracks.flatMap((t) => t.notes.map((n) => n.start + n.length))) / 4) * 4;
   const end = INTRO + len;
   const hit = (start: number, pitch: number, velocity = 0.9): Note => ({ start, length: 1, pitch, velocity, channel: 9 });
