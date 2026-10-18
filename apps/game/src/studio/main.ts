@@ -370,12 +370,7 @@ function sound(): void {
 
 function gameplay(): void {
   const s = section('gameplay', 'Геймплей 1.1: до і після', 'Матеріал треду «Геймплей 1.1». Місія 1.1 на старті: огляд 4 клітинки замість 2, ворота заросли лісом, до ворога лише крізь його стіну. Потягніть повзунок.');
-  $('.body', s).innerHTML = `<div class="compare" style="--cut: 50%">
-      <img src="v11/gameplay/mission-1-1-after.png" alt="Після">
-      <img class="before" src="v11/gameplay/mission-1-1-before.png" alt="До">
-      <i class="cut"></i><b class="tag l">До</b><b class="tag r">Після</b>
-      <input type="range" min="0" max="100" value="50" aria-label="До / після">
-    </div>
+  $('.body', s).innerHTML = `${compare('v11/gameplay/mission-1-1-before.png', 'v11/gameplay/mission-1-1-after.png')}
     <figure class="shot"><img src="v11/gameplay/factory-queue-after.png" alt=""><figcaption>Черга заводу: два «Багі» чекають, гроші списано лише за перший; праворуч точка збору. Правий клік по іконці в черзі скасовує її.</figcaption></figure>
     <ul class="changes">
       <li>Дальність на клітинку менша: легкий 2, середній і важкий 3, турель 4.</li>
@@ -385,8 +380,37 @@ function gameplay(): void {
       <li>Коли б’ють базу чи комбайн: червона мітка на мінікарті, Пробіл переносить туди камеру.</li>
       <li>Комп’ютер шле вільні танки на того, хто б’є його будівлі.</li>
     </ul>`;
-  const box = $('.compare', s);
-  $('input', box).addEventListener('input', (ev) => box.style.setProperty('--cut', `${(ev.target as HTMLInputElement).value}%`));
+  wireCompare(s);
+}
+
+/** A before/after picture with a slider that moves the cut between them. */
+function compare(before: string, after: string): string {
+  return `<div class="compare" style="--cut: 50%">
+      <img src="${after}" alt="Після">
+      <img class="before" src="${before}" alt="До">
+      <i class="cut"></i><b class="tag l">До</b><b class="tag r">Після</b>
+      <input type="range" min="0" max="100" value="50" aria-label="До / після">
+    </div>`;
+}
+
+function wireCompare(root: HTMLElement): void {
+  for (const box of $$('.compare', root))
+    $('input', box).addEventListener('input', (ev) => box.style.setProperty('--cut', `${(ev.target as HTMLInputElement).value}%`));
+}
+
+function graphics(): void {
+  const s = section('graphics', 'Графіка мапи 1.1: до і після', 'Матеріал треду «Графіка мапи 1.1». Нові кольори кампанії (оливкові хюмани з бірюзою, червоні ховери з білим), бахрома лісу, декор піску, туман війни з дизерингом, безшовні стіни, башти, що ціляться окремо від корпусу, ефекти пострілів і пожеж.');
+  const shot = (f: string, text: string) => `<figure class="shot"><img src="v11/graphics/${f}" alt=""><figcaption>${text}</figcaption></figure>`;
+  $('.body', s).innerHTML = `<h3>Місія 1.1</h3>${compare('v11/graphics/before-1-1.png', 'v11/graphics/after-1-1.png')}
+    <h3>Місія 6.2</h3>${compare('v11/graphics/before-6-2.png', 'v11/graphics/after-6-2.png')}
+    ${shot('battle.png', 'Бій: башти ціляться, влучання, сліди гусениць.')}
+    ${shot('fog-1-1.png', 'Туман війни вчетверо дрібніший, з дизерингом; розвідана земля поза оглядом напівтемна й ховає ворожі юніти.')}
+    ${shot('turrets.png', 'Танки й турелі трьох рас: корпус і окрема башта.')}
+    ${shot('walls.png', 'Безшовні стіни трьох рас з діагональними стиками, 47 форм.')}
+    ${shot('fx.png', 'Атлас ефектів: вибухи, дим, пил, влучання кожної раси, вогонь, кіптява, сліди, відблиски.')}
+    ${shot('burning-hq.png', 'Пошкоджена будівля: дим нижче 50% міцності, вогонь нижче 25%.')}
+    <p class="note">У живій грі ще видно: анімацію комбайна, хитання ялинок, відблиски кристалів, піщаний вітер, плавний зум.</p>`;
+  wireCompare(s);
 }
 
 async function main(): Promise<void> {
@@ -403,6 +427,7 @@ async function main(): Promise<void> {
   scenes();
   sound();
   gameplay();
+  graphics();
   dressChanged();
   await marks();
   document.body.dataset.ready = 'true';
