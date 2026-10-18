@@ -1,16 +1,11 @@
 import '../style.css';
 import './studio.css';
-import { Application, Container, Sprite } from 'pixi.js';
-import { CELL, ObjectType, RACES, spriteName, TEAM_COLOR_GRID, TEAM_HUES, type Race, type TeamColor } from '@sw/data';
-import type { Entity } from '@sw/sim';
+import { RACES, TEAM_COLOR_GRID, TEAM_HUES, type Race, type TeamColor } from '@sw/data';
 import { CHARSET, glyph, loadFonts } from '../ui/font';
 import { applySkin, skin, type ButtonState } from '../ui/skin';
-import { CURSOR_KINDS, cursorCss, cursorImage, SCROLL_DIRS, type CursorKind } from '../ui/cursors';
-import { flagHtml } from '../ui/flags';
-import { Marks, markOptions, type SelectionStyle } from '../ui/marks';
+import { CURSOR_FRAME_MS, CURSOR_KINDS, cursorCss, cursorFrame, cursorImage, SCROLL_DIRS, type CursorKind } from '../ui/cursors';
 import { battleScene, outcomeScene, portrait, type Dress, type PixelScene } from '../ui/scene3d';
-import { face, type Speaker } from '../ui/faces';
-import { groundPiece, loadArt, ART_PX_PER_CELL } from '../assets';
+import { faceHtml, type Speaker } from '../ui/faces';
 import { t } from '../text';
 
 /**
@@ -223,114 +218,46 @@ function levels(): void {
 }
 
 function cursors(): void {
-  const s = section('cursors', 'Курсори', 'Наведіть мишу на плитку, щоб спробувати курсор наживо. Гра сама вибирає: свій юніт → вибір, ворог → атака, кристали → збір, ліс чи край мапи → не можна, край екрана → стрілка прокрутки.');
+  const s = section('cursors', 'Курсори', 'Тонкі й анімовані. Від раси й кольорів залежить лише звичайний курсор, решта однакові для всіх рас. Наведіть мишу на плитку, щоб спробувати курсор наживо.');
   dressBar(s, false);
   const UA: Record<CursorKind, string> = { normal: 'Звичайний', select: 'Вибір', move: 'Рух', attack: 'Атака', harvest: 'Збір', forbidden: 'Не можна', scroll: 'Прокрутка' };
   const draw = () => {
-    const { race, color } = state.own;
     const tile = (kind: CursorKind, dir: (typeof SCROLL_DIRS)[number] = 'n', label = UA[kind]) =>
-      `<figure class="try" style="cursor: ${cursorCss(race, color, kind, dir)}"><img class="cur" src="${cursorImage(race, color, kind, dir)}"><figcaption>${label}</figcaption></figure>`;
-    $('.body', s).innerHTML = `<div class="tiles">${CURSOR_KINDS.filter((k) => k !== 'scroll').map((k) => tile(k)).join('')}</div>
+      `<figure class="try" data-kind="${kind}" data-dir="${dir}"><img class="cur"><figcaption>${label}</figcaption></figure>`;
+    $('.body', s).innerHTML = `<div class="tiles">${RACES.map((r) => tile('normal', 'n', RACE_UA[r]).replace('data-kind', `data-race="${r}" data-kind`)).join('')}</div>
+      <div class="tiles">${CURSOR_KINDS.filter((k) => k !== 'scroll' && k !== 'normal').map((k) => tile(k)).join('')}</div>
       <div class="tiles">${SCROLL_DIRS.map((d) => tile('scroll', d, d.toUpperCase())).join('')}</div>`;
   };
+  const animate = () => {
+    const f = cursorFrame();
+    for (const el of $$('.try', s)) {
+      const kind = el.dataset.kind as CursorKind;
+      const race = (el.dataset.race as Race | undefined) ?? state.own.race;
+      const dir = el.dataset.dir as (typeof SCROLL_DIRS)[number];
+      el.style.cursor = cursorCss(race, state.own.color, kind, dir, f);
+      $<HTMLImageElement>('img', el).src = cursorImage(race, state.own.color, kind, dir, f);
+    }
+  };
+  const timer = window.setInterval(animate, CURSOR_FRAME_MS);
+  onLeave(() => clearInterval(timer));
   onDress(draw);
   draw();
 }
 
-function flags(): void {
-  const s = section('flags', 'Прапорці мов', 'Піксельні прапорці майорять на кнопках мови: 6 кадрів, кожен стовпчик тканини на хвилі.');
-  $('.body', s).innerHTML = `<div class="buttons"><button data-lang="uk" class="active" title="Українська">${flagHtml('uk')}</button><button data-lang="en" title="English">${flagHtml('en')}</button></div>
-    <div class="flags-big">${flagHtml('uk')}${flagHtml('en')}</div>`;
-  $('.controls', s).append(toggles('Вітер', ['0', '0.9', '0.45'], '0.9', (v) => ({ '0': 'Штиль', '0.9': 'Звичайний', '0.45': 'Сильний' })[v]!, (v) => {
-    document.documentElement.style.setProperty('--wave', v === '0' ? 'paused' : 'running');
-    document.documentElement.style.setProperty('--wave-time', `${v === '0' ? 0.9 : v}s`);
-  }));
-}
-
-async function marks(): Promise<void> {
-  const s = section('marks', 'Виділення й смужки', 'Рамка виділення по сітці спрайтів з темним контуром, як у самих спрайтів, або еліпс на землі. Сегментна смужка міцності зеленіє, жовтіє, червоніє; під нею тонка смужка будівництва, виробництва чи вантажу. Пунктир показує дальність зброї свого юніта.');
-  dressBar(s, true);
-  const app = new Application();
-  await app.init({ width: 8 * CELL, height: 5 * CELL, background: 0x14110c, antialias: false, resolution: 1 });
-  onLeave(() => app.destroy(true, { children: true }));
-  // Recolouring the atlas is heavy: once per pair of colours.
-  const arts = new Map<string, ReturnType<typeof loadArt>>();
-  const artFor = (key: string, make: () => ReturnType<typeof loadArt>) => arts.get(key) ?? (arts.set(key, make()), arts.get(key)!);
-  app.canvas.className = 'marks';
-  $('.body', s).append(app.canvas);
-  const zoom = { v: 4 };
-  const hp = { v: 0.7 };
-  const ART = CELL / ART_PX_PER_CELL;
-  const world = new Container();
-  app.stage.addChild(world);
-  const fake = (type: number, team: string, x: number, y: number, size: number, extra: Partial<Entity> = {}) =>
-    ({ id: 1, type, team, x, y, size, hp: 100, maxHp: 100, dir: 3, complete: true, buildElapsedMs: 0, buildTotalMs: 0, job: null, cargo: 0, ...extra }) as unknown as Entity;
-  const draw = async () => {
-    const key = [state.own.color, state.own.color2, state.foe.color, state.foe.color2].join();
-    const art = await artFor(key, () => loadArt([[state.own.color, state.own.color2], [state.foe.color, state.foe.color2]]));
-    if (app.renderer === null) return;
-    world.removeChildren();
-    app.renderer.resize(8 * CELL * zoom.v, 5 * CELL * zoom.v);
-    world.scale.set(zoom.v);
-    for (let cy = 0; cy < 5; cy++)
-      for (let cx = 0; cx < 8; cx++) {
-        const g = new Sprite(groundPiece(art.terrain, 'sand', cx, cy));
-        g.scale.set(ART);
-        g.position.set(cx * CELL, cy * CELL);
-        world.addChild(g);
-      }
-    const things = [
-      fake(ObjectType.LightTank, 'player', CELL * 1, CELL * 3.2, CELL, { hp: hp.v * 100 }),
-      fake(ObjectType.Harvester, 'player', CELL * 0.6, CELL * 1.2, CELL, { cargo: 30, hp: 100 }),
-      fake(ObjectType.TankFactory, 'player', CELL * 3, CELL * 1.4, CELL * 2, { hp: Math.max(5, hp.v * 100), job: { kind: 'produce', unit: ObjectType.LightTank, elapsedMs: 600, totalMs: 1000, price: 100 } } as Partial<Entity>),
-      fake(ObjectType.HeavyTank, 'enemy', CELL * 6, CELL * 3, CELL, { hp: 25 }),
-    ];
-    const m = new Marks();
-    world.addChild(m.under);
-    for (const e of things) {
-      const dress = e.team === 'player' ? state.own : state.foe;
-      const sheet = art.sheet(dress.color, dress.color2);
-      const base = spriteName(dress.race, e.type);
-      const tex = sheet.textures[`${base}/idle/s`] ?? sheet.textures[`${base}/move0/se`] ?? sheet.textures[`${base}/idle`];
-      if (!tex) continue;
-      const sp = new Sprite(tex);
-      sp.scale.set(ART);
-      sp.position.set(e.x + e.size / 2, e.y + e.size / 2);
-      world.addChild(sp);
-    }
-    world.addChild(m.over);
-    for (const e of things) {
-      m.selection(e, e.x, e.y, 'player');
-      m.bars(e, e.x, e.y);
-    }
-  };
-  onDress(() => void draw());
-  const slider = document.createElement('label');
-  slider.className = 'toggles';
-  slider.innerHTML = '<span>Міцність легкого</span><input type="range" min="0.05" max="1" step="0.05" value="0.7">';
-  $('input', slider).addEventListener('input', (ev) => ((hp.v = Number((ev.target as HTMLInputElement).value)), void draw()));
-  $('.controls', s).append(
-    toggles<SelectionStyle>('Виділення', ['corners', 'ellipse'], 'corners', (v) => (v === 'corners' ? 'Кутики' : 'Еліпс'), (v) => ((markOptions.selection = v), void draw())),
-    toggles('Зум', ['2', '4', '6'], '4', (v) => `×${v}`, (v) => ((zoom.v = Number(v)), void draw())),
-    slider,
-  );
-  await draw();
-}
-
 function portraits(): void {
-  const s = section('portraits', 'Портрети', 'Обличчя на панелі вибору, як у StarCraft: кожен юніт показує свого пілота, кожна будівля радника бази. Хюмани: колоністи в шоломах, база говорить через робота-адʼютанта. Ходуни: рій із хітиновими пілотами, над базою володар. Ховери: машини без екіпажу, кожним корпусом керує власне ядро-дрон, база одна ЕОМ з оком на екрані. Нижче моделі, з яких рендеряться кнопки будівництва.');
+  const s = section('portraits', 'Портрети', 'Обличчя на панелі вибору, як у StarCraft, намальовані під 32 пікселі й анімовані: кліпають, говорять, водять об’єктивом. Хюмани: колоністи в шоломах, база говорить через робота-адʼютанта. Ходуни: самі жуки, у кожного свої щелепи, вуса й роги, над базою королева рою. Ховери: машини без екіпажу, кожним корпусом керує свій дрон-розум, база одна ЕОМ з оком на екрані. Нижче моделі, з яких рендеряться кнопки будівництва.');
   dressBar(s, true);
-  const size = { v: 64 };
+  const size = { v: 32 };
   const WHO: Record<Speaker, string> = { harvester: 'Комбайн', light_tank: 'Легкий', middle_tank: 'Середній', heavy_tank: 'Важкий', advisor: 'Радник бази' };
   const draw = () => {
     const people = (d: Dress) =>
-      `<div class="tiles faces">${(Object.keys(WHO) as Speaker[]).map((w) => `<figure><img class="portrait" src="${face(d, w, size.v)}"><figcaption>${WHO[w]}</figcaption></figure>`).join('')}</div>`;
+      `<div class="tiles faces">${(Object.keys(WHO) as Speaker[]).map((w) => `<figure>${faceHtml(d, w, size.v)}<figcaption>${WHO[w]}</figcaption></figure>`).join('')}</div>`;
     const models = (d: Dress) =>
       `<div class="tiles">${KINDS.map((k) => `<figure><img class="portrait small" src="${portrait(d, k, size.v)}"><figcaption>${KIND_UA[k]}</figcaption></figure>`).join('')}</div>`;
     $('.body', s).innerHTML = `<h3>Персонажі: ${RACE_UA[state.own.race]}</h3>${people(state.own)}<h3>Персонажі: ${RACE_UA[state.foe.race]}</h3>${people(state.foe)}
       <h3>Моделі</h3>${models(state.own)}${models(state.foe)}`;
   };
-  $('.controls', s).append(toggles('Роздільність', ['32', '48', '64'], '64', (v) => `${v} px`, (v) => ((size.v = Number(v)), draw())));
+  $('.controls', s).append(toggles('Роздільність', ['32', '48', '64'], '32', (v) => `${v} px`, (v) => ((size.v = Number(v)), draw())));
   onDress(draw);
   draw();
 }
@@ -353,7 +280,7 @@ function scenes(): void {
     const h = Math.round((w * 9) / 16);
     live =
       opts.scene === 'menu'
-        ? await battleScene(fresh, state.own, state.foe, w, h)
+        ? await battleScene(fresh, w, h)
         : await outcomeScene(fresh, { won: opts.scene === 'won', own: state.own, foe: state.foe, ground: opts.ground, forest: opts.forest }, w, h);
     live.start();
   };
@@ -406,21 +333,6 @@ function sound(): void {
   });
 }
 
-function gameplay(): void {
-  const s = section('gameplay', 'Геймплей 1.1: до і після', 'Матеріал треду «Геймплей 1.1». Місія 1.1 на старті: огляд 4 клітинки замість 2, ворота заросли лісом, до ворога лише крізь його стіну. Потягніть повзунок.');
-  $('.body', s).innerHTML = `${compare('v11/gameplay/mission-1-1-before.png', 'v11/gameplay/mission-1-1-after.png')}
-    <figure class="shot"><img src="v11/gameplay/factory-queue-after.png" alt=""><figcaption>Черга заводу: два «Багі» чекають, гроші списано лише за перший; праворуч точка збору. Правий клік по іконці в черзі скасовує її.</figcaption></figure>
-    <ul class="changes">
-      <li>Дальність на клітинку менша: легкий 2, середній і важкий 3, турель 4.</li>
-      <li>Снаряди летять з упередженням у рухому ціль; крізь ліс ніхто не стріляє.</li>
-      <li>Танк без наказу сам їде до ворога в межах 6 клітинок і повертається.</li>
-      <li>Атака в русі (Option + ПКМ) і маршрут з кількох точок (Shift + ПКМ).</li>
-      <li>Коли б’ють базу чи комбайн: червона мітка на мінікарті, Пробіл переносить туди камеру.</li>
-      <li>Комп’ютер шле вільні танки на того, хто б’є його будівлі.</li>
-    </ul>`;
-  wireCompare(s);
-}
-
 /** A before/after picture with a slider that moves the cut between them. */
 function compare(before: string, after: string): string {
   return `<div class="compare" style="--cut: 50%">
@@ -458,12 +370,9 @@ const TABS: Array<[id: string, title: string, build: () => void | Promise<void>]
   ['skins', 'Рамки й кнопки', skins],
   ['levels', 'Складність', levels],
   ['cursors', 'Курсори', cursors],
-  ['flags', 'Прапорці', flags],
-  ['marks', 'Виділення й смужки', marks],
   ['portraits', 'Портрети', portraits],
   ['scenes', 'Сцени', scenes],
   ['sound', 'Звук 1.1', sound],
-  ['gameplay', 'Геймплей 1.1', gameplay],
   ['graphics', 'Графіка мапи 1.1', graphics],
 ];
 

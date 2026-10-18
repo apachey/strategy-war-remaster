@@ -38,11 +38,7 @@ export interface Settings {
   /** Volumes, 0..1. */
   music: number;
   sfx: number;
-  /** How selected things are marked: pixel corner brackets or an ellipse on the ground. */
-  selection: SelectionStyle;
 }
-
-export type SelectionStyle = 'corners' | 'ellipse';
 
 const volume = (v: unknown, fallback: number) => (typeof v === 'number' && v >= 0 && v <= 1 ? v : fallback);
 
@@ -54,7 +50,6 @@ export function loadSettings(): Settings {
     difficulty: s.difficulty && DIFFICULTIES.includes(s.difficulty) ? s.difficulty : 'normal',
     music: volume(s.music, 0.6),
     sfx: volume(s.sfx, 0.8),
-    selection: s.selection === 'ellipse' ? 'ellipse' : 'corners',
     skirmish: {
       kind: 'skirmish',
       mapIndex: k && k.mapIndex >= 0 && k.mapIndex < campaign.maps.length ? k.mapIndex : 3,

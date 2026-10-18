@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { glowRamp, TEAM_COLORS, type Race, type TeamColor } from '@sw/data';
+import { CAMPAIGN_RACES, DEFAULT_COLORS, DEFAULT_SECOND_COLORS, glowRamp, TEAM_COLORS, type Race, type TeamColor } from '@sw/data';
 import { MODELS } from '../../../../tools/art/src/browser/models';
 import { MATERIALS, type MaterialName } from '../../../../tools/art/src/materials';
 import { RAMPS } from '../../../../tools/art/src/palette';
@@ -197,6 +197,10 @@ uniform vec3 hill;
 uniform float sky;
 uniform float stars;
 uniform float horizon;
+uniform float yaw;
+uniform float hfov;
+uniform float thick;
+uniform float letterbox;
 varying vec2 vUv;
 
 // Ordered 4×4 dither threshold in [0, 1) for a pixel.
@@ -209,22 +213,37 @@ vec4 objectAt(vec2 uv) { return texture2D(scene, uv); }
 void main() {
   vec2 p = vUv / px;
   float d = bayer4(p);
+  if (abs(vUv.y - 0.5) > 0.5 - letterbox) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
   vec4 c = objectAt(vUv);
   if (c.a < 0.75) {
-    // Outline: the colour of the object next to this pixel, much darker, as the sprites have.
+    // Outline: the colour of the object next to this pixel, much darker, as the sprites have; two pixels wide when
+    // thick (the four neighbours, then the ring one further out).
     vec4 best = vec4(0.0);
     vec4 n1 = objectAt(vUv + vec2(px.x, 0.0)); if (n1.a > best.a) best = n1;
     vec4 n2 = objectAt(vUv - vec2(px.x, 0.0)); if (n2.a > best.a) best = n2;
     vec4 n3 = objectAt(vUv + vec2(0.0, px.y)); if (n3.a > best.a) best = n3;
     vec4 n4 = objectAt(vUv - vec2(0.0, px.y)); if (n4.a > best.a) best = n4;
+    if (thick > 1.5 && best.a < 0.75) {
+      vec4 m1 = objectAt(vUv + vec2(2.0 * px.x, 0.0)); if (m1.a > best.a) best = m1;
+      vec4 m2 = objectAt(vUv - vec2(2.0 * px.x, 0.0)); if (m2.a > best.a) best = m2;
+      vec4 m3 = objectAt(vUv + vec2(0.0, 2.0 * px.y)); if (m3.a > best.a) best = m3;
+      vec4 m4 = objectAt(vUv - vec2(0.0, 2.0 * px.y)); if (m4.a > best.a) best = m4;
+      vec4 m5 = objectAt(vUv + px); if (m5.a > best.a) best = m5;
+      vec4 m6 = objectAt(vUv - px); if (m6.a > best.a) best = m6;
+      vec4 m7 = objectAt(vUv + vec2(px.x, -px.y)); if (m7.a > best.a) best = m7;
+      vec4 m8 = objectAt(vUv + vec2(-px.x, px.y)); if (m8.a > best.a) best = m8;
+    }
     if (best.a > 0.75) { gl_FragColor = vec4(best.rgb * 0.32, 1.0); return; }
   }
   if (c.a < 0.25) {
     if (sky < 0.5) { gl_FragColor = vec4(0.0); return; }
     float y = vUv.y - horizon;
-    // Far mountains: a ragged silhouette on the horizon, hazy at the foot.
-    float x = p.x * px.x * 6.2831;
-    float ridge = 0.035 + 0.025 * sin(x * 1.3 + 1.7) + 0.015 * sin(x * 3.7 + 0.4) + 0.008 * sin(x * 9.1);
+    // The sky is a panorama round the camera: a column's bearing is the camera's yaw plus its angle off centre, so
+    // mountains, stars and moons stay put in the world while the camera turns.
+    float a = yaw + (vUv.x - 0.5) * hfov;
+    float step = hfov * px.x;
+    // Far mountains: a ragged silhouette on the horizon, hazy at the foot (whole frequencies, so it closes round).
+    float ridge = 0.035 + 0.025 * sin(a * 8.0 + 1.7) + 0.015 * sin(a * 23.0 + 0.4) + 0.008 * sin(a * 57.0);
     if (y < ridge) {
       float k = clamp(1.0 - y / max(ridge, 0.001), 0.0, 1.0);
       gl_FragColor = vec4(mix(hill, haze, k * 0.6 > d ? 1.0 : 0.0), 1.0);
@@ -236,9 +255,13 @@ void main() {
     float q = floor(t * levels + d) / levels;
     vec3 col = q < 0.5 ? mix(skyBottom, skyMid, q * 2.0) : mix(skyMid, skyTop, q * 2.0 - 1.0);
     // Stars high up, and two moons.
-    if (stars > 0.5 && t > 0.35 && hash(floor(p)) > 0.994) col = mix(col, vec3(1.0, 0.96, 0.85), 0.5 + 0.5 * hash(floor(p) + 7.0));
-    vec2 m1 = vec2(0.80, horizon + (1.0 - horizon) * 0.72);
-    vec2 m2 = vec2(0.70, horizon + (1.0 - horizon) * 0.86);
+    vec2 cell = vec2(floor(a / step), floor(p.y));
+    if (stars > 0.5 && t > 0.35 && hash(cell) > 0.994) col = mix(col, vec3(1.0, 0.96, 0.85), 0.5 + 0.5 * hash(cell + 7.0));
+    // The moons stand at fixed bearings, a little right of straight ahead at the start.
+    float b1 = mod(0.30 - yaw + 3.14159, 6.28318) - 3.14159;
+    float b2 = mod(0.20 - yaw + 3.14159, 6.28318) - 3.14159;
+    vec2 m1 = vec2(0.5 + b1 / hfov, horizon + (1.0 - horizon) * 0.72);
+    vec2 m2 = vec2(0.5 + b2 / hfov, horizon + (1.0 - horizon) * 0.86);
     vec2 aspect = vec2(px.y / px.x, 1.0);
     float r1 = length((vUv - m1) * aspect);
     float r2 = length((vUv - m2) * aspect);
@@ -313,6 +336,10 @@ export class PixelScene {
           sky: { value: sky ? 1 : 0 },
           stars: { value: sky?.stars ? 1 : 0 },
           horizon: { value: 0.5 },
+          yaw: { value: 0 },
+          hfov: { value: 1 },
+          thick: { value: 1 },
+          letterbox: { value: 0 },
         },
         transparent: true,
       }),
@@ -328,7 +355,10 @@ export class PixelScene {
       const dir = this.camera.getWorldDirection(new THREE.Vector3());
       dir.y = 0;
       const far = this.camera.position.clone().add(dir.normalize().multiplyScalar(45)).setY(0).project(this.camera);
-      (this.post.material as THREE.ShaderMaterial).uniforms.horizon!.value = (far.y + 1) / 2;
+      const u = (this.post.material as THREE.ShaderMaterial).uniforms;
+      u.horizon!.value = (far.y + 1) / 2;
+      u.yaw!.value = Math.atan2(dir.x, -dir.z);
+      u.hfov!.value = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2) * this.camera.aspect);
     }
     this.renderer.setRenderTarget(this.target);
     this.renderer.clear();
@@ -336,6 +366,13 @@ export class PixelScene {
     this.renderer.setRenderTarget(null);
     this.renderer.clear();
     this.renderer.render(this.postScene, this.postCamera);
+  }
+
+  /** Outline width in pixels (1 or 2) and black bars top and bottom, as a share of the height each. */
+  frame(outline: number, letterbox = 0): void {
+    const u = (this.post.material as THREE.ShaderMaterial).uniforms;
+    u.thick!.value = outline;
+    u.letterbox!.value = letterbox;
   }
 
   start(): void {
@@ -509,32 +546,129 @@ export async function outcomeScene(canvas: HTMLCanvasElement, o: OutcomeScene, w
   return s;
 }
 
-/** The main screen: two armies trading fire across the sand while the camera drifts along the line. */
-export async function battleScene(canvas: HTMLCanvasElement, a: Dress, b: Dress, w = 480, h = 270): Promise<PixelScene> {
+/** The campaign's two sides, which the main screen always shows: white humans with olive accents, cyan hovers. */
+const CAMPAIGN: readonly [Dress, Dress] = [
+  { race: CAMPAIGN_RACES[0], color: DEFAULT_COLORS[0], color2: DEFAULT_SECOND_COLORS[0] },
+  { race: CAMPAIGN_RACES[1], color: DEFAULT_COLORS[1], color2: DEFAULT_SECOND_COLORS[1] },
+];
+
+/** One camera shot of the main screen's film: how long it runs and where the camera is at `k` (0..1) through it. */
+interface Shot {
+  seconds: number;
+  fov: number;
+  at(k: number, from: THREE.Vector3, to: THREE.Vector3): void;
+}
+
+/**
+ * The main screen: a short film on a loop, in letterbox. The campaign's humans roll across the sand at the hovers'
+ * line, both sides firing, and the film cuts between low tracking shots, a hero shot under a heavy tank's gun, a crane
+ * shot over the field and a look back from behind the hovers.
+ */
+export async function battleScene(canvas: HTMLCanvasElement, w = 480, h = 270): Promise<PixelScene> {
+  const [a, b] = CAMPAIGN;
   const s = new PixelScene(canvas, w, h, { top: '#0e0c22', mid: '#3a2846', bottom: '#b8744a', haze: '#a8785a', hill: '#3e2a3c', stars: true });
+  s.frame(2, 0.11);
   const scene = s.scene;
-  scene.add(await groundMesh('sand', 60));
-  const units: { show: (i: number) => void; phase: number }[] = [];
-  const kinds = ['heavy_tank', 'middle_tank', 'light_tank', 'middle_tank', 'heavy_tank', 'light_tank'];
-  for (const [side, dress, z, view] of [
-    [0, a, 1.6, 0],
-    [1, b, -1.6, 4],
+  scene.add(await groundMesh('sand', 70));
+  type Unit = { group: THREE.Group; show: (i: number) => void; x: number; z: number; side: 0 | 1; phase: number; shell: THREE.Mesh; burst: THREE.Group };
+  const units: Unit[] = [];
+  const kinds = ['light_tank', 'middle_tank', 'heavy_tank', 'middle_tank', 'light_tank', 'heavy_tank', 'middle_tank'];
+  for (const [side, dress, z0, view] of [
+    [0, a, 4.2, 0],
+    [1, b, -2.2, 4],
   ] as const)
     kinds.forEach((k, i) => {
       const f = frames(sprite(dress.race, k), dress, view, ['move0', 'fire']);
-      const x = -4 + i * 1.6 + side * 0.8;
-      place(f.group, x, z + ((i * 7) % 3) * 0.3 * (side ? -1 : 1));
-      scene.add(f.group, shadow(0.4, x, z));
-      units.push({ show: f.show, phase: i * 0.37 + side * 0.19 });
+      const group = new THREE.Group();
+      group.add(f.group, shadow(0.4, 0, 0));
+      scene.add(group);
+      const shell = new THREE.Mesh(new THREE.OctahedronGeometry(0.1, 0), material('flash', dress));
+      const burst = new THREE.Group();
+      for (let j = 0; j < 4; j++) {
+        const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.24 + (j % 2) * 0.12, 0), material(j % 2 ? 'ember' : 'flash', dress));
+        m.position.set(Math.sin(j * 2.4) * 0.14, 0.12 + j * 0.05, Math.cos(j * 1.9) * 0.14);
+        burst.add(m);
+      }
+      scene.add(shell, burst);
+      units.push({ group, show: f.show, x: -4.8 + i * 1.6 + side * 0.7, z: z0 + ((i * 5) % 3) * 0.45 * (side ? -1 : 1), side, phase: (i * 0.29 + side * 0.53) % 1, shell, burst });
     });
-  scene.add(place(model(sprite(a.race, 'hq'), a, 0, 'idle0'), -6, 4.2), place(model(sprite(b.race, 'hq'), b, 0, 'idle0'), 6, -4.4));
-  scene.add(place(model('resource', a, 0, 'idle'), 1.5, 0.1));
-  scenery(scene, a, true, [[-8, 1], [-7.2, -2.5], [8.5, 2.2], [7.8, 0.4], [-2.5, -5], [3, 5.5]]);
-  treeline(scene, a, 50, -22, 22, -8, -20, 7);
-  s.update = (t) => {
-    for (const u of units) u.show((t * 0.9 + u.phase) % 1 < 0.12 ? 1 : 0);
-    s.camera.position.set(Math.sin(t * 0.07) * 3, 4.6, 11);
-    s.camera.lookAt(Math.sin(t * 0.07) * 2.4, 0, 0);
+  scene.add(place(model(sprite(a.race, 'hq'), a, 0, 'idle0'), -3.5, 9.5), place(model(sprite(b.race, 'hq'), b, 4, 'idle0'), 4.5, -7.5));
+  scene.add(place(model('resource', a, 0, 'idle'), 1.2, 1.4), place(model('resource', a, 1, 'idle'), -2.6, 0.6));
+  scenery(scene, a, true, [[-9, 2], [-8.2, -2.5], [9.5, 2.2], [8.8, 0.4], [-3.5, -6.5], [7, 6.5], [-7, 7]]);
+  treeline(scene, a, 70, -26, 26, -10, -24, 7);
+  treeline(scene, a, 40, -26, 26, 13, 22, 11);
+
+  // Where a unit stands at film time t: humans advance until they reach firing range, hovers sway and bob.
+  const where = (u: Unit, t: number): THREE.Vector3 =>
+    u.side === 0
+      ? new THREE.Vector3(u.x, 0, Math.max(0.9 + (u.z - 4.2), u.z - t * 0.14))
+      : new THREE.Vector3(u.x + Math.sin(t * 0.4 + u.phase * 6) * 0.25, 0.06 + Math.sin(t * 2.1 + u.phase * 9) * 0.05, u.z);
+  const heavy = units[2]!;
+  const shots: Shot[] = [
+    // Low tracking shot along the advancing column, just above the sand.
+    { seconds: 8, fov: 40, at: (k, from, to) => {
+      const z = where(heavy, k * 8).z;
+      from.set(-7.5 + k * 4, 0.45, z + 2.6);
+      to.set(-3.5 + k * 4, 0.35, z - 0.6);
+    } },
+    // Hero shot: under the heavy tank's gun, looking up past it at the sky.
+    { seconds: 7, fov: 34, at: (k, from, to) => {
+      const p = where(heavy, 8 + k * 7);
+      from.set(p.x + 2.2 - k * 0.5, 0.25, p.z - 3.1 + k * 0.5);
+      to.set(p.x - 0.3, 0.75, p.z);
+    } },
+    // Crane shot: rising from behind the humans' base over the whole field.
+    { seconds: 8, fov: 30, at: (k, from, to) => {
+      from.set(2 - k * 3, 1.4 + k * 4.2, 12 - k * 2);
+      to.set(0, 0.2, -1.5);
+    } },
+    // Behind the hovers' line, low, watching the humans come.
+    { seconds: 9, fov: 36, at: (k, from, to) => {
+      from.set(3.5 - k * 3, 0.65, -4.4);
+      to.set(-0.5 - k * 1.5, 0.35, 2);
+    } },
+  ];
+  const film = shots.reduce((sum, sh) => sum + sh.seconds, 0);
+  const FLIGHT = 0.55;
+  s.update = (clock) => {
+    const t = clock % film;
+    for (const u of units) {
+      const p = where(u, t);
+      u.group.position.copy(p);
+      // Each unit fires every 2.2 s: the gun flashes, a shell flies at an enemy picked by the volley's number, then
+      // bursts there.
+      const cycle = t / 2.2 + u.phase;
+      const k = (cycle % 1) * 2.2;
+      u.show(k < 0.18 ? 1 : 0);
+      const foes = units.filter((v) => v.side !== u.side);
+      const target = foes[Math.floor(Math.abs(Math.sin(Math.floor(cycle) * 12.9 + u.phase * 78.2)) * foes.length)]!;
+      const q = where(target, t);
+      const ahead = u.side === 0 ? -1 : 1;
+      if (k < FLIGHT) {
+        const f = k / FLIGHT;
+        u.shell.visible = true;
+        u.shell.position.set(p.x + (q.x - p.x) * f, 0.42 + Math.sin(f * Math.PI) * 0.5, p.z + ahead * 0.4 + (q.z - p.z - ahead * 0.4) * f);
+      } else u.shell.visible = false;
+      const bk = (k - FLIGHT) / 0.4;
+      u.burst.visible = bk >= 0 && bk < 1;
+      if (u.burst.visible) {
+        u.burst.position.set(q.x, q.y, q.z);
+        u.burst.scale.setScalar(0.5 + bk * 0.9);
+        u.burst.children.forEach((m, j) => (m.visible = bk < 0.55 || j % 2 === 1));
+      }
+    }
+    let rest = t;
+    const shot = shots.find((sh) => (rest -= sh.seconds) < 0) ?? shots[shots.length - 1]!;
+    const k = (rest + shot.seconds) / shot.seconds;
+    const from = new THREE.Vector3();
+    const to = new THREE.Vector3();
+    shot.at(Math.min(1, Math.max(0, k)), from, to);
+    if (s.camera.fov !== shot.fov) {
+      s.camera.fov = shot.fov;
+      s.camera.updateProjectionMatrix();
+    }
+    s.camera.position.copy(from);
+    s.camera.lookAt(to);
   };
   s.render(0);
   return s;
@@ -576,7 +710,7 @@ export function portrait(dress: Dress, kind: string, size = 64): string {
 }
 
 /** Renders an object alone into a square still of `size` pixels, seen from `from` towards `at`: a PNG data URL. */
-export function still(o: THREE.Object3D, size: number, from: THREE.Vector3, at: THREE.Vector3, fov = 30): string {
+export function still(o: THREE.Object3D, size: number, from: THREE.Vector3, at: THREE.Vector3, fov = 30, into?: { g: CanvasRenderingContext2D; x: number }): string {
   if (!portraitCanvas || portraitScene?.w !== size) {
     portraitScene?.dispose();
     portraitCanvas = document.createElement('canvas');
@@ -591,6 +725,8 @@ export function still(o: THREE.Object3D, size: number, from: THREE.Vector3, at: 
   s.camera.lookAt(at);
   s.camera.updateProjectionMatrix();
   s.render(0);
+  // Drawn into a strip of frames instead of returned on its own.
+  if (into) return (into.g.drawImage(portraitCanvas, into.x, 0), '');
   return portraitCanvas.toDataURL('image/png');
 }
 

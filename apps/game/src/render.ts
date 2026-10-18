@@ -112,7 +112,7 @@ export class Renderer {
   ) {
     this.plated = platedCells(game.world);
     this.ghost.visible = false;
-    this.camera.addChild(this.ground, this.decals, this.marks.under, this.objects, this.shots, this.fx, this.marks.over, this.shroud, this.ui);
+    this.camera.addChild(this.ground, this.decals, this.objects, this.shots, this.fx, this.marks.over, this.shroud, this.ui);
     this.objects.addChild(this.ghost);
     this.ghost.zIndex = 1e9;
     this.drawGround();

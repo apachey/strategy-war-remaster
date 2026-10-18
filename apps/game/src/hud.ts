@@ -21,7 +21,8 @@ import {
   type UnitType,
 } from '@sw/sim';
 import { hqType, nextMission, type Commander, type Game, type Setup } from './game';
-import { completed, markCompleted, readSave, SLOTS, type SelectionStyle, type Slot } from './storage';
+import { completed, markCompleted, readSave, SLOTS, type Slot } from './storage';
+import { logoHtml } from './ui/logo';
 import { flagHtml } from './ui/flags';
 import type { Dress, PixelScene } from './ui/scene3d';
 import { applySkin, skin } from './ui/skin';
@@ -57,10 +58,11 @@ function kindOf(d: Dress, type: ObjectType): string {
 }
 
 /** Who speaks for an object on the selection panel: its pilot, or the base's advisor; a crystal field shows itself. */
-function speakerOf(s: SideState, type: ObjectType, size = 64): string {
+function speakerOf(s: SideState, type: ObjectType): string {
   const d = dress(s);
   const who = faces?.speakerOf(kindOf(d, type));
-  return who ? faces!.face(d, who, size) : portraitFor(d, type, size);
+  if (who) return faces!.faceHtml(d, who);
+  return img(portraitFor(d, type, 64), 'portrait');
 }
 
 const img = (src: string, cls = '') => (src ? `<img${cls ? ` class="${cls}"` : ''} src="${src}" alt="">` : '');
@@ -85,8 +87,6 @@ export interface HudActions {
   /** Music and effects volume, 0..1. */
   volumes(): { music: number; sfx: number };
   setVolumes(music: number, sfx: number): void;
-  selection(): SelectionStyle;
-  setSelection(style: SelectionStyle): void;
   /** Back to the main screen. */
   toMenu(): void;
 }
@@ -306,8 +306,7 @@ export class Hud {
     const T = t();
     const last = this.actions.lastSkirmish();
     const m = this.modal(
-      `<h1 class="logo">${T.title.toUpperCase()}</h1>
-       <p class="subtitle">${T.subtitle}</p>
+      `<h1 class="logo">${logoHtml()}</h1>
        <div class="menu-buttons">
          ${[
            readSave('quick') ? `<button class="primary" data-continue>${T.continueGame}</button>` : '',
@@ -322,7 +321,8 @@ export class Hud {
            .map((b, i) => b.replace('>', `><i class="no">0${i + 1}</i>`))
            .join('')}
        </div>
-       <div class="option lang">${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}<span class="sr">${LANG_NAMES[l]}</span>`)}</div>`,
+       <div class="option lang">${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}<span class="sr">${LANG_NAMES[l]}</span>`)}</div>
+       <p class="tagline"><span>${T.subtitle}</span><span>v${__APP_VERSION__}</span></p>`,
     );
     m.classList.add('over-scene');
     m.querySelector('.card')!.classList.add('menu');
@@ -338,10 +338,7 @@ export class Hud {
       void tauri?.invoke('plugin:window|close', { label: 'main' }).catch(() => window.close());
     });
     this.bindLang(m);
-    if (!this.scene) {
-      const { player, enemy } = this.game.world.sides;
-      void this.showScene((s3, canvas) => s3.battleScene(canvas, dress(player), dress(enemy)));
-    }
+    if (!this.scene) void this.showScene((s3, canvas) => s3.battleScene(canvas));
   }
 
   /**
@@ -447,7 +444,6 @@ export class Hud {
          ${slider('music', T.musicLabel, v.music)}
          ${slider('sfx', T.sfxLabel, v.sfx)}
          <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}<span class="sr">${LANG_NAMES[l]}</span>`)}</div>
-         <div class="option"><span>${T.selectionLabel}</span>${choice('selection', ['corners', 'ellipse'] as const, this.actions.selection(), (v) => T.selection[v])}</div>
        </div>
        <h2>${T.about}</h2>
        <p class="about">${T.title} · ${T.subtitle} · ${T.version(__APP_VERSION__)}</p>
@@ -465,13 +461,6 @@ export class Hud {
       b.onclick = () => {
         this.actions.setLang(b.dataset.lang as Lang);
         this.applyLang();
-        close();
-        this.showSettings();
-      };
-    });
-    m.querySelectorAll<HTMLButtonElement>('[data-selection]').forEach((b) => {
-      b.onclick = () => {
-        this.actions.setSelection(b.dataset.selection as SelectionStyle);
         close();
         this.showSettings();
       };
@@ -769,7 +758,7 @@ export class PlayerPanel {
     const e = sel[0]!;
     const own = c.isOwn(e);
     const team = e.team === 'neutral' ? 'neutral' : own ? 'own' : 'foe';
-    const face = img(speakerOf(this.sideOf(e.team), e.type), 'portrait');
+    const face = speakerOf(this.sideOf(e.team), e.type);
     const rows: string[] = [];
     if (e.type === ObjectType.ResourceField) rows.push(gauge(T.resource, e.hp / Math.max(e.hp, e.maxHp), 'cargo', `${e.hp}`));
     else rows.push(gauge(T.hp, e.hp / e.maxHp, hpTone(e), `${Math.max(0, e.hp)}/${e.maxHp}`));

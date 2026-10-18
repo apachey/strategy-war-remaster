@@ -11,9 +11,8 @@ import { Hud } from './hud';
 import { tickAlpha } from './render';
 import { loadSettings, markCompleted, readSave, saveSettings, SLOTS, writeSave, type Slot } from './storage';
 import { setLang, t } from './text';
-import { cursorCss, type CursorKind, type ScrollDir } from './ui/cursors';
+import { cursorCss, cursorFrame, CURSOR_FRAME_MS, type CursorKind, type ScrollDir } from './ui/cursors';
 import { loadFonts } from './ui/font';
-import { markOptions } from './ui/marks';
 import { View } from './view';
 
 /**
@@ -32,7 +31,6 @@ setLang(urlLang && LANGS.includes(urlLang) ? urlLang : settings.lang);
 const urlDifficulty = params.get('d') as Difficulty | null;
 const difficulty = urlDifficulty && DIFFICULTIES.includes(urlDifficulty) ? urlDifficulty : settings.difficulty;
 const menuMode = !['m', 's', 'load'].some((k) => params.has(k));
-markOptions.selection = settings.selection;
 // Pixel font scale: 1.5 CSS px per font pixel on Retina (3 device pixels), 2 elsewhere.
 // Two CSS pixels per font pixel on every screen: whole device pixels, so the letters stay crisp.
 document.documentElement.style.setProperty('--k', '2');
@@ -107,11 +105,6 @@ async function start(): Promise<void> {
       settings.sfx = sfx;
       saveSettings(settings);
       sound.setVolumes(music, sfx);
-    },
-    selection: () => settings.selection,
-    setSelection: (style) => {
-      settings.selection = markOptions.selection = style;
-      saveSettings(settings);
     },
     toMenu: () => {
       location.search = params.has('lang') ? `lang=${params.get('lang')}` : '';
@@ -335,10 +328,11 @@ async function start(): Promise<void> {
   }
   function updateCursor(): void {
     const { kind, dir } = cursorKind();
-    const css = cursorCss(own.race, own.color, kind, dir);
+    const css = cursorCss(own.race, own.color, kind, dir, cursorFrame());
     if (css !== shownCursor) app.canvas.style.cursor = shownCursor = css;
   }
-  document.body.style.cursor = cursorCss(own.race, own.color, 'normal');
+  // The pointer over the interface animates too, a frame at a time.
+  window.setInterval(() => (document.body.style.cursor = cursorCss(own.race, own.color, 'normal', 'n', cursorFrame())), CURSOR_FRAME_MS);
 
   // Gamepads -------------------------------------------------------------------------------------------------------
   const playing = () => game.started && !game.paused && world().outcome === 'playing';

@@ -34,6 +34,7 @@ body.studio { background: #14110c; }
 #studio .tiles { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
 #studio .try { padding: 8px; background: #c9b27a22; border: var(--u) dashed var(--line); }
 #studio img.cur { width: 64px; height: 64px; image-rendering: pixelated; background: #c9b27a; }
+#studio .try { width: 96px; }
 #studio img.portrait { width: 120px; height: 120px; image-rendering: pixelated; background: #2a2418; }
 #studio .glyphs { display: flex; flex-wrap: wrap; gap: 4px; }
 #studio .glyphs canvas { height: 48px; image-rendering: pixelated; background: #241f17; }
@@ -62,4 +63,4 @@ body.studio { color-scheme: dark; }
 #studio button.build { padding-right: calc(7 * var(--u)); }
 #studio figure.shot { display: block; max-width: 900px; margin: 12px 0; line-height: calc(16px * var(--k)); } #studio figure.shot img { width: 100%; image-rendering: pixelated; }
 #studio img.portrait.small { width: 64px; height: 64px; }
-#studio .faces img.portrait { width: 192px; height: 192px; background: radial-gradient(circle at 50% 40%, #2a3a3c, #0b0e10 75%); }
+#studio .faces .portrait { display: block; width: 192px; height: 192px; image-rendering: pixelated; background-color: #0b0e10; background-image: radial-gradient(circle at 50% 40%, #2a3a3c, #0b0e10 75%); }

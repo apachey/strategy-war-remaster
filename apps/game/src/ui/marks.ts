@@ -5,18 +5,12 @@ import { ART_PX_PER_CELL } from '../assets';
 
 /**
  * Selection marks and health bars in pixel art: drawn on the sprites' own grid (one art pixel = 15/32 map px), with
- * a dark outline round every line like the sprites have. Selection is either corner brackets round the footprint or
- * an ellipse on the ground under the object; the player picks in the settings.
+ * a dark outline round every line like the sprites have. Selection is corner brackets round the footprint.
  */
 
 /** Map pixels per art pixel. */
 const P = CELL / ART_PX_PER_CELL;
 const snap = (v: number) => Math.round(v / P) * P;
-
-export type SelectionStyle = 'corners' | 'ellipse';
-
-/** The chosen selection style; main.ts sets it from the settings. */
-export const markOptions: { selection: SelectionStyle } = { selection: 'corners' };
 
 const C = {
   outline: 0x0a0806,
@@ -31,13 +25,10 @@ const C = {
 };
 
 export class Marks {
-  /** Under the objects: ellipses on the ground. */
-  readonly under = new Graphics();
   /** Over the objects: brackets, bars, weapon range. */
   readonly over = new Graphics();
 
   clear(): void {
-    this.under.clear();
     this.over.clear();
   }
 
@@ -51,58 +42,34 @@ export class Marks {
     const own = e.team === side;
     const color = own ? C.own : e.team === 'neutral' ? C.field : C.foe;
     const s = e.size;
-    if (markOptions.selection === 'ellipse' && e.type !== ObjectType.ResourceField) this.ellipse(x + s / 2, y + s * 0.62, s * 0.62, s * 0.36, color);
-    else {
-      const x0 = snap(x - P);
-      const y0 = snap(y - P);
-      const x1 = snap(x + s + P);
-      const y1 = snap(y + s + P);
-      const len = snap(Math.max(4 * P, s / 4));
-      const g = this.over;
-      // Outlines first for all four corners, then the bright lines, so the outlines never cut a line.
-      for (const pass of [0, 1])
-        for (const [ox, oy, sx, sy] of [
-          [x0, y0, 1, 1],
-          [x1 - P, y0, -1, 1],
-          [x0, y1 - P, 1, -1],
-          [x1 - P, y1 - P, -1, -1],
-        ] as const) {
-          const hx = sx > 0 ? ox : ox - len + P;
-          const vy = sy > 0 ? oy : oy - len + P;
-          if (pass === 0) {
-            g.rect(hx - P, oy - P, len + 2 * P, 3 * P).fill(C.outline);
-            g.rect(ox - P, vy - P, 3 * P, len + 2 * P).fill(C.outline);
-          } else {
-            g.rect(hx, oy, len, P).fill(color);
-            g.rect(ox, vy, P, len).fill(color);
-          }
+    const x0 = snap(x - P);
+    const y0 = snap(y - P);
+    const x1 = snap(x + s + P);
+    const y1 = snap(y + s + P);
+    const len = snap(Math.max(4 * P, s / 4));
+    const g = this.over;
+    // Outlines first for all four corners, then the bright lines, so the outlines never cut a line.
+    for (const pass of [0, 1])
+      for (const [ox, oy, sx, sy] of [
+        [x0, y0, 1, 1],
+        [x1 - P, y0, -1, 1],
+        [x0, y1 - P, 1, -1],
+        [x1 - P, y1 - P, -1, -1],
+      ] as const) {
+        const hx = sx > 0 ? ox : ox - len + P;
+        const vy = sy > 0 ? oy : oy - len + P;
+        if (pass === 0) {
+          g.rect(hx - P, oy - P, len + 2 * P, 3 * P).fill(C.outline);
+          g.rect(ox - P, vy - P, 3 * P, len + 2 * P).fill(C.outline);
+        } else {
+          g.rect(hx, oy, len, P).fill(color);
+          g.rect(ox, vy, P, len).fill(color);
         }
-    }
+      }
     let range = 0;
     if (own && isUnit(e.type)) range = UNIT_RULES[e.type as UnitType].weapon?.range ?? 0;
     if (own && e.type === ObjectType.Defender) range = BUILDING_RULES[e.type as BuildingType].weapon?.range ?? 0;
     if (range) this.dotted(x - range, y - range, s + range * 2, color);
-  }
-
-  /** A pixel ellipse: one art pixel thick, rasterised column by column and row by row so it has no gaps. */
-  private ellipse(cx: number, cy: number, rx: number, ry: number, color: number): void {
-    const g = this.under;
-    const ax = Math.round(rx / P);
-    const ay = Math.round(ry / P);
-    const pts = new Set<string>();
-    for (let i = -ax; i <= ax; i++) {
-      const j = Math.round(ay * Math.sqrt(Math.max(0, 1 - (i / ax) ** 2)));
-      pts.add(`${i},${j}`).add(`${i},${-j}`);
-    }
-    for (let j = -ay; j <= ay; j++) {
-      const i = Math.round(ax * Math.sqrt(Math.max(0, 1 - (j / ay) ** 2)));
-      pts.add(`${i},${j}`).add(`${-i},${j}`);
-    }
-    const ox = snap(cx);
-    const oy = snap(cy);
-    const cells = [...pts].map((k) => k.split(',').map(Number) as [number, number]);
-    for (const [i, j] of cells) g.rect(ox + (i - 1) * P, oy + (j - 1) * P, 3 * P, 3 * P).fill({ color: C.outline, alpha: 0.7 });
-    for (const [i, j] of cells) g.rect(ox + i * P, oy + j * P, P, P).fill(color);
   }
 
   /** Weapon range as a dotted square: one art pixel lit every four. */

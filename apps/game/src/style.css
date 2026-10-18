@@ -80,6 +80,11 @@ body.paused #topbar::after {
   border: var(--u) solid #000; outline: var(--u) solid var(--line); outline-offset: 0;
   box-shadow: inset 0 0 0 var(--u) rgb(255 255 255 / 0.06);
 }
+/* A talking face: its loop is a strip of frames played by steps, under the scan lines of a comms screen. */
+.portrait.face { display: block; position: relative; background-color: #10171a; background-repeat: no-repeat; background-size: calc(var(--frames) * 100%) 100%; animation: face var(--loop) steps(var(--frames)) infinite; }
+.portrait.face::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, rgb(0 0 0 / 0.18) 0 var(--u), transparent 0 calc(3 * var(--u))); pointer-events: none; }
+/* A percentage position moves the strip by (box - strip) × p, so a whole loop is frames / (frames - 1). */
+@keyframes face { from { background-position: 0 0; } to { background-position: calc(100% * var(--frames) / (var(--frames) - 1)) 0; } }
 .panel .stats { flex: 1; min-width: calc(80 * var(--u)); display: flex; flex-direction: column; gap: var(--u); }
 .panel .gauge { display: grid; grid-template-columns: 1fr auto; column-gap: calc(2 * var(--u)); color: var(--muted); }
 .panel .gauge b { color: var(--ink); font-weight: 400; }
@@ -253,20 +258,19 @@ body.menu #topbar, body.menu #help, body.menu .panel, body.menu .minimap, body.m
 #modal.over-scene { align-items: stretch; justify-content: flex-start; }
 #modal .card.menu {
   width: min(460px, 100vw); max-height: none; height: 100vh; box-sizing: border-box; border: 0; border-image: none;
-  display: flex; flex-direction: column; justify-content: center; text-align: left;
+  display: flex; flex-direction: column; justify-content: center; text-align: left; position: relative;
   padding: calc(8 * var(--u)) calc(10 * var(--u));
   background: linear-gradient(90deg, rgba(8, 7, 12, 0.92), rgba(8, 7, 12, 0.72) 75%, rgba(8, 7, 12, 0));
 }
-#modal h1.logo {
-  margin: 0; font-size: calc(36px * var(--k)); line-height: 1; letter-spacing: calc(var(--k) * 2px);
-  color: transparent; background: linear-gradient(180deg, #fff2b8 0 30%, #f0c43a 30% 60%, #d0801a 60% 100%);
-  -webkit-background-clip: text; background-clip: text;
-  filter: drop-shadow(calc(var(--k) * 1px) calc(var(--k) * 1px) 0 #4a2a08) drop-shadow(0 0 calc(var(--k) * 6px) rgba(240, 196, 58, 0.35));
-}
-#modal .subtitle {
-  margin: calc(2 * var(--u)) 0 calc(10 * var(--u)); padding-top: calc(2 * var(--u)); color: var(--accent);
-  text-transform: uppercase; letter-spacing: calc(var(--k) * 2px);
-  border-top: var(--u) solid var(--accent); width: max-content; max-width: 100%;
+/* The name is a pixel wordmark drawn in code (ui/logo.ts): bevelled, leaning, split by a crack. */
+#modal h1.logo { margin: 0 0 calc(10 * var(--u)); line-height: 0; }
+#modal h1.logo .wordmark { display: block; max-width: 100%; height: auto; image-rendering: pixelated; }
+/* The tagline is a technical label at the very bottom of the strip: small, dim, out of the way. */
+#modal .tagline {
+  position: absolute; left: calc(10 * var(--u)); right: calc(10 * var(--u)); bottom: calc(5 * var(--u)); margin: 0;
+  display: flex; justify-content: space-between; gap: calc(4 * var(--u));
+  font-size: 12px; line-height: 16px; letter-spacing: 1px; text-transform: uppercase; color: rgba(232, 220, 190, 0.32);
+  border-top: 1px solid rgba(232, 220, 190, 0.14); padding-top: calc(2 * var(--u));
 }
 #modal .menu-buttons { display: flex; flex-direction: column; gap: calc(2 * var(--u)); }
 #modal .menu-buttons button {
@@ -289,5 +293,5 @@ body.menu #topbar, body.menu #help, body.menu .panel, body.menu .minimap, body.m
 #modal .stats span:nth-child(even) { text-align: right; font-weight: 700; }
 /* Language buttons show only the waving flag; the name is there for screen readers and tests. */
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-button[data-lang] { padding: var(--u) calc(2 * var(--u)); min-width: 0; }
-button[data-lang] .flag { margin-right: 0 !important; }
+button[data-lang] { display: inline-flex; align-items: center; justify-content: center; padding: calc(2 * var(--u)) calc(3 * var(--u)); min-width: 0; line-height: 0; }
+button[data-lang] .flag { display: block; margin: 0 !important; }

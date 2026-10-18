@@ -198,8 +198,6 @@ const UK = {
     killed: 'Знищено ворожого',
   },
   toMenu: 'Головне меню',
-  selectionLabel: 'Виділення',
-  selection: { corners: 'Кутики', ellipse: 'Овал' } as Record<'corners' | 'ellipse', string>,
   queueCancel: 'Правий клік: скасувати',
   cheat: {
     reveal: 'Чит: уся мапа відкрита',
@@ -397,8 +395,6 @@ const EN: Strings = {
     killed: 'Enemies destroyed',
   },
   toMenu: 'Main menu',
-  selectionLabel: 'Selection',
-  selection: { corners: 'Corners', ellipse: 'Ellipse' },
   queueCancel: 'Right click: cancel',
   cheat: {
     reveal: 'Cheat: map revealed',
