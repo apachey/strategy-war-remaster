@@ -110,9 +110,10 @@ export interface Projectile {
 }
 
 export type GameEvent =
-  | { kind: 'shot'; x: number; y: number; weapon: 'gun' | 'cannon'; team: Side }
+  /** `id` and `by` name the shooter, so the game can show its muzzle flash and play its gun. */
+  | { kind: 'shot'; id: number; by: ObjectType; x: number; y: number; weapon: 'gun' | 'cannon'; team: Side }
   | { kind: 'hit'; x: number; y: number; weapon: 'gun' | 'cannon' }
-  | { kind: 'destroyed'; type: ObjectType; team: Team; x: number; y: number; size: number }
+  | { kind: 'destroyed'; id: number; type: ObjectType; team: Team; x: number; y: number; size: number; dir: number }
   | { kind: 'completed'; id: number; type: ObjectType };
 
 export interface SideState {
@@ -1104,7 +1105,7 @@ function fireAt(world: World, e: Entity, weapon: Weapon): void {
     left: dist + 6,
     damage: weapon.damage,
   });
-  world.events.push({ kind: 'shot', x: from.x, y: from.y, weapon: kind, team: e.team });
+  world.events.push({ kind: 'shot', id: e.id, by: e.type, x: from.x, y: from.y, weapon: kind, team: e.team });
 }
 
 function updateProjectiles(world: World): void {
@@ -1214,7 +1215,7 @@ function removeDead(world: World): void {
   for (const e of dead) {
     removeEntity(world, e);
     if (e.type !== ObjectType.ResourceField) {
-      world.events.push({ kind: 'destroyed', type: e.type, team: e.team, x: e.x, y: e.y, size: e.size });
+      world.events.push({ kind: 'destroyed', id: e.id, type: e.type, team: e.team, x: e.x, y: e.y, size: e.size, dir: e.dir });
     }
     // A harvester inside a silo dies with it; a destroyed harvester frees its silo.
     for (const o of world.entities) {

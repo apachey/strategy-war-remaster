@@ -172,6 +172,14 @@ const UK = {
   victory: 'Перемога',
   newSkirmish: 'Інша мапа',
   again: 'Ще раз',
+  settings: 'Налаштування',
+  musicLabel: 'Музика',
+  sfxLabel: 'Звуки',
+  about: 'Про гру',
+  version: (v: string) => `Версія ${v}`,
+  credits:
+    'Фанатський ремайстер мобільної стратегії Strategy War (2004), автор оригіналу Jiří Mikula (tadpole, Redboss). Нова графіка, музика й звуки зроблені з нуля. Некомерційний проєкт для друзів.',
+  underAttack: 'Базу атакують!',
   cheat: {
     reveal: 'Чит: уся мапа відкрита',
     money: 'Чит: +$1000',
@@ -342,6 +350,14 @@ const EN: Strings = {
   victory: 'Victory',
   newSkirmish: 'Another map',
   again: 'Play again',
+  settings: 'Settings',
+  musicLabel: 'Music',
+  sfxLabel: 'Sounds',
+  about: 'About',
+  version: (v: string) => `Version ${v}`,
+  credits:
+    'A fan remaster of the mobile strategy game Strategy War (2004) by Jiří Mikula (tadpole, Redboss). New art, music and sound made from scratch. A non-commercial project for friends.',
+  underAttack: 'The base is under attack!',
   cheat: {
     reveal: 'Cheat: map revealed',
     money: 'Cheat: +$1000',
@@ -394,12 +410,3 @@ export function missionTitle(mapIndex: number, missionIndex: number): string {
 export function missionBrief(mapIndex: number, missionIndex: number): string {
   return missionText(lang, mapIndex, missionIndex).brief;
 }
-
-/** Short labels drawn on the grey boxes. */
-export const SHORT: Record<number, string> = {
-  [ObjectType.PlayerHQ]: 'HQ',
-  [ObjectType.Silo]: 'S',
-  [ObjectType.TankFactory]: 'F',
-  [ObjectType.EnemyHQ]: 'HQ',
-  [ObjectType.Defender]: 'D',
-};

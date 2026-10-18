@@ -1,4 +1,8 @@
 import { Application, Graphics } from 'pixi.js';
+import { loadArt } from './assets';
+import { Sound } from './audio';
+import { Soundscape } from './soundscape';
+import { Minimap } from './minimap';
 import { LANGS, type Lang } from '@sw/data';
 import { DIFFICULTIES, issue, loadWorld, SAVE_VERSION, saveWorld, TICK_MS, type Command, type Difficulty, type Side, type World } from '@sw/sim';
 import { Game, nextMission, parseSetup, setupQuery, type Setup } from './game';
@@ -59,9 +63,15 @@ async function start(): Promise<void> {
   const world = () => game.world;
   const [p1] = game.commanders as [Game['commanders'][number]];
 
+  const sound = new Sound(settings.music, settings.sfx);
   const app = new Application();
   await app.init({ resizeTo: window, background: 0x14110c, antialias: true, autoDensity: true, resolution: window.devicePixelRatio });
   document.getElementById('stage')!.appendChild(app.canvas);
+  const { player: s1, enemy: s2 } = game.world.sides;
+  const art = await loadArt([
+    [s1.color, s1.color2],
+    [s2.color, s2.color2],
+  ]);
   app.canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
   const hud = new Hud(game, {
@@ -80,13 +90,21 @@ async function start(): Promise<void> {
       saveSettings(settings);
     },
     lastSkirmish: () => settings.skirmish,
+    volumes: () => ({ music: settings.music, sfx: settings.sfx }),
+    setVolumes: (music, sfx) => {
+      settings.music = music;
+      settings.sfx = sfx;
+      saveSettings(settings);
+      sound.setVolumes(music, sfx);
+    },
   });
   if (game.loaded) hud.toast(t().loaded);
 
   // Views: the whole window for one player, left and right halves for two ------------------------------------------
   const panelHeight = (i: number) => () => (hud.panels[i]?.element.offsetHeight ?? 0) + 20;
-  const views = game.commanders.map((c, i) => new View(c, panelHeight(i)));
+  const views = game.commanders.map((c, i) => new View(c, art, panelHeight(i)));
   for (const v of views) app.stage.addChild(v.root);
+  const minimaps = views.map((v, i) => new Minimap(v, i, i === 0));
   const divider = new Graphics();
   app.stage.addChild(divider);
   const layout = () => {
@@ -100,10 +118,19 @@ async function start(): Promise<void> {
       divider.clear().rect(half - 1, 0, 2, h).fill(0x4a4234);
     }
     for (const v of views) v.fit();
+    for (const m of minimaps) m.place();
   };
   layout();
   window.addEventListener('resize', () => requestAnimationFrame(layout));
   const v1 = views[0]!;
+
+  // Sound ----------------------------------------------------------------------------------------------------------
+  const soundscape = new Soundscape(sound, game, views);
+  for (const c of game.commanders) c.onSound = (name) => sound.play(name, { gain: name === 'select' || name === 'order' ? 0.7 : 1, pan: 0 });
+  document.addEventListener('click', (ev) => {
+    const b = (ev.target as HTMLElement).closest('button');
+    if (b && !b.disabled) sound.play('click', { gain: 0.8, pan: 0 });
+  });
 
   function saveTo(slot: Slot): void {
     if (!game.started || world().outcome !== 'playing') return;
@@ -196,7 +223,7 @@ async function start(): Promise<void> {
     'wheel',
     (ev) => {
       ev.preventDefault();
-      if (v1.contains(ev.offsetX, ev.offsetY)) v1.setZoom(v1.zoom + (ev.deltaY < 0 ? 1 : -1), ev.offsetX, ev.offsetY);
+      if (v1.contains(ev.offsetX, ev.offsetY)) v1.zoomBy(ev.deltaY < 0 ? 1 : -1, ev.offsetX, ev.offsetY);
     },
     { passive: false },
   );
@@ -239,10 +266,10 @@ async function start(): Promise<void> {
         break;
       }
       case 'Equal':
-        v1.setZoom(v1.zoom + 1);
+        v1.zoomBy(1);
         break;
       case 'Minus':
-        v1.setZoom(v1.zoom - 1);
+        v1.zoomBy(-1);
         break;
       case 'KeyF':
         v1.fit();
@@ -299,6 +326,7 @@ async function start(): Promise<void> {
         for (const v of views) v.renderer.beforeStep();
         game.step();
         for (const v of views) v.renderer.afterStep(world().events);
+        soundscape.afterStep(world().events);
         acc -= TICK_MS;
         steps++;
       }
@@ -310,6 +338,8 @@ async function start(): Promise<void> {
       v.renderer.draw(alpha, tk.deltaMS, mouse, (v === v1 ? drag : null) ?? pads.dragFor(v));
     }
     hud.update();
+    soundscape.update();
+    for (const m of minimaps) m.update(tk.deltaMS);
     // Ready only once a frame has been drawn and the HUD filled in, so tests never click a blank page.
     document.body.dataset.ready = 'true';
   });

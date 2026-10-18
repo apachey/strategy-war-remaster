@@ -35,7 +35,13 @@ export interface HudActions {
   setDifficulty(difficulty: Difficulty): void;
   /** The skirmish the "Skirmish" button opens: the last one played. */
   lastSkirmish(): Extract<Setup, { kind: 'skirmish' }>;
+  /** Music and effects volume, 0..1. */
+  volumes(): { music: number; sfx: number };
+  setVolumes(music: number, sfx: number): void;
 }
+
+/** The game's version, from apps/desktop/package.json. */
+declare const __APP_VERSION__: string;
 
 /** DOM interface over the canvas: top bar, one panel per player, toasts and dialogs. */
 export class Hud {
@@ -55,6 +61,7 @@ export class Hud {
     $('btn-missions').onclick = () => this.showMissions();
     $('btn-skirmish').onclick = () => this.actions.open(this.actions.lastSkirmish());
     $('btn-saves').onclick = () => this.showSaves();
+    $('btn-settings').onclick = () => this.showSettings();
     this.applyLang();
     if (game.loaded) game.started = true;
     else this.showBriefing();
@@ -65,6 +72,8 @@ export class Hud {
     $('btn-missions').textContent = t().missions;
     $('btn-skirmish').textContent = t().skirmish;
     $('btn-saves').textContent = t().saves;
+    $('btn-settings').title = t().settings;
+    $('btn-settings').setAttribute('aria-label', t().settings);
     $('help').textContent = this.game.twoPlayers ? t().helpDuo : t().help;
     for (const p of this.panels) p.refresh();
   }
@@ -262,6 +271,43 @@ export class Hud {
     const m = this.modal(`<h1>${T.missions}</h1><div class="missions">${list}</div><div class="row"><button data-close>${T.close}</button></div>`);
     m.querySelectorAll<HTMLButtonElement>('[data-m]').forEach((b) => {
       b.onclick = () => this.actions.open({ kind: 'campaign', mapIndex: Number(b.dataset.m), missionIndex: Number(b.dataset.s), difficulty: this.game.difficulty });
+    });
+    m.querySelector<HTMLButtonElement>('[data-close]')!.onclick = close;
+  }
+
+  /** Volumes, language, and a few words about the game with its version. */
+  showSettings(): void {
+    const close = this.pauseBehind();
+    const T = t();
+    const v = this.actions.volumes();
+    const slider = (id: string, label: string, value: number) =>
+      `<label class="volume"><span>${label}</span><input type="range" min="0" max="100" step="5" value="${Math.round(value * 100)}" data-volume="${id}" aria-label="${label}"><output>${Math.round(value * 100)}%</output></label>`;
+    const m = this.modal(
+      `<h1>${T.settings}</h1>
+       <div class="options">
+         ${slider('music', T.musicLabel, v.music)}
+         ${slider('sfx', T.sfxLabel, v.sfx)}
+         <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => LANG_NAMES[l])}</div>
+       </div>
+       <h2>${T.about}</h2>
+       <p class="about">Strategy War Remaster · ${T.version(__APP_VERSION__)}</p>
+       <p class="hint">${T.credits}</p>
+       <div class="row"><button data-close>${T.close}</button></div>`,
+    );
+    m.querySelectorAll<HTMLInputElement>('[data-volume]').forEach((input) => {
+      input.oninput = () => {
+        const get = (id: string) => Number(m.querySelector<HTMLInputElement>(`[data-volume="${id}"]`)!.value) / 100;
+        input.nextElementSibling!.textContent = `${input.value}%`;
+        this.actions.setVolumes(get('music'), get('sfx'));
+      };
+    });
+    m.querySelectorAll<HTMLButtonElement>('[data-lang]').forEach((b) => {
+      b.onclick = () => {
+        this.actions.setLang(b.dataset.lang as Lang);
+        this.applyLang();
+        close();
+        this.showSettings();
+      };
     });
     m.querySelector<HTMLButtonElement>('[data-close]')!.onclick = close;
   }

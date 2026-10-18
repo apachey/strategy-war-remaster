@@ -35,7 +35,12 @@ export interface Settings {
   difficulty: Difficulty;
   /** The last skirmish started, offered again by the Skirmish button. */
   skirmish: SkirmishSetup;
+  /** Volumes, 0..1. */
+  music: number;
+  sfx: number;
 }
+
+const volume = (v: unknown, fallback: number) => (typeof v === 'number' && v >= 0 && v <= 1 ? v : fallback);
 
 export function loadSettings(): Settings {
   const s = read<Partial<Settings>>('settings') ?? {};
@@ -43,6 +48,8 @@ export function loadSettings(): Settings {
   return {
     lang: s.lang && LANGS.includes(s.lang) ? s.lang : 'uk',
     difficulty: s.difficulty && DIFFICULTIES.includes(s.difficulty) ? s.difficulty : 'normal',
+    music: volume(s.music, 0.6),
+    sfx: volume(s.sfx, 0.8),
     skirmish: {
       kind: 'skirmish',
       mapIndex: k && k.mapIndex >= 0 && k.mapIndex < campaign.maps.length ? k.mapIndex : 3,
