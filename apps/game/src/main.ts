@@ -56,6 +56,37 @@ function savedGame(): { setup: Setup; world: World } | null {
 /** The original's keypad cheats, typed as keys: 1298* reveals the map, 1298# skips the mission, 12986 money, 12989 repair. */
 const CHEATS = ['1298*', '1298#', '12986', '12989'] as const;
 
+/** Wheel distance (pixels) and pinch distance per zoom step, the shortest gap between steps, and the pause that ends a swipe. */
+const WHEEL_STEP_PX = 100;
+const PINCH_STEP = 25;
+const WHEEL_GAP_MS = 150;
+const WHEEL_IDLE_MS = 250;
+
+/**
+ * Turns wheel events into zoom steps. A Mac trackpad (and a smooth mouse wheel) sends dozens of small events per
+ * swipe, so deltas add up to one step per WHEEL_STEP_PX (a pinch per PINCH_STEP), at most one step per
+ * WHEEL_GAP_MS.
+ */
+class WheelZoom {
+  private sum = 0;
+  private last = -Infinity;
+  private stepAt = -Infinity;
+
+  step(ev: WheelEvent): number {
+    const now = ev.timeStamp;
+    const px = ev.deltaY * (ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? 400 : 1);
+    // The first event after a pause is a whole step, so a wheel notch with a tiny delta still zooms.
+    if (now - this.last > WHEEL_IDLE_MS) this.sum = Math.sign(px);
+    else this.sum += px / (ev.ctrlKey ? PINCH_STEP : WHEEL_STEP_PX);
+    this.last = now;
+    if (Math.abs(this.sum) < 1 || now - this.stepAt < WHEEL_GAP_MS) return 0;
+    const dir = this.sum < 0 ? 1 : -1;
+    this.sum = 0;
+    this.stepAt = now;
+    return dir;
+  }
+}
+
 async function start(): Promise<void> {
   const saved = savedGame();
   const game = new Game(saved?.setup ?? parseSetup(location.search, difficulty), saved?.world);
@@ -221,11 +252,14 @@ async function start(): Promise<void> {
     }
   });
   app.canvas.addEventListener('pointerleave', () => (mouseScreen = null));
+  const wheel = new WheelZoom();
   app.canvas.addEventListener(
     'wheel',
     (ev) => {
       ev.preventDefault();
-      if (v1.contains(ev.offsetX, ev.offsetY)) v1.zoomBy(ev.deltaY < 0 ? 1 : -1, ev.offsetX, ev.offsetY);
+      if (!v1.contains(ev.offsetX, ev.offsetY)) return;
+      const step = wheel.step(ev);
+      if (step) v1.zoomBy(step, ev.offsetX, ev.offsetY);
     },
     { passive: false },
   );
@@ -357,3 +391,4 @@ async function start(): Promise<void> {
 }
 
 void start();
+
