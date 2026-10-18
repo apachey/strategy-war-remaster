@@ -16,7 +16,7 @@ export type VoiceAction = 'ready' | 'move' | 'attack' | 'harvest';
 
 export const VOICE_RACES: VoiceRace[] = ['human', 'hover', 'walker'];
 export const VOICE_UNITS: Record<VoiceUnit, { shift: number; slow: number; soft: boolean; actions: VoiceAction[] }> = {
-  harvester: { shift: 3, slow: 1.15, soft: true, actions: ['ready', 'move', 'harvest'] },
+  harvester: { shift: -3, slow: 1.25, soft: true, actions: ['ready', 'move', 'harvest'] },
   light: { shift: 7, slow: 0.85, soft: false, actions: ['ready', 'move', 'attack'] },
   middle: { shift: 0, slow: 1, soft: false, actions: ['ready', 'move', 'attack'] },
   heavy: { shift: -7, slow: 1.3, soft: false, actions: ['ready', 'move', 'attack'] },
@@ -47,8 +47,36 @@ const MOTIFS: Record<VoiceAction, [number, number][][]> = {
   ],
 };
 
+/**
+ * Humans and the non-walker harvesters speak flatly, like a soldier on comms: mostly one pitch, a small step, a fall
+ * at the end. (Pavlo found the leaping motifs above too cheerful for them.)
+ */
+const NEUTRAL: Record<VoiceAction, [number, number][][]> = {
+  ready: [
+    [[0, 1], [0, 1], [-2, 2]],
+    [[0, 1], [-2, 1], [0, 2]],
+    [[0, 2], [-5, 2]],
+  ],
+  move: [
+    [[0, 1], [0, 2]],
+    [[0, 1], [-2, 2]],
+    [[-2, 1], [0, 2]],
+  ],
+  attack: [
+    [[0, 0.5], [0, 0.5], [1, 2]],
+    [[1, 1], [0, 2]],
+    [[0, 0.5], [1, 0.5], [0, 1.5]],
+  ],
+  harvest: [
+    [[0, 1], [-2, 1], [-5, 2]],
+    [[0, 1], [-5, 2]],
+    [[-2, 1], [-5, 2]],
+  ],
+};
+const neutral = (race: VoiceRace, unit: VoiceUnit) => race === 'human' || (unit === 'harvester' && race !== 'walker');
+
 /** MIDI root of a middle tank's motif per race. */
-const ROOT: Record<VoiceRace, number> = { human: 69, hover: 74, walker: 0 };
+const ROOT: Record<VoiceRace, number> = { human: 57, hover: 74, walker: 0 };
 const STEP = 0.065;
 const TAIL = 0.18;
 
@@ -89,7 +117,7 @@ function human(s: Spec): Float32Array {
     add(out, at, len * 0.85, (t) => {
       ph = (ph + inc) % 1;
       const env = Math.min(1, t * 300) * Math.min(1, (len * 0.85 - t) * 200);
-      const v = s.soft ? lp.run(pulse(ph, inc, 0.4), 900) : radio.run(pulse(ph, inc, 0.25), 1200) * 2.5;
+      const v = s.soft ? lp.run(pulse(ph, inc, 0.4), 900) : radio.run(pulse(ph, inc, 0.5), 900) * 2.5;
       return Math.tanh(v * (s.soft ? 1.2 : 2.5)) * env * 0.6;
     });
   });
@@ -164,7 +192,8 @@ const RENDER: Record<VoiceRace, (s: Spec) => Float32Array> = { human, hover, wal
 
 export const VOICES: Sfx[] = VOICE_RACES.flatMap((race, r) =>
   (Object.keys(VOICE_UNITS) as VoiceUnit[]).flatMap((unit, u) => {
-    const spec = VOICE_UNITS[unit];
+    // Walkers kept their first harvester voice, which Pavlo liked; the others' harvesters sit lower now.
+    const spec = race === 'walker' && unit === 'harvester' ? { ...VOICE_UNITS[unit], shift: 3, slow: 1.15 } : VOICE_UNITS[unit];
     return spec.actions.flatMap((action) =>
       Array.from({ length: VARIANTS }, (_, v): Sfx => ({
         name: `voice_${race}_${unit}_${action}_${v}`,
@@ -174,7 +203,7 @@ export const VOICES: Sfx[] = VOICE_RACES.flatMap((race, r) =>
         budget: 1,
         render: () =>
           finish([
-            RENDER[race]({ root: ROOT[race], shift: spec.shift, step: STEP * spec.slow, soft: spec.soft, motif: MOTIFS[action][v]!, seed: 1000 + r * 100 + u * 10 + v }),
+            RENDER[race]({ root: ROOT[race], shift: spec.shift, step: STEP * spec.slow, soft: spec.soft, motif: (neutral(race, unit) ? NEUTRAL : MOTIFS)[action][v]!, seed: 1000 + r * 100 + u * 10 + v }),
           ]),
       })),
     );

@@ -30,6 +30,8 @@ const outDir = resolve(repo, arg('out') ?? 'assets/music');
 const SLOWER = 1.5;
 /** Beats of desert before the tune starts. */
 const INTRO = 16;
+/** Beats of the original tune the theme keeps (its D minor half). */
+const HALF = 32;
 
 const later = (notes: Note[], by: number) => notes.map((n) => ({ ...n, start: n.start + by }));
 
@@ -56,11 +58,17 @@ function partsFor(song: Song): Part[] {
 
 /**
  * Main theme: the wind and a drone on D with the throat singer and a slow brass swell, taiko calling in the dark;
- * then the original tune sung by the wailing voice over war drums and low strings, about two thirds of its old
- * speed; it closes with an Eb to D brass cadence (Phrygian, the sound of the desert) and a last boom.
+ * then the first half of the original tune, twice, sung by the wailing voice over war drums and low strings, about
+ * two thirds of its old speed; it closes with an Eb to D brass cadence (Phrygian, the sound of the desert) and a last boom.
  */
-function mainTheme(song: Song): Arrangement {
-  const spb = (song.tempo / 1e6) * SLOWER;
+function mainTheme(original: Song): Arrangement {
+  const spb = (original.tempo / 1e6) * SLOWER;
+  // Only the D minor first half of the tune, played twice: its C major middle (from beat 32) sounded off-theme to
+  // Pavlo.
+  const song: Song = {
+    ...original,
+    tracks: original.tracks.map((t) => ({ ...t, notes: t.notes.filter((n) => n.start < HALF - 0.01).flatMap((n) => [n, { ...n, start: n.start + HALF }]) })),
+  };
   const len = Math.ceil(Math.max(...song.tracks.flatMap((t) => t.notes.map((n) => n.start + n.length))) / 4) * 4;
   const end = INTRO + len;
   const hit = (start: number, pitch: number, velocity = 0.9): Note => ({ start, length: 1, pitch, velocity, channel: 9 });
