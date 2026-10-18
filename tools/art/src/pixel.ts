@@ -1,4 +1,4 @@
-import { GROUND_ID, materialById } from './materials';
+import { GHOST_ID, GROUND_ID, materialById } from './materials';
 import { GLOW_RAMP, ramp, SECOND_RAMP, SHADOW_ALPHA, TEAM_RAMP, type RampName, type Rgb } from './palette';
 
 /**
@@ -13,7 +13,7 @@ import { GLOW_RAMP, ramp, SECOND_RAMP, SHADOW_ALPHA, TEAM_RAMP, type RampName, t
 export interface Reduced {
   w: number;
   h: number;
-  /** 0 empty, GROUND_ID shadow on the floor, otherwise a material id. */
+  /** 0 empty, GROUND_ID shadow on the floor, GHOST_ID a neighbour's surface, otherwise a material id. */
   mat: Uint8Array;
   /** Average light 0..255 of the winning material inside the block. */
   light: Uint8Array;
@@ -56,8 +56,9 @@ export function reduce(mat: Uint8Array, light: Uint8Array, depth: Uint16Array, b
       }
       let best = 0;
       let bestCount = 0;
-      let objects = 0;
-      for (let id = 1; id < GROUND_ID; id++) {
+      const ghost = counts[GHOST_ID]!;
+      let objects = ghost;
+      for (let id = 1; id < GHOST_ID; id++) {
         const c = counts[id]!;
         objects += c;
         if (c > bestCount) {
@@ -66,7 +67,11 @@ export function reduce(mat: Uint8Array, light: Uint8Array, depth: Uint16Array, b
         }
       }
       const i = y * w + x;
-      if (objects >= block * COVERAGE) {
+      // A block split between this piece and a neighbour's ghost goes to this piece on a tie, so two pieces drawn
+      // side by side both claim the pixel on their seam rather than both leaving it empty.
+      if (objects >= block * COVERAGE && bestCount < ghost) {
+        outMat[i] = GHOST_ID;
+      } else if (objects >= block * COVERAGE) {
         outMat[i] = best;
         outLight[i] = Math.round(sums[best]! / bestCount);
         let near = 65535;
@@ -111,6 +116,8 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
   const secondRamp = ramp(SECOND_RAMP);
   const drawn = { team: teamRamp, team2: secondRamp, team3: ramp(GLOW_RAMP) } as const;
   const isObjectAt = (i: number) => mat[i]! !== 0 && mat[i]! !== GROUND_ID;
+  // Ghost pixels hide and stop the outline like a body, but stay empty.
+  const ghost = (i: number) => mat[i] === GHOST_ID;
   // Colour of every pixel: body colours first, then outline rings around them.
   const color: (Rgb | null)[] = new Array(w * h).fill(null);
   const ink: (Rgb | null)[] = new Array(w * h).fill(null);
@@ -119,7 +126,7 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
       const id = mat[i]!;
-      if (id === 0 || id === GROUND_ID) continue;
+      if (id === 0 || id === GROUND_ID || id === GHOST_ID) continue;
       const def = materialById(id);
       if (!def) throw new Error(`unknown material id ${id}`);
       const colors = def.ramp in drawn ? drawn[def.ramp as keyof typeof drawn] : ramp(def.ramp as RampName);
@@ -154,7 +161,7 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const i = y * w + x;
-        if (color[i]) continue;
+        if (color[i] || ghost(i)) continue;
         let best: Rgb | null = null;
         for (const [dx, dy] of near) {
           const j = at(x + dx!, y + dy!);

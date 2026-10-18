@@ -93,3 +93,4 @@ export const ORIGINAL_BALANCE = {
 } as const;
 export * from './text';
 export * from './races';
+export * from './walls';

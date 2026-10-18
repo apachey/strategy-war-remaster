@@ -335,6 +335,7 @@ async function start(): Promise<void> {
     const alpha = running ? tickAlpha(acc) : 1;
     for (const v of views) {
       const mouse = v === v1 && mouseScreen && v1.contains(mouseScreen.x, mouseScreen.y) ? v1.toWorld(mouseScreen.x, mouseScreen.y) : null;
+      v.animate(tk.deltaMS);
       v.renderer.draw(alpha, tk.deltaMS, mouse, (v === v1 ? drag : null) ?? pads.dragFor(v));
     }
     hud.update();
