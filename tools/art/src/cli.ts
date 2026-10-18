@@ -10,7 +10,8 @@ import type { RawRender } from './browser/render';
 import { DEFAULT_COLORS, DEFAULT_SECOND_COLORS, glowRamp, TEAM_COLORS, type TeamColor } from '@sw/data';
 import { GLOW_RAMP, PALETTE, RAMPS, SECOND_RAMP, TEAM_RAMP, type Rgb } from './palette';
 import { colorize, flipRows, OUTLINE_WIDTH, recolor, reduce, type Reduced } from './pixel';
-import { forestTiles, PLATE_CELLS, plateEdges, plates, sand, SAND_CELLS } from './terrain';
+import { effects } from './effects';
+import { forestFringes, forestTiles, FOREST_VARIANTS, PLATE_CELLS, plateEdges, plates, sand, SAND_CELLS } from './terrain';
 
 /**
  * pnpm sprites [--only name,name] [--out dir] [--preview file.png] [--outline px] [--check]
@@ -38,7 +39,8 @@ const previewPath = resolve(repo, arg('preview') ?? 'docs/art/sprites-preview.pn
 
 function viewName(def: SpriteDef, view: number): string | null {
   if (def.views === 1) return null;
-  if (def.views === 8) return DIRECTION_NAMES[view]!;
+  if (def.masks) return String(def.masks[view]);
+  if (def.views === 8 && !def.variants) return DIRECTION_NAMES[view]!;
   return String(view);
 }
 
@@ -84,7 +86,7 @@ async function main(): Promise<void> {
   for (const def of sprites) {
     for (const frame of def.frames) {
       for (let view = 0; view < def.views; view++) {
-        const raw: RawRender = await page.evaluate(([n, v, f]) => window.renderSprite(n, v, f), [def.name, view, frame] as const);
+        const raw: RawRender = await page.evaluate(([n, v, f]) => window.renderSprite(n, v, f), [def.name, def.masks?.[view] ?? view, frame] as const);
         const mat = Buffer.from(raw.mat, 'base64');
         const light = Buffer.from(raw.light, 'base64');
         flipRows(mat, raw.w, raw.h, 1);
@@ -130,14 +132,25 @@ async function main(): Promise<void> {
     [join(outDir, 'sprites.json'), Buffer.from(JSON.stringify(atlas.json, null, 1) + '\n')],
   ];
   const ground = pack(
-    [sand(), plates(), ...forestTiles(), ...plateEdges()].map((t) => ({ ...t, ax: 0, ay: 0 })),
-    512,
+    [sand(), plates(), ...forestTiles(), ...forestFringes(), ...plateEdges()].map((t) => ({ ...t, ax: 0, ay: 0 })),
+    1024,
     'terrain.png',
-    { terrain: { pxPerCell: PX_PER_CELL, sandCells: SAND_CELLS, plateCells: PLATE_CELLS, mask: 'forest/<mask>: N1 E2 S4 W8 = that neighbour is forest; plate-edge/<mask>: over sand, that neighbour is plated' } },
+    {
+      terrain: {
+        pxPerCell: PX_PER_CELL,
+        sandCells: SAND_CELLS,
+        plateCells: PLATE_CELLS,
+        forestVariants: FOREST_VARIANTS,
+        mask: 'forest/<mask>/<variant>: N1 E2 S4 W8 = that neighbour is forest; forest-fringe/<mask>: over sand, N1 E2 S4 W8 NE16 SE32 SW64 NW128 = that neighbour is forest; plate-edge/<mask>: over sand, that neighbour is plated',
+      },
+    },
   );
+  const fx = pack(effects(), 512, 'effects.png', { effects: { pxPerCell: PX_PER_CELL } });
   files.push(
     [join(outDir, 'terrain.png'), pngBytes(ground.w, ground.h, ground.rgba)],
     [join(outDir, 'terrain.json'), Buffer.from(JSON.stringify(ground.json, null, 1) + '\n')],
+    [join(outDir, 'effects.png'), pngBytes(fx.w, fx.h, fx.rgba)],
+    [join(outDir, 'effects.json'), Buffer.from(JSON.stringify(fx.json, null, 1) + '\n')],
   );
   if (check) {
     const stale = files.filter(([path, bytes]) => !existsSync(path) || !readFileSync(path).equals(bytes)).map(([p]) => p);
@@ -188,11 +201,11 @@ function writePreview(path: string, items: { def: SpriteDef; frame: string; view
   // The first seat's colours on every sprite, the second seat's on one more row of each teamed sprite.
   const seat = (k: 0 | 1) => [DEFAULT_COLORS[k], DEFAULT_SECOND_COLORS[k]] as const;
   const player = (list: typeof items) => list.map((i) => ({ r: i.r, to: seat(0) }));
-  for (const def of SPRITES.filter((d) => d.views === 8)) {
+  for (const def of SPRITES.filter((d) => d.views === 8 && !d.variants)) {
     for (const frame of def.frames) addRows(player(items.filter((i) => i.def === def && i.frame === frame)));
   }
   // Buildings and walls share rows.
-  addRows(player(items.filter((i) => i.def.views !== 8)));
+  addRows(player(items.filter((i) => i.def.views !== 8 || i.def.variants)));
   for (const def of SPRITES.filter((d) => d.teamed)) {
     addRows(items.filter((i) => i.def === def && i.frame === def.frames[0]).map((i) => ({ r: i.r, to: seat(1) })));
   }

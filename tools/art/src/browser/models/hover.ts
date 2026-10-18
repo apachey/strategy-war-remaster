@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ball, barrel, box, cyl, dome, group, lathe, mesh, paintAll, slab, type Vec3 } from '../kit';
-import { chips, facing, lightSlot, limb, plasmaFlash, slump, spike, WALL_ARMS, type Builder } from './parts';
+import { chips, facing, lightSlot, limb, plasmaFlash, slump, spike, wallPiece, type Builder } from './parts';
 
 /**
  * The hover race: the original's enemy. Smooth oval shells in the main colour skimming the ground, grooves and
@@ -21,17 +21,36 @@ function hoverHull(rx: number, ry: number, rz: number, y: number): { g: THREE.Gr
 /** Floating height of a hover unit for a frame: it bobs between the two move frames. */
 const hoverY = (frame: string, base = 0.08) => (frame === 'move1' ? base + 0.02 : base);
 
-/** Hover light tank: a small teardrop with one gun on its spine, a light strip across the nose and two tail fins. */
+/**
+ * Gun pod of the hover tanks, their turret: a smooth pale saddle with grey plasma guns and a light strip, turning on
+ * the spine. `xs` places the guns across it.
+ */
+function plasmaPod(r: number, xs: number[], gunR: number, gunLen: number, fire: boolean): THREE.Group {
+  const shell = new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2);
+  shell.scale(r, r * 0.55, r * 1.15);
+  const recoil = fire ? 0.03 : 0;
+  const pod = group(mesh(shell, 'team2Light', [0, 0, 0.02]), box(r * 0.5, 0.02, r * 1.6, 'team2Dark', [0, r * 0.55, 0.02]), lightSlot(r * 0.9, 0.018, 0.02, [0, r * 0.28, -r * 1.05]));
+  for (const x of xs) {
+    pod.add(box(gunR * 3, gunR * 2.6, 0.08, 'team2Dark', [x, r * 0.22, -r * 0.9]));
+    pod.add(barrel(gunR, gunLen, 'steel', [x, r * 0.25, -r * 0.95 + recoil]));
+    pod.add(barrel(gunR * 1.35, 0.03, 'steelDark', [x, r * 0.25, -r * 0.95 - gunLen + 0.03 + recoil], 8));
+    if (fire) pod.add(plasmaFlash([x, r * 0.25, -r * 0.95 - gunLen - 0.1], 0.08));
+  }
+  pod.userData.turret = true;
+  return pod;
+}
+
+/** Hover light tank: a small teardrop with a one-gun pod on its spine, a light strip across the nose and two tail fins. */
 const lightTank: Builder = (view, frame) => {
   const y = hoverY(frame);
   const fire = frame === 'fire';
   const { g, top } = hoverHull(0.24, 0.13, 0.36, y);
-  const recoil = fire ? 0.03 : 0;
+  const pod = plasmaPod(0.1, [0], 0.022, 0.24, fire);
+  pod.position.set(0, top - 0.03, 0);
   g.add(
     slab(0.07, 0.05, 0.4, 'team2Light', [0, top - 0.04, 0.04], 0.6),
     box(0.04, 0.02, 0.4, 'team2Dark', [0, top + 0.005, 0.04]),
-    box(0.07, 0.06, 0.08, 'team2Dark', [0, top - 0.02, -0.12]),
-    barrel(0.022, 0.26, 'steel', [0, top + 0.02, -0.14 + recoil]),
+    pod,
     lightSlot(0.24, 0.02, 0.03, [0, y + 0.03, -0.34]),
     ...[-1, 1].map((sx) => {
       const fin = slab(0.03, 0.1, 0.12, 'team2Light', [sx * 0.12, top - 0.06, 0.28], 0.5);
@@ -39,14 +58,13 @@ const lightTank: Builder = (view, frame) => {
       return fin;
     }),
   );
-  if (fire) g.add(plasmaFlash([0, top + 0.02, -0.46], 0.08));
   if (frame === 'wreck') slump(g);
   return facing(g, view);
 };
 
 /**
- * Hover middle tank (the original's enemy tank): a smooth oval shell split at the front into two lobes with a gun
- * in the channel between them, light strips under the lobes and a raised spine down the back.
+ * Hover middle tank (the original's enemy tank): a smooth oval shell split at the front into two lobes with an
+ * intake in the channel between them, light strips under the lobes, a raised spine down the back and a gun pod on it.
  */
 const middleTank: Builder = (view, frame) => {
   const y = frame === 'move1' ? 0.02 : 0;
@@ -55,7 +73,6 @@ const middleTank: Builder = (view, frame) => {
   shell.scale(0.95, 0.3, 1.12);
   const belly = new THREE.CylinderGeometry(0.38, 0.32, 0.06, 12);
   belly.scale(1, 1, 1.12);
-  const recoil = fire ? 0.04 : 0;
   const g = group(
     mesh(belly, 'team2Dark', [0, 0.08 + y, 0]),
     mesh(shell, 'team', [0, 0.1 + y, 0]),
@@ -65,43 +82,38 @@ const middleTank: Builder = (view, frame) => {
     box(0.06, 0.03, 0.6, 'team2Dark', [0, 0.215 + y, 0.06]),
     // Front channel splitting the shell into two lobes, the gun inside it.
     box(0.13, 0.13, 0.26, 'team2Dark', [0, 0.09 + y, -0.33]),
-    barrel(0.03, 0.2, 'steel', [0, 0.15 + y, -0.3 + recoil]),
-    barrel(0.04, 0.03, 'steelDark', [0, 0.15 + y, -0.47 + recoil], 8),
     // Light strips on the nose of each lobe and vents on the flanks.
     lightSlot(0.14, 0.025, 0.04, [-0.17, 0.12 + y, -0.39]),
     lightSlot(0.14, 0.025, 0.04, [0.17, 0.12 + y, -0.39]),
     ...[-1, 1].flatMap((sx) => [box(0.05, 0.03, 0.12, 'team2Dark', [sx * 0.24, 0.16 + y, -0.02]), box(0.05, 0.03, 0.08, 'team2Dark', [sx * 0.22, 0.15 + y, 0.22])]),
   );
-  if (fire) g.add(plasmaFlash([0, 0.15 + y, -0.6], 0.1));
+  const pod = plasmaPod(0.13, [0], 0.03, 0.3, fire);
+  pod.position.set(0, 0.22 + y, 0);
+  g.add(pod);
   if (frame === 'wreck') slump(g);
   return facing(g, view);
 };
 
 /**
- * Hover heavy tank: a broad shell split at the nose into three lobes with a gun in each of the two channels, a raised
- * pale hump on its back and three light strips across the front.
+ * Hover heavy tank: a broad shell split at the nose into three lobes with intakes in the two channels, a twin-gun
+ * pod on its back and three light strips across the front.
  */
 const heavyTank: Builder = (view, frame) => {
   const y = hoverY(frame);
   const fire = frame === 'fire';
   const { g, top } = hoverHull(0.42, 0.18, 0.47, y);
-  const recoil = fire ? 0.04 : 0;
-  const hump = new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2);
-  hump.scale(0.2, 0.1, 0.26);
+  const pod = plasmaPod(0.19, [-0.07, 0.07], 0.03, 0.32, fire);
+  pod.position.set(0, top - 0.05, 0);
   g.add(
-    mesh(hump, 'team2Light', [0, top - 0.04, 0.1]),
-    box(0.04, 0.02, 0.5, 'team2Dark', [0, top + 0.05, 0.06]),
+    pod,
     ...[-1, 1].flatMap((sx) => [
       box(0.1, 0.14, 0.28, 'team2Dark', [sx * 0.13, y - 0.02, -0.34]),
-      barrel(0.03, 0.26, 'steel', [sx * 0.13, y + 0.07, -0.3 + recoil]),
-      barrel(0.042, 0.03, 'steelDark', [sx * 0.13, y + 0.07, -0.53 + recoil], 8),
       box(0.05, 0.03, 0.16, 'team2Dark', [sx * 0.33, y + 0.1, 0.02]),
     ]),
     lightSlot(0.12, 0.025, 0.03, [0, y + 0.06, -0.47]),
     lightSlot(0.1, 0.025, 0.03, [-0.3, y + 0.05, -0.36]),
     lightSlot(0.1, 0.025, 0.03, [0.3, y + 0.05, -0.36]),
   );
-  if (fire) for (const sx of [-1, 1]) g.add(plasmaFlash([sx * 0.13, y + 0.07, -0.66], 0.09));
   if (frame === 'wreck') slump(g);
   return facing(g, view);
 };
@@ -112,7 +124,7 @@ const heavyTank: Builder = (view, frame) => {
  */
 const harvester: Builder = (view, frame) => {
   const harvest = frame.startsWith('harvest');
-  const k = frame === 'harvest1' ? 1 : 0;
+  const k = harvest ? Number(frame.slice(-1)) : 0;
   const y = harvest ? 0.06 : hoverY(frame);
   const { g, top } = hoverHull(0.36, 0.17, 0.44, y);
   g.add(
@@ -131,7 +143,7 @@ const harvester: Builder = (view, frame) => {
     // Tractor beam: a pale cone of light from the intake down to the ground, chips rising inside it.
     const beam = mesh(new THREE.CylinderGeometry(0.06, 0.15, y + 0.02, 8, 1, true), 'lamp', [0, (y + 0.02) / 2 - 0.02, -0.5]);
     beam.castShadow = false;
-    g.add(beam, ...chips([0, 0.0, -0.52], [0, y + 0.05, -0.42], k, 0.03));
+    g.add(beam, ...chips([0, 0.0, -0.52], [0, y + 0.05, -0.42], k / 2, 0.03));
   }
   if (frame === 'wreck') slump(g);
   return facing(g, view);
@@ -153,6 +165,7 @@ const defender: Builder = (view, frame) => {
   if (fire) head.add(plasmaFlash([0, 0.03, -0.4], 0.07));
   head.rotation.y = (-view * Math.PI) / 4;
   head.position.y = 0.66;
+  head.userData.turret = true;
   const rib: [number, number][] = [
     [0.3, 0],
     [0.28, 0.2],
@@ -483,38 +496,36 @@ const construction: Builder = () => {
 
 /**
  * Hover wall: smooth ridges in the main colour, half round in section, with a light strip along the top, meeting at
- * a pointed post crowned with a crystal in the secondary colour (bits N1 E2 S4 W8).
+ * a pointed post crowned with a crystal in the secondary colour; runs join the neighbours (wallPiece).
  */
-const wall: Builder = (mask) => {
-  const g = group(
-    lathe(
-      [
-        [0.17, 0],
-        [0.16, 0.12],
-        [0.1, 0.32],
-        [0, 0.38],
-      ],
-      'team',
-      [0, 0, 0],
-      4,
-      Math.PI / 4,
-    ),
-    spike(0.07, 0.2, 'team2', [0, 0.3, 0]),
+const wall: Builder = (mask) =>
+  wallPiece(
+    mask,
+    () =>
+      group(
+        lathe(
+          [
+            [0.17, 0],
+            [0.16, 0.12],
+            [0.1, 0.32],
+            [0, 0.38],
+          ],
+          'team',
+          [0, 0, 0],
+          4,
+          Math.PI / 4,
+        ),
+        spike(0.07, 0.2, 'team2', [0, 0.3, 0]),
+      ),
+    (len) => {
+      const ridge = new THREE.CylinderGeometry(0.13, 0.13, len, 8, 1, false, 0, Math.PI);
+      ridge.rotateZ(Math.PI / 2);
+      ridge.scale(1, 1.6, 1);
+      const g = group(mesh(ridge, 'team', [len / 2, 0, 0]), box(len, 0.02, 0.03, 'lamp', [len / 2, 0.2, 0]), box(len, 0.012, 0.15, 'team2', [len / 2, 0.005, 0]));
+      g.children[1]!.castShadow = false;
+      return g;
+    },
   );
-  for (const [bit, dx, dz] of WALL_ARMS) {
-    if (!(mask & bit)) continue;
-    const len = 0.52;
-    const ridge = new THREE.CylinderGeometry(0.13, 0.13, len, 8, 1, false, 0, Math.PI);
-    ridge.rotateZ(Math.PI / 2);
-    ridge.scale(1, 1.6, 1);
-    const arm = group(mesh(ridge, 'team'), box(len, 0.02, 0.03, 'lamp', [0, 0.2, 0]), box(len, 0.012, 0.15, 'team2', [0, 0.005, 0]));
-    arm.children[1]!.castShadow = false;
-    arm.position.set(dx * 0.26, 0, dz * 0.26);
-    arm.rotation.y = dx ? 0 : Math.PI / 2;
-    g.add(arm);
-  }
-  return g;
-};
 
 export const HOVER: Record<string, Builder> = {
   hover_harvester: harvester,

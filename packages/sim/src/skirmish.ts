@@ -36,7 +36,7 @@ export interface SkirmishOptions {
   races?: readonly [Race, Race];
   /** Team colours of the two sides; they must differ (other shades of one hue may meet). Default white and cyan. */
   colors?: readonly [TeamColor, TeamColor];
-  /** Secondary colours of the two sides; any pair, also the same. Default olive and white. */
+  /** Secondary colours of the two sides; any pair, also the same. Default turquoise (cyan) and white. */
   colors2?: readonly [TeamColor, TeamColor];
 }
 

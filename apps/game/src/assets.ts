@@ -4,6 +4,8 @@ import spritesUrl from '../../../assets/sprites/sprites.png?url';
 import spritesData from '../../../assets/sprites/sprites.json';
 import terrainUrl from '../../../assets/sprites/terrain.png?url';
 import terrainData from '../../../assets/sprites/terrain.json';
+import effectsUrl from '../../../assets/sprites/effects.png?url';
+import effectsData from '../../../assets/sprites/effects.json';
 
 /**
  * The style B art from tools/art: one atlas of units, buildings, shots and trees, and one of ground tiles. Sprites are
@@ -23,23 +25,30 @@ interface Pipeline {
 export interface Art {
   /** The atlas recoloured for a side's main and secondary colour. */
   sheet(color: TeamColor, color2: TeamColor): Spritesheet;
-  /** Ground tiles: `sand`, `plates`, `forest/<mask>`, `plate-edge/<mask>`. */
+  /** Ground tiles: `sand`, `plates`, `forest/<mask>/<variant>`, `forest-fringe/<mask>`, `plate-edge/<mask>`. */
   terrain: Spritesheet;
+  /** Pixel effects: explosions, smoke, sparks, fire, scorch and track marks (tools/art src/effects.ts). */
+  effects: Spritesheet;
 }
 
 let image: HTMLImageElement | null = null;
 let terrain: Spritesheet | null = null;
+let effects: Spritesheet | null = null;
+
+async function sheetOf(url: string, data: unknown): Promise<Spritesheet> {
+  const texture = await Assets.load<Texture>(url);
+  texture.source.scaleMode = 'nearest';
+  const sheet = new Spritesheet(texture, data as SpritesheetData);
+  await sheet.parse();
+  return sheet;
+}
 const sheets = new Map<string, Spritesheet>();
 
 /** Loads both atlases and recolours the sprites for each pair of colours the game will draw; call before rendering. */
 export async function loadArt(pairs: ReadonlyArray<readonly [TeamColor, TeamColor]>): Promise<Art> {
   image ??= await loadImage(spritesUrl);
-  if (!terrain) {
-    const texture = await Assets.load<Texture>(terrainUrl);
-    texture.source.scaleMode = 'nearest';
-    terrain = new Spritesheet(texture, terrainData as unknown as SpritesheetData);
-    await terrain.parse();
-  }
+  terrain ??= await sheetOf(terrainUrl, terrainData);
+  effects ??= await sheetOf(effectsUrl, effectsData);
   for (const [c, c2] of pairs) {
     const id = `${c}/${c2}`;
     if (sheets.has(id)) continue;
@@ -56,6 +65,7 @@ export async function loadArt(pairs: ReadonlyArray<readonly [TeamColor, TeamColo
       return sheet;
     },
     terrain,
+    effects,
   };
 }
 

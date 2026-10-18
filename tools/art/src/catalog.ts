@@ -1,3 +1,5 @@
+import { WALL_MASKS } from '@sw/data';
+
 /**
  * Every sprite the pipeline produces. This file has no three.js import so the Node side can read it too; the models
  * themselves live in src/models and run inside the headless browser.
@@ -22,42 +24,58 @@ export interface SpriteDef {
   /** Footprint in cells: units, walls, the defender and shots take 1, other buildings 2x2. */
   cells: 1 | 2;
   /**
-   * Number of views. 8 = compass directions, clockwise from north; walls use 16 = neighbour mask (N1 E2 S4 W8);
-   * fir trees use the view as the variant.
+   * Number of views. 8 = compass directions, clockwise from north; fir trees use the view as the variant; walls
+   * have one view per entry of `masks`.
    */
   views: number;
+  /** Views are variants (numbered), not directions, even when there are eight of them. */
+  variants?: boolean;
+  /** Walls: the neighbour mask of each view (WALL_MASKS in @sw/data), which names the frame and goes to the model. */
+  masks?: readonly number[];
   frames: readonly string[];
   /** Has team surfaces, which the game recolours to the colour of the side that owns it. */
   teamed: boolean;
+  /** Model to build when it is not the one named `name`. */
+  model?: string;
+  /**
+   * Part of a model with a turret (the mesh marked `userData.turret`): `hull` is the model without it (except in
+   * `wreck`, where the turret lies knocked askew), `turret` the turret alone turning to the view, so the game can
+   * aim it apart from the hull.
+   */
+  part?: 'hull' | 'turret';
 }
 
-const TANK_FRAMES = ['move0', 'move1', 'fire', 'wreck'] as const;
-const HARVESTER_FRAMES = ['move0', 'move1', 'harvest0', 'harvest1', 'wreck'] as const;
+const HULL_FRAMES = ['move0', 'move1', 'wreck'] as const;
+const TURRET_FRAMES = ['idle', 'fire'] as const;
+const HARVESTER_FRAMES = ['move0', 'move1', 'harvest0', 'harvest1', 'harvest2', 'harvest3', 'wreck'] as const;
+/** Kinds whose gun turns apart from the body: the tanks' turrets, the walkers' heads and the defenders' heads. */
+export const TURRETED = ['light_tank', 'middle_tank', 'heavy_tank', 'defender'] as const;
 
 /** Each race has the same roster under its own name, `<race>_<kind>` (see spriteName in @sw/data). */
 export const RACE_NAMES = ['human', 'hover', 'walker'] as const;
 
 const roster = (race: (typeof RACE_NAMES)[number]): SpriteDef[] => [
   { name: `${race}_harvester`, cells: 1, views: 8, frames: HARVESTER_FRAMES, teamed: true },
-  { name: `${race}_light_tank`, cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
-  { name: `${race}_middle_tank`, cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
-  { name: `${race}_heavy_tank`, cells: 1, views: 8, frames: TANK_FRAMES, teamed: true },
-  { name: `${race}_defender`, cells: 1, views: 8, frames: ['idle', 'fire'], teamed: true },
+  ...(['light_tank', 'middle_tank', 'heavy_tank'] as const).map((k): SpriteDef => ({ name: `${race}_${k}`, cells: 1, views: 8, frames: HULL_FRAMES, teamed: true, part: 'hull' })),
+  { name: `${race}_defender`, cells: 1, views: 1, frames: ['idle'], teamed: true, part: 'hull' },
+  ...TURRETED.map((k): SpriteDef => ({ name: `${race}_${k}_turret`, model: `${race}_${k}`, cells: 1, views: 8, frames: TURRET_FRAMES, teamed: true, part: 'turret' })),
   // In flight: a gauss slug, a plasma ball or a thorn, small for the light gun and big for the cannon.
   { name: `${race}_shot`, cells: 1, views: 8, frames: ['gun', 'cannon'], teamed: false },
   { name: `${race}_hq`, cells: 2, views: 1, frames: ['idle0', 'idle1', 'idle2', 'idle3'], teamed: true },
   { name: `${race}_silo`, cells: 2, views: 1, frames: ['idle'], teamed: true },
   { name: `${race}_factory`, cells: 2, views: 1, frames: ['idle', 'work'], teamed: true },
   { name: `${race}_construction`, cells: 2, views: 1, frames: ['idle'], teamed: true },
-  { name: `${race}_wall`, cells: 1, views: 16, frames: ['idle'], teamed: true },
+  { name: `${race}_wall`, cells: 1, views: WALL_MASKS.length, masks: WALL_MASKS, frames: ['idle'], teamed: true },
 ];
 
 export const SPRITES: readonly SpriteDef[] = [
   ...RACE_NAMES.flatMap(roster),
   // The field on the ground it grew through: sand (idle), forest soil and the hovers' plates.
   { name: 'resource', cells: 2, views: 1, frames: ['idle', 'forest', 'plates'], teamed: false },
-  // Four variants of fir tree for the forest, one per cell.
-  { name: 'fir', cells: 1, views: 4, frames: ['idle'], teamed: false },
+  // Four variants of fir tree for the forest, one per cell, swaying in the wind.
+  { name: 'fir', cells: 1, views: 4, frames: ['idle', 'sway0', 'sway1'], teamed: false },
+  // Eight odds and ends to scatter over the sand.
+  { name: 'decor', cells: 1, views: 8, variants: true, frames: ['idle'], teamed: false },
 ];
 
 /** Frame size in art pixels and where the footprint centre lands inside it. */
