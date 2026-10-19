@@ -1,4 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+
+/** The game's version: the desktop app's package version, as vite.config.ts injects it. */
+const VERSION = (JSON.parse(readFileSync(new URL('../../desktop/package.json', import.meta.url), 'utf8')) as { version: string }).version;
 
 /** Reads from the test hook main.ts puts on window. */
 type Hook = {
@@ -195,7 +199,7 @@ test('settings show the version, and the volumes are remembered', async ({ page 
   const errors = await open(page, '?m=1.1');
   await page.getByRole('button', { name: 'Почати' }).click();
   await page.getByRole('button', { name: 'Налаштування' }).click();
-  await expect(page.locator('#modal')).toContainText('Версія 1.0.0');
+  await expect(page.locator('#modal')).toContainText(`Версія ${VERSION}`);
   await expect(page.locator('#modal')).toContainText('Jiří Mikula');
   await page.getByRole('slider', { name: 'Музика' }).fill('20');
   await expect(page.locator('#modal output').first()).toHaveText('20%');
