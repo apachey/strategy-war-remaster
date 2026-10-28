@@ -12,8 +12,10 @@ import victoryUrl from '../../../assets/music/victory.m4a?url';
 
 /**
  * Music and sound effects from tools/music. Effects play through Web Audio (short WAVs need sample-accurate starts),
- * each at the gain sfx.json suggests; the music streams from <audio> elements and crossfades between tracks. Browsers
- * and the Mac app only allow sound after the first click or key press, so both wait for one. Loops (harvesting, map
+ * each at the gain sfx.json suggests. The music plays through Web Audio too, decoded one track at a time, and crossfades
+ * between tracks: an <audio> element would make the game the Mac's "Now Playing" app, and the media keys would pause
+ * the game's music instead of the player the user listens to. Browsers and the Mac app only allow sound after the
+ * first click or key press, so both wait for one. Loops (harvesting, map
  * ambience) run continuously once started and are only turned up and down. Tension and battle have three tracks
  * each: when one ends the next starts, never the same twice in a row.
  */
@@ -63,6 +65,8 @@ const GAIN = new Map((sfxList as Array<{ name: string; gain: number }>).map((s) 
 const MIN_GAP_MS: Partial<Record<SfxName, number>> = { impact: 90, shot_light: 70, shot_alien: 70, select: 60 };
 const DEFAULT_GAP_MS = 50;
 const FADE_MS = 1500;
+/** Decoded tracks kept in memory (a two-minute stereo track is about 40 MB as samples). */
+const KEEP_TRACKS = 3;
 /** The shortest gap between two unit acknowledgements, so a box of tanks answers once. */
 const VOICE_GAP_MS = 180;
 
@@ -80,12 +84,14 @@ export class Sound {
   private readonly loops = new Map<string, { gain: GainNode; pan: StereoPannerNode; target: number }>();
   private readonly lastVariant = new Map<string, number>();
   private lastVoice = -1e9;
-  private readonly players = new Map<string, HTMLAudioElement>();
-  private current: HTMLAudioElement | null = null;
+  private musicBus: GainNode | null = null;
+  /** Decoded music by URL, oldest first. */
+  private readonly tracks = new Map<string, Promise<AudioBuffer>>();
+  private current: MusicVoice | null = null;
+  private fading: MusicVoice | null = null;
   private mood: Track | null = null;
   private wanted: Track | null = null;
   private unlocked = false;
-  private fadeTimer = 0;
 
   constructor(
     private musicVolume: number,
@@ -96,15 +102,14 @@ export class Sound {
       this.ensureContext();
       void this.ctx?.resume();
       if (this.wanted && !this.mood) this.music(this.wanted);
-      else void this.current?.play().catch(() => {});
     };
     window.addEventListener('pointerdown', unlock, { capture: true });
     window.addEventListener('keydown', unlock, { capture: true });
     // A tension or battle track about to end hands over to another one of its mood.
     window.setInterval(() => {
       const c = this.current;
-      if (!c || !this.mood || TRACKS[this.mood].length < 2 || !Number.isFinite(c.duration)) return;
-      if (c.duration - c.currentTime < FADE_MS / 1000 + 0.2) this.crossfade(this.pick(this.mood));
+      if (!c?.source || !this.ctx || !this.mood || TRACKS[this.mood].length < 2) return;
+      if (c.ends - this.ctx.currentTime < FADE_MS / 1000 + 0.2) this.crossfade(this.pick(this.mood));
     }, 250);
   }
 
@@ -115,6 +120,9 @@ export class Sound {
       this.sfxBus = this.ctx.createGain();
       this.sfxBus.gain.value = this.sfxVolume;
       this.sfxBus.connect(this.ctx.destination);
+      this.musicBus = this.ctx.createGain();
+      this.musicBus.gain.value = this.musicVolume;
+      this.musicBus.connect(this.ctx.destination);
       for (const [path, url] of Object.entries(sfxUrls)) {
         const name = path.split('/').pop()!.replace('.wav', '');
         fetch(url)
@@ -132,7 +140,7 @@ export class Sound {
     this.musicVolume = music;
     this.sfxVolume = sfx;
     if (this.sfxBus) this.sfxBus.gain.value = sfx;
-    if (this.current) this.current.volume = music;
+    if (this.musicBus) this.musicBus.gain.value = music;
   }
 
   /** Plays an effect, `at` a place on the map (quieter and to one side when off screen), or in the interface. */
@@ -212,38 +220,78 @@ export class Sound {
     return list[this.variant(`music_${track}`, list.length)]!;
   }
 
-  private crossfade(url: string | null): void {
-    const old = this.current;
-    let next: HTMLAudioElement | null = null;
-    if (url) {
-      next = this.players.get(url) ?? null;
-      if (!next) {
-        next = new Audio(url);
-        this.players.set(url, next);
-      }
-      // Moods with one track loop it; the others hand over to the next track when it ends.
-      next.loop = !this.mood || TRACKS[this.mood].length < 2;
-      if (next !== old) {
-        next.currentTime = 0;
-        next.volume = 0;
-      }
-      void next.play().catch(() => {});
+  private decode(url: string): Promise<AudioBuffer> {
+    const ctx = this.ctx!;
+    let buffer = this.tracks.get(url);
+    this.tracks.delete(url);
+    buffer ??= fetch(url)
+      .then((r) => r.arrayBuffer())
+      .then((data) => ctx.decodeAudioData(data));
+    this.tracks.set(url, buffer);
+    for (const old of this.tracks.keys()) {
+      if (this.tracks.size <= KEEP_TRACKS) break;
+      if (old !== this.current?.url && old !== this.fading?.url) this.tracks.delete(old);
     }
-    this.current = next;
-    if (next === old) return;
-    // A fade cut short leaves its old track behind: stop everything but the two in this fade.
-    for (const p of this.players.values()) if (p !== old && p !== next) p.pause();
-    clearInterval(this.fadeTimer);
-    const started = performance.now();
-    const from = old?.volume ?? 0;
-    this.fadeTimer = window.setInterval(() => {
-      const k = Math.min(1, (performance.now() - started) / FADE_MS);
-      if (old) old.volume = from * (1 - k);
-      if (next) next.volume = this.musicVolume * k;
-      if (k >= 1) {
-        clearInterval(this.fadeTimer);
-        old?.pause();
-      }
-    }, 50);
+    return buffer;
   }
+
+  private crossfade(url: string | null): void {
+    const ctx = this.ctx;
+    const bus = this.musicBus;
+    if (!ctx || !bus) return;
+    const old = this.current;
+    if (url && old?.url === url) return;
+    // A fade cut short leaves its old track behind: stop it, keeping only the two in this fade.
+    if (this.fading) stopVoice(this.fading, ctx.currentTime);
+    this.fading = old;
+    if (old) {
+      old.gain.gain.cancelScheduledValues(ctx.currentTime);
+      old.gain.gain.setValueAtTime(old.gain.gain.value, ctx.currentTime);
+      old.gain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_MS / 1000);
+      old.source?.stop(ctx.currentTime + FADE_MS / 1000);
+    }
+    if (!url) {
+      this.current = null;
+      return;
+    }
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(bus);
+    const next: MusicVoice = { url, gain, source: null, ends: Infinity };
+    this.current = next;
+    // Moods with one track loop it; the others hand over to the next track when it ends.
+    const loop = !this.mood || TRACKS[this.mood].length < 2;
+    this.decode(url)
+      .then((buffer) => {
+        if (this.current !== next) return;
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = loop;
+        source.connect(gain);
+        const now = ctx.currentTime;
+        source.start(now);
+        next.source = source;
+        next.ends = loop ? Infinity : now + buffer.duration;
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(1, now + FADE_MS / 1000);
+      })
+      .catch(() => {});
+  }
+}
+
+interface MusicVoice {
+  url: string;
+  gain: GainNode;
+  source: AudioBufferSourceNode | null;
+  /** When the track runs out (context time), or Infinity while it loops or is still decoding. */
+  ends: number;
+}
+
+function stopVoice(v: MusicVoice, now: number): void {
+  try {
+    v.source?.stop(now);
+  } catch {
+    // already stopped
+  }
+  v.gain.disconnect();
 }
