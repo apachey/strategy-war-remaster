@@ -22,9 +22,9 @@ function sample(mat = materialId('team'), light = 180) {
 }
 
 describe('palette', () => {
-  it('has 43 colours for objects, 5 for effects and 19 for the ground, all different', () => {
-    expect(PALETTE).toHaveLength(67);
-    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(67);
+  it('has 48 colours for objects, 5 for effects and 19 for the ground, all different', () => {
+    expect(PALETTE).toHaveLength(72);
+    expect(new Set(PALETTE.map((c) => c.join())).size).toBe(72);
   });
 
   it('draws team surfaces in team colours of the game', () => {

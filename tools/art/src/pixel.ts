@@ -1,5 +1,5 @@
 import { GHOST_ID, GROUND_ID, materialById } from './materials';
-import { GLOW_RAMP, ramp, SECOND_RAMP, SHADOW_ALPHA, TEAM_RAMP, type RampName, type Rgb } from './palette';
+import { CHASSIS_RAMP, GLOW_RAMP, ramp, SECOND_RAMP, SHADOW_ALPHA, TEAM_RAMP, type RampName, type Rgb } from './palette';
 
 /**
  * Pure pixel steps of the pipeline, kept free of three.js and the browser so they run (and are tested) in Node.
@@ -114,7 +114,7 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
   const out = new Uint8ClampedArray(w * h * 4);
   const teamRamp = ramp(TEAM_RAMP);
   const secondRamp = ramp(SECOND_RAMP);
-  const drawn = { team: teamRamp, team2: secondRamp, team3: ramp(GLOW_RAMP) } as const;
+  const drawn = { team: teamRamp, team2: secondRamp, team3: ramp(GLOW_RAMP), chassis: ramp(CHASSIS_RAMP) } as const;
   const isObjectAt = (i: number) => mat[i]! !== 0 && mat[i]! !== GROUND_ID;
   // Ghost pixels hide and stop the outline like a body, but stay empty.
   const ghost = (i: number) => mat[i] === GHOST_ID;
@@ -210,7 +210,8 @@ export function colorize(frame: Reduced, outline = OUTLINE_WIDTH): Uint8ClampedA
 
 /**
  * Copy of a coloured frame with every TEAM_RAMP pixel swapped for the same step of `to`, every SECOND_RAMP pixel for
- * the same step of `to2`, and every GLOW_RAMP pixel for the same step of `glow` (five colours each, dark to light; a
+ * the same step of `to2`, every GLOW_RAMP pixel for the same step of `glow` and every CHASSIS_RAMP pixel for the same
+ * step of `to3` (five colours each, dark to light; a
  * ramp left out stays as drawn). Team outlines are team colours too, so they follow; nothing else in the palette shares
  * those colours.
  */
@@ -219,12 +220,14 @@ export function recolor(
   to: readonly Rgb[],
   to2: readonly Rgb[] = ramp(SECOND_RAMP),
   glow: readonly Rgb[] = ramp(GLOW_RAMP),
+  to3: readonly Rgb[] = ramp(CHASSIS_RAMP),
 ): Uint8ClampedArray {
   const map = new Map<number, Rgb>();
   const key = (r: number, g: number, b: number) => (r << 16) | (g << 8) | b;
   ramp(TEAM_RAMP).forEach((c, k) => map.set(key(...c), to[k]!));
   ramp(SECOND_RAMP).forEach((c, k) => map.set(key(...c), to2[k]!));
   ramp(GLOW_RAMP).forEach((c, k) => map.set(key(...c), glow[k]!));
+  ramp(CHASSIS_RAMP).forEach((c, k) => map.set(key(...c), to3[k]!));
   const out = new Uint8ClampedArray(rgba);
   for (let i = 0; i < out.length; i += 4) {
     if (!out[i + 3]) continue;

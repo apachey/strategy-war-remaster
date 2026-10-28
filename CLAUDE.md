@@ -8,7 +8,8 @@ commit messages are in English.
 
 - `apps/game` — the game: Vite + TypeScript + PixiJS 8. `?m=6.2` opens map 6, mission 2;
   `?s=4&vs=hard` a skirmish on map 4 (`vs=human` splits the screen for two players, player 2 on a gamepad);
-  `&r=walker,hover&c=blue,red&c2=white,black` sets the two sides' races, team colours and secondary colours.
+  `&r=walker,hover&c=blue,red&c2=white,black&c3=black,white&sym=skull,eye&n1=Name` sets the two sides' races,
+  team, secondary and chassis colours, symbols and names.
   The game draws the style B atlases (`src/assets.ts` recolours them per side, `src/render.ts`), plays the music and
   sound effects (`src/audio.ts`, `src/soundscape.ts`) and has a minimap (`src/minimap.ts`).
   `src/ui/` is the pixel interface: the Shardfall font (`font.ts`, bitmaps turned into a TrueType font at start-up),
@@ -54,9 +55,11 @@ pnpm sfx            # re-render the sound effects into assets/sfx (WAV + sfx.jso
 - Every gameplay change needs a sim test; every visible change needs an updated smoke screenshot.
 - The game exposes `window.__sw` (game, issue, camera) so Playwright can read state and give orders.
 - `packages/sim/test/autoplay.ts` is a scripted player; the "mission 1 can be won" test is the phase 1 gate.
-- Each side (`world.sides.player` / `.enemy`, seats, not races) carries its `race`, `color` and secondary
-  `color2` (accents; may repeat any colour); the campaign is olive humans with turquoise (`cyan`) accents against red hovers with
-  white accents, a skirmish takes them from `SkirmishOptions`. The renderer takes team colours only from
+- Each side (`world.sides.player` / `.enemy`, seats, not races) carries its `race`, `color`, secondary
+  `color2` (accents; may repeat any colour) and chassis `color3` (tracks, legs, hover skirts); the campaign is olive humans with turquoise (`cyan`) accents against red hovers with
+  white accents, a skirmish takes them from `SkirmishOptions`. A skirmish side plays a `Faction` (`packages/data/src/factions.ts`:
+  race, name, symbol, three colours) made in the faction studio (`Hud.showFactionStudio`, emblems in `ui/emblems.ts`,
+  saved in localStorage `sw.factions`). The renderer takes team colours only from
   the side's ramp.
 - `packages/sim/src/ai.ts` is the computer player (difficulty levels); `test/campaign.test.ts` plays all 21 missions on
   every difficulty and is the stage 3 gate. Saves are `saveWorld`/`loadWorld` in `src/save.ts`; bump `SAVE_VERSION`

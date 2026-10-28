@@ -176,7 +176,7 @@ export class Renderer {
 
   private sheetOf(team: Side | 'neutral'): Spritesheet {
     const s = this.game.world.sides[team === 'neutral' ? 'player' : team];
-    return this.art.sheet(s.color, s.color2);
+    return this.art.sheet(s.color, s.color2, s.color3);
   }
 
   private tex(team: Side | 'neutral', name: string): Texture {
