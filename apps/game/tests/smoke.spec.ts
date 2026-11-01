@@ -209,7 +209,8 @@ test('losing the HQ shows the defeat screen with a retry', async ({ page }) => {
   const hqAlive = () => page.evaluate(() => (window as unknown as { __sw: Hook }).__sw.game.world.entities.some((e) => e.type === 0 && e.team === 'player'));
   await expect(async () => {
     const button = page.locator('#panel button[data-action="destruct"]');
-    if (await button.count()) await button.click({ timeout: 2000 });
+    // force: a software-rendered runner draws frames too slowly for Playwright's stability check.
+    if (await button.count()) await button.click({ force: true, timeout: 2000 });
     expect(await hqAlive()).toBe(false);
   }).toPass({ timeout: 40_000 });
   await expect(page.locator('#modal')).toContainText('Поразка', { timeout: 15_000 });
