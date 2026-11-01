@@ -205,14 +205,15 @@ test('losing the HQ shows the defeat screen with a retry', async ({ page }) => {
   // Self-destruct arms on the first press and fires on the second.
   await page.getByRole('button', { name: 'Самознищення' }).click();
   await expect(page.getByRole('button', { name: 'Ще раз: знищити' })).toBeVisible();
-  // The second press must come within 3 s; a slow runner may miss that, so press again until the HQ is gone.
-  const hqAlive = () => page.evaluate(() => (window as unknown as { __sw: Hook }).__sw.game.world.entities.some((e) => e.type === 0 && e.team === 'player'));
-  await expect(async () => {
-    const button = page.locator('#panel button[data-action="destruct"]');
-    // force: a software-rendered runner draws frames too slowly for Playwright's stability check.
-    if (await button.count()) await button.click({ force: true, timeout: 2000 });
-    expect(await hqAlive()).toBe(false);
-  }).toPass({ timeout: 40_000 });
+  // The second press: from inside the page, since a software-rendered runner can take longer than the 3 s window
+  // to deliver a pointer press.
+  // If the window ran out meanwhile, arm it again in the same breath.
+  await page.evaluate(() => {
+    const b = document.querySelector<HTMLButtonElement>('#panel button[data-action="destruct"]')!;
+    if (!b.classList.contains('active')) b.click();
+    b.click();
+  });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __sw: Hook }).__sw.game.world.entities.some((e) => e.type === 0 && e.team === 'player'))).toBe(false);
   await expect(page.locator('#modal')).toContainText('Поразка', { timeout: 15_000 });
   await expect(page.getByRole('button', { name: 'Ще раз' })).toBeVisible();
   expect(errors).toEqual([]);
