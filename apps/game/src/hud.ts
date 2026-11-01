@@ -846,12 +846,22 @@ function drawMissionPreview(canvas: HTMLCanvasElement, mapIndex: number, mission
   );
 }
 
+/** How long a pressed self-destruct button waits for the confirming second press. */
+const DESTRUCT_CONFIRM_MS = 3000;
+
 /**
  * One person's part of the interface: the selection panel with build buttons, their money and their toasts.
  * In a two-player game each half of the screen has its own; a gamepad moves a highlight over the buttons.
  */
 export class PlayerPanel {
   private key = '';
+  /** Self-destruct pressed once: the button asks to be pressed again to confirm. */
+  private destructArmed: { id: number; at: number } | null = null;
+
+  private armedId(): number {
+    const a = this.destructArmed;
+    return a && performance.now() - a.at < DESTRUCT_CONFIRM_MS ? a.id : 0;
+  }
   private toastTimer = 0;
   private readonly panel: HTMLElement;
   private readonly money: HTMLElement;
@@ -908,7 +918,7 @@ export class PlayerPanel {
     const duo = c.game.twoPlayers;
     this.money.textContent = duo ? `${t().playerName(c.number)} · $${c.money}` : `$${c.money}`;
     const sel = c.selected();
-    const key = this.signature(sel);
+    const key = `${this.signature(sel)}|${this.armedId()}`;
     if (key === this.key) return;
     this.key = key;
     this.panel.innerHTML = this.html(sel);
@@ -1040,7 +1050,8 @@ export class PlayerPanel {
     } else if (!e.complete) {
       html += `<div class="buttons"><button data-action="cancel" data-id="${e.id}">${T.cancel}</button></div>`;
     }
-    html += `<div class="buttons"><button class="danger" data-action="destruct" data-id="${e.id}">${T.destruct}</button></div>`;
+    const armed = this.armedId() === e.id;
+    html += `<div class="buttons"><button class="danger${armed ? ' active' : ''}" data-action="destruct" data-id="${e.id}">${armed ? T.destructConfirm : T.destruct}</button></div>`;
     return html;
   }
 
@@ -1114,7 +1125,14 @@ export class PlayerPanel {
         c.run({ kind: 'cancel', id });
         break;
       case 'destruct':
-        if (confirm(t().destructConfirm)) c.run({ kind: 'destruct', id });
+        // window.confirm() does nothing in the macOS app's web view, so the button asks itself: a second press
+        // within a few seconds confirms.
+        if (this.destructArmed?.id === id && performance.now() - this.destructArmed.at < DESTRUCT_CONFIRM_MS) {
+          this.destructArmed = null;
+          c.run({ kind: 'destruct', id });
+        } else {
+          this.destructArmed = { id, at: performance.now() };
+        }
         break;
       case 'stop':
         c.aiming = null;
