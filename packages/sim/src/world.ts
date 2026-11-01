@@ -137,6 +137,8 @@ export interface Projectile {
   damage: number;
   /** Who fired it, so the victim knows whom to answer. */
   shooterId: number;
+  /** What it was fired at: a shell only ever hits its own target and falls harmlessly when it misses. */
+  targetId: number;
 }
 
 export type GameEvent =
@@ -690,8 +692,9 @@ export function issue(world: World, side: Side, cmd: Command): CommandResult {
     case 'destruct': {
       const e = world.byId.get(cmd.id);
       if (!e || e.team !== side || e.hp <= 0) return fail('invalid');
+      // Removed by the next step, whose events the game reads: the explosion, the sound and the stats.
+      // Removing it here lost the 'destroyed' event, because every step clears the events first.
       e.hp = 0;
-      removeDead(world);
       return OK;
     }
     case 'cheat':
@@ -702,12 +705,17 @@ export function issue(world: World, side: Side, cmd: Command): CommandResult {
 /** Distinct free cells around `goal` for a group move, nearest first, each claimed by the closest unit. */
 function formationCells(world: World, units: Entity[], goal: Cell): Cell[] {
   const free: Cell[] = [];
+  // Cells where a unit outside the group stands still are not free: the group would park on top of it.
+  const heldByOther = (c: Cell) => {
+    const probe = { x: c.cx * CELL, y: c.cy * CELL, size: CELL } as Entity;
+    return world.entities.some((o) => isUnit(o.type) && o.hp > 0 && !o.hidden && o.path.length === 0 && !units.includes(o) && overlaps(probe, o));
+  };
   for (let r = 0; r <= 6 && free.length < units.length; r++)
     for (let dy = -r; dy <= r; dy++)
       for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         const c = { cx: goal.cx + dx, cy: goal.cy + dy };
-        if (cellPassable(world, c.cx, c.cy)) free.push(c);
+        if (cellPassable(world, c.cx, c.cy) && !heldByOther(c)) free.push(c);
       }
   const slots: Cell[] = [];
   const taken = new Set<number>();
@@ -858,8 +866,37 @@ export function step(world: World): void {
   updateProjectiles(world);
   removeDead(world);
   tally(world);
+  if (!world.pendingOutcome && world.tick % HOPELESS_CHECK_TICKS === 0) checkHopeless(world);
   if (world.pendingOutcome && world.tick >= world.pendingOutcome.atTick) world.outcome = world.pendingOutcome.outcome;
   world.tick++;
+}
+
+/** How often the sides are checked for a lost cause: once a second. */
+const HOPELESS_CHECK_TICKS = 1000 / TICK_MS;
+
+/**
+ * 1.2: a side that has no units left and can never get one is beaten, even with its HQ standing: no harvester or
+ * tank, no factory with work or the money for a unit, and not the money for a factory and a unit either.
+ * The original campaign enemy gets free tanks from its factory, so it is only judged in a skirmish.
+ */
+export function hopeless(world: World, side: Side): boolean {
+  if (side === 'enemy' && world.mode !== 'skirmish') return false;
+  const money = world.sides[side].money;
+  const cheapest = Math.min(...FACTORY_BUILDS.map((u) => UNIT_RULES[u].price));
+  for (const e of world.entities) {
+    if (e.team !== side || e.hp <= 0) continue;
+    if (isUnit(e.type)) return false;
+    if (e.type === ObjectType.TankFactory && (e.job || e.queue.length > 0 || money >= cheapest)) return false;
+    const hqType = side === 'player' ? ObjectType.PlayerHQ : ObjectType.EnemyHQ;
+    if (e.type === hqType && money >= BUILDING_RULES[ObjectType.TankFactory].price + cheapest) return false;
+  }
+  return true;
+}
+
+function checkHopeless(world: World): void {
+  const delay = Math.ceil(OUTCOME_DELAY_MS / TICK_MS);
+  if (hopeless(world, 'player')) world.pendingOutcome = { outcome: 'lost', atTick: world.tick + delay };
+  else if (hopeless(world, 'enemy')) world.pendingOutcome = { outcome: 'won', atTick: world.tick + delay };
 }
 
 /** Counts this tick's finished units and losses into each side's stats. */
@@ -898,8 +935,7 @@ const UNSTACK_TICKS = 10;
 /** Units that stopped on top of each other: the newer one moves to the nearest free cell. */
 function unstack(world: World, e: Entity): void {
   if (e.hidden || e.order.kind === 'harvest') return;
-  const standing = (o: Entity) => o !== e && isUnit(o.type) && o.hp > 0 && !o.hidden && o.path.length === 0;
-  if (!world.entities.some((o) => standing(o) && o.id < e.id && overlaps(e, o))) return;
+  if (!stackedOn(world, e)) return;
   const c = cellOf(e);
   for (let r = 1; r <= 3; r++)
     for (let dy = -r; dy <= r; dy++)
@@ -913,6 +949,22 @@ function unstack(world: World, e: Entity): void {
         if (setPathTo(world, e, cell) && e.path.length <= r + 1) return;
         stopMoving(e);
       }
+}
+
+/** A unit standing (even partly) on an older unit that stands still. */
+function stackedOn(world: World, e: Entity): boolean {
+  return world.entities.some(
+    (o) => o !== e && isUnit(o.type) && o.hp > 0 && !o.hidden && o.path.length === 0 && o.id < e.id && overlaps(e, o),
+  );
+}
+
+/**
+ * Stops a unit to fire, unless it is still stepping off a unit it stopped on top of. Tanks shooting the same target
+ * used to stop on the same pixel, and stopping to fire every tick undid unstack()'s step aside.
+ */
+function halt(world: World, e: Entity): void {
+  if (e.path.length > 0 && stackedOn(world, e)) return;
+  stopMoving(e);
 }
 
 /** Turns a turret one 45° step per tick toward `dir`, the shorter way round; true once it faces that way. */
@@ -1091,7 +1143,7 @@ function idleTank(world: World, e: Entity, range: number): void {
   }
   if (inRange) {
     e.targetId = inRange.id;
-    stopMoving(e);
+    halt(world, e);
     return;
   }
   // Something seen, or something that just shot at us from farther away.
@@ -1124,7 +1176,7 @@ const HIT_MEMORY_TICKS = 40;
 function attackMove(world: World, e: Entity, x: number, y: number, range: number): void {
   const current = liveTarget(world, e.targetId);
   if (current && canShoot(world, e, current, range)) {
-    stopMoving(e);
+    halt(world, e);
     return;
   }
   // Still closing in on a wall we decided to break through.
@@ -1146,7 +1198,7 @@ function attackMove(world: World, e: Entity, x: number, y: number, range: number
   }
   if (t) {
     e.targetId = t.id;
-    stopMoving(e);
+    halt(world, e);
     return;
   }
   // An armed enemy in sight but out of range: go and fight it, then carry on to the goal.
@@ -1206,7 +1258,7 @@ function firstBlocker(world: World, e: Entity, goal: Cell): Entity | null {
 function engage(world: World, e: Entity, t: Entity, range: number): void {
   e.targetId = t.id;
   if (canShoot(world, e, t, range)) {
-    stopMoving(e);
+    halt(world, e);
     return;
   }
   if (e.path.length === 0 || e.repathMs <= 0) {
@@ -1236,7 +1288,7 @@ function raiderThink(world: World, e: Entity): void {
     nearestShot(world, e, enemiesOf(world, e.team, (o) => isUnit(o.type)), range);
   if (t) {
     e.targetId = t.id;
-    stopMoving(e);
+    halt(world, e);
     return;
   }
   e.targetId = 0;
@@ -1421,6 +1473,7 @@ function fireAt(world: World, e: Entity, weapon: Weapon): void {
     left: dist + 6,
     damage: weapon.damage,
     shooterId: e.id,
+    targetId: t.id,
   });
   world.events.push({ kind: 'shot', id: e.id, by: e.type, x: from.x, y: from.y, weapon: kind, team: e.team });
 }
@@ -1432,17 +1485,14 @@ function updateProjectiles(world: World): void {
     // Sub-steps of at most 4 px, so the fast gun shell cannot skip over a 15 px tank.
     const sub = Math.max(1, Math.ceil(speed / 4));
     let hit: Entity | null = null;
+    // 1.2: only the target counts; other enemies (and walls) on the way are flown over.
+    const t = world.byId.get(p.targetId);
+    const target = t && t.hp > 0 && !t.hidden && t.team !== p.team && t.team !== 'neutral' ? t : null;
     for (let i = 0; i < sub && !hit && p.left > 0; i++) {
       p.x += p.vx / sub;
       p.y += p.vy / sub;
       p.left -= speed / sub;
-      for (const e of world.entities) {
-        if (e.hp <= 0 || e.hidden || e.team === p.team || e.team === 'neutral') continue;
-        if (p.x >= e.x && p.x < e.x + e.size && p.y >= e.y && p.y < e.y + e.size) {
-          hit = e;
-          break;
-        }
-      }
+      if (target && p.x >= target.x && p.x < target.x + target.size && p.y >= target.y && p.y < target.y + target.size) hit = target;
     }
     if (hit) {
       hit.hp -= p.damage;
