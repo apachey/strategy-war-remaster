@@ -118,10 +118,20 @@ test('the mission list opens missions in order and jumps to another mission', as
   await page.waitForTimeout(800);
   await page.screenshot({ path: 'test-results/main-menu.png' });
   await page.getByRole('button', { name: 'Кампанія' }).click();
-  await expect(page.getByRole('button', { name: '1. Перші кроки ✓' })).toBeEnabled();
-  await expect(page.getByRole('button', { name: '2. Операція X' })).toBeDisabled();
+  // The campaign screen: chapters with a pip per mission, the picked mission's map and briefing. It opens on the
+  // first mission not yet won; a chapter whose missions are all ahead is locked.
+  await expect(page.locator('#modal .campaign-screen h1')).toHaveText('Окраїни');
+  await expect(page.locator('#modal .chapter[data-cm="3"]')).toBeDisabled();
+  await expect(page.locator('#modal .chapter[data-cm="0"] .pip.done')).toHaveCount(4);
+  await expect(page.locator('#modal .mission.active')).toContainText('3.1');
+  await expect(page.locator('#modal .mission[data-cs="1"]')).toBeDisabled();
   await page.screenshot({ path: 'test-results/missions.png' });
-  await page.getByRole('button', { name: '1. Пошук', exact: true }).click();
+  // Picking another chapter and mission only redraws the screen; Start opens it.
+  await page.locator('#modal .chapter[data-cm="0"]').click();
+  await page.locator('#modal .mission[data-cs="2"]').click();
+  await expect(page.locator('#modal .brief h2')).toHaveText('Атака');
+  await page.locator('#modal .chapter[data-cm="2"]').click();
+  await page.getByRole('button', { name: 'Почати' }).click();
   await expect(page.locator('#modal')).toContainText('Пошук');
   expect(page.url()).toContain('m=3.1');
   expect(errors).toEqual([]);

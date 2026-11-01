@@ -1,5 +1,7 @@
 import {
   campaign,
+  CAMPAIGN_FACTIONS,
+  CELL as MAP_CELL,
   FACTION_NAME_MAX,
   FACTION_SYMBOLS,
   LANGS,
@@ -256,8 +258,8 @@ export class Hud {
          <figure class="map"><canvas class="preview" width="1" height="1"></canvas></figure>
          <div class="match">
            <div class="option"><span>${T.opponentLabel}</span><div class="levels">${levels('opponent', OPPONENTS, s.opponent, (o) => T.opponent[o], OPPONENT_ICONS)}</div></div>
-           <p class="hint">${T.opponentHint[s.opponent]}${s.opponent === 'human' ? ` ${T.helpDuo}` : ''}</p>
-           <div class="option"><span>${T.moneyLabel}</span><div class="money">${choice('money', SKIRMISH_MONEY.map(String), String(s.money), (v) => `$${v}`)}</div></div>
+           <p class="hint"${s.opponent === 'human' ? ` title="${T.helpDuo}"` : ''}>${T.opponentHint[s.opponent]}</p>
+           <div class="option"><span>${T.moneyLabel}</span><div class="money">${choice('money', SKIRMISH_MONEY.map(String), String(s.money), (v) => v)}</div></div>
            <p class="goal">${s.opponent === 'human' ? T.duoGoal : T.skirmishGoal}</p>
          </div>
        </div>
@@ -437,28 +439,82 @@ export class Hud {
     };
   }
 
+  /**
+   * The campaign, one full screen like the skirmish's: the seven maps down the left with a pip per mission (filled when
+   * won), the chosen map large in the middle with both sides' starting positions, and its missions on the right, the
+   * picked one with its briefing. Missions open in order; Start plays the picked one. Picking only redraws the screen.
+   */
   showMissions(): void {
     const close = this.pauseBehind();
-    const T = t();
     const done = completed();
-    let list = '';
+    // Missions open in order: every completed one, plus the first one not yet completed.
+    const state: ('done' | 'open' | 'locked')[][] = [];
     let open = true;
+    let next: [number, number] = [0, 0];
     campaign.maps.forEach((map, mi) => {
-      list += `<div class="map"><b>${mi + 1}. ${mapName(mi)}</b>`;
-      map.missions.forEach((_, si) => {
-        // Missions open in order: every completed one, plus the first one not yet completed.
-        const isDone = done.has(`${mi + 1}.${si + 1}`);
-        const locked = !isDone && !open;
-        if (!isDone) open = false;
-        list += `<button data-m="${mi}" data-s="${si}"${locked ? ` disabled title="${T.locked}"` : ''}>${si + 1}. ${missionTitle(mi, si)}${isDone ? ' ✓' : ''}</button>`;
+      state.push(
+        map.missions.map((_, si) => {
+          if (done.has(`${mi + 1}.${si + 1}`)) return 'done';
+          if (!open) return 'locked';
+          open = false;
+          next = [mi, si];
+          return 'open';
+        }),
+      );
+    });
+    const here = this.game.setup.kind === 'campaign' ? this.game.setup : null;
+    let [pm, ps] = here && state[here.mapIndex]?.[here.missionIndex] !== 'locked' ? [here.mapIndex, here.missionIndex] : next;
+    const render = () => {
+      const T = t();
+      const pips = (mi: number) => state[mi]!.map((st) => `<i class="pip ${st}"></i>`).join('');
+      const maps = campaign.maps
+        .map((_, mi) => {
+          const locked = state[mi]![0] === 'locked';
+          return `<button class="chapter${mi === pm ? ' active' : ''}" data-cm="${mi}"${locked ? ` disabled title="${T.locked}"` : ''}><span class="no">${mi + 1}</span><span class="name">${mapName(mi)}</span><span class="pips">${pips(mi)}</span></button>`;
+        })
+        .join('');
+      const missions = campaign.maps[pm]!.missions
+        .map((_, si) => {
+          const st = state[pm]![si]!;
+          const mark = st === 'done' ? '<span class="mark">✓</span>' : '';
+          return `<button class="mission ${st}${si === ps ? ' active' : ''}" data-cs="${si}"${st === 'locked' ? ` disabled title="${T.locked}"` : ''}><span class="no">${pm + 1}.${si + 1}</span><span class="name">${missionTitle(pm, si)}</span>${mark}</button>`;
+        })
+        .join('');
+      const m = this.modal(
+        `<header><div class="kicker">${T.campaign}</div><h1>${mapName(pm)}</h1></header>
+         <div class="campaign">
+           <nav class="chapters">${maps}</nav>
+           <figure class="map"><canvas class="preview" width="1" height="1"></canvas></figure>
+           <div class="brief">
+             <div class="missions">${missions}</div>
+             <h2>${missionTitle(pm, ps)}</h2>
+             <p>${missionBrief(pm, ps)}</p>
+           </div>
+         </div>
+         <footer><button data-close>${T.back}</button><button class="primary" data-go>${T.start}</button></footer>`,
+      );
+      m.querySelector('.card')!.classList.add('campaign-screen', 'screen');
+      drawMissionPreview(m.querySelector('canvas')!, pm, ps);
+      m.querySelectorAll<HTMLButtonElement>('[data-cm]').forEach((b) => {
+        b.onclick = () => {
+          pm = Number(b.dataset.cm);
+          const st = state[pm]!;
+          ps = Math.max(0, st.includes('open') ? st.indexOf('open') : st.lastIndexOf('done'));
+          render();
+        };
       });
-      list += '</div>';
-    });
-    const m = this.modal(`<h1>${T.missions}</h1><div class="missions">${list}</div><div class="row"><button data-close>${T.close}</button></div>`);
-    m.querySelectorAll<HTMLButtonElement>('[data-m]').forEach((b) => {
-      b.onclick = () => this.actions.open({ kind: 'campaign', mapIndex: Number(b.dataset.m), missionIndex: Number(b.dataset.s), difficulty: this.game.difficulty });
-    });
-    m.querySelector<HTMLButtonElement>('[data-close]')!.onclick = close;
+      m.querySelectorAll<HTMLButtonElement>('[data-cs]').forEach((b) => {
+        b.onclick = () => {
+          ps = Number(b.dataset.cs);
+          render();
+        };
+        b.ondblclick = () => start();
+      });
+      m.querySelector<HTMLButtonElement>('[data-close]')!.onclick = close;
+      m.querySelector<HTMLButtonElement>('[data-go]')!.onclick = () => start();
+    };
+    const start = () => this.actions.open({ kind: 'campaign', mapIndex: pm, missionIndex: ps, difficulty: this.game.difficulty });
+    render();
   }
 
   /** Volumes, language, and a few words about the game with its version. */
@@ -682,12 +738,21 @@ function sideOptions(s: SkirmishSetup, i: number, mine: readonly Faction[]): str
 /** What the skirmish screen shows of each side's army: its HQ and the three tanks. */
 const ARMY = [ObjectType.PlayerHQ, ObjectType.LightTank, ObjectType.MiddleTank, ObjectType.HeavyTank] as const;
 
-/** A small map of the skirmish in the game's colours: sand, fir forest, crystal fields and the two starts. */
-function drawPreview(canvas: HTMLCanvasElement, mapIndex: number, colors: readonly [TeamColor, TeamColor]): void {
+/** Where a preview marks something, in cells: crystal fields, starts (numbered squares) and smaller pieces. */
+interface PreviewMarks {
+  fields: readonly { cx: number; cy: number }[];
+  starts: readonly { cx: number; cy: number; color: TeamColor; label: string }[];
+  pieces?: readonly { cx: number; cy: number; size: number; color: TeamColor }[];
+}
+
+/**
+ * A small map in the game's colours, as large as fits a `boxW`×`boxH` box: sand, fir forest, crystal fields drawn as
+ * little clusters of yellow crystals (as on the map), and what stands there.
+ */
+function drawMap(canvas: HTMLCanvasElement, mapIndex: number, marks: PreviewMarks, boxW = 440, boxH = 330): void {
   const map = campaign.maps[mapIndex]!;
   const { cols, rows, blocked } = buildBlockedGrid(map);
-  const layout = skirmishLayout(map);
-  const px = Math.max(3, Math.floor(Math.min(440 / cols, 330 / rows)));
+  const px = Math.max(3, Math.floor(Math.min(boxW / cols, boxH / rows)));
   canvas.width = cols * px;
   canvas.height = rows * px;
   const g = canvas.getContext('2d');
@@ -707,33 +772,77 @@ function drawPreview(canvas: HTMLCanvasElement, mapIndex: number, colors: readon
       g.fillRect(x, y, px, px);
     }
   }
-  for (const f of layout.fields) {
-    const cx = (f.cx + 1) * px;
-    const cy = (f.cy + 1) * px;
-    g.fillStyle = '#a87a12';
-    g.beginPath();
-    g.moveTo(cx, cy - px * 1.1);
-    g.lineTo(cx + px * 0.9, cy);
-    g.lineTo(cx, cy + px * 1.1);
-    g.lineTo(cx - px * 0.9, cy);
-    g.fill();
-    g.fillStyle = '#f0c43a';
-    g.fillRect(cx - px * 0.3, cy - px * 0.6, px * 0.6, px * 0.9);
+  // A crystal field: three upright crystals of different heights, each with a lit and a shaded half and a dark foot.
+  const u = Math.max(1, Math.floor(px / 3));
+  for (const f of marks.fields) {
+    const cx = Math.round((f.cx + 1) * px);
+    const base = Math.round((f.cy + 1) * px + px * 0.7);
+    g.fillStyle = 'rgb(90 60 10 / 0.45)';
+    g.fillRect(cx - 4 * u, base - u, 8 * u, 2 * u);
+    for (const [dx, hgt] of [[-3, 4], [0, 6], [2, 3]] as const) {
+      const x = cx + dx * u;
+      for (let k = 0; k < hgt; k++) {
+        const y = base - (k + 1) * u;
+        const tip = k === hgt - 1;
+        g.fillStyle = '#ffe27a';
+        g.fillRect(x, y, u, u);
+        if (!tip) {
+          g.fillStyle = '#d29a1c';
+          g.fillRect(x + u, y, u, u);
+        }
+      }
+    }
   }
-  layout.starts.forEach((s, i) => {
-    const ramp = TEAM_COLORS[colors[i]!];
+  for (const p of marks.pieces ?? []) {
+    const ramp = TEAM_COLORS[p.color];
+    g.fillStyle = '#000';
+    g.fillRect(p.cx * px - 1, p.cy * px - 1, p.size * px + 2, p.size * px + 2);
+    g.fillStyle = ramp[3];
+    g.fillRect(p.cx * px, p.cy * px, p.size * px, p.size * px);
+  }
+  for (const s of marks.starts) {
+    const ramp = TEAM_COLORS[s.color];
     g.fillStyle = '#000';
     g.fillRect(s.cx * px - 2, s.cy * px - 2, 2 * px + 4, 2 * px + 4);
     g.fillStyle = ramp[2];
     g.fillRect(s.cx * px, s.cy * px, 2 * px, 2 * px);
     g.fillStyle = ramp[4];
     g.fillRect(s.cx * px, s.cy * px, 2 * px, Math.max(1, Math.floor(px / 3)));
+    if (!s.label) continue;
     g.fillStyle = '#fff';
     g.font = `${Math.max(12, Math.floor(px * 1.6))}px Shardfall, Menlo, monospace`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.fillText(String(i + 1), (s.cx + 1) * px, (s.cy + 1) * px + 1);
-  });
+    g.fillText(s.label, (s.cx + 1) * px, (s.cy + 1) * px + 1);
+  }
+}
+
+/** The skirmish's map with its crystal fields and the two numbered starts in the sides' colours. */
+function drawPreview(canvas: HTMLCanvasElement, mapIndex: number, colors: readonly [TeamColor, TeamColor]): void {
+  const layout = skirmishLayout(campaign.maps[mapIndex]!);
+  drawMap(canvas, mapIndex, { fields: layout.fields, starts: layout.starts.map((s, i) => ({ ...s, color: colors[i]!, label: String(i + 1) })) }, 340, 340);
+}
+
+/** A campaign mission's map: its crystal fields, both headquarters and every other building and unit, in the campaign's colours. */
+function drawMissionPreview(canvas: HTMLCanvasElement, mapIndex: number, missionIndex: number): void {
+  const objects = campaign.maps[mapIndex]!.missions[missionIndex]!.objects;
+  const [me, foe] = CAMPAIGN_FACTIONS;
+  const cell = (o: { x: number; y: number }) => ({ cx: Math.floor(o.x / MAP_CELL), cy: Math.floor(o.y / MAP_CELL) });
+  const enemy = (o: (typeof objects)[number]) => o.type === ObjectType.EnemyHQ || o.type === ObjectType.EnemyTank || (!isUnit(o.type) && o.enemy);
+  const hq = (o: (typeof objects)[number]) => o.type === ObjectType.PlayerHQ || o.type === ObjectType.EnemyHQ;
+  drawMap(
+    canvas,
+    mapIndex,
+    {
+      fields: objects.filter((o) => o.type === ObjectType.ResourceField).map(cell),
+      starts: objects.filter(hq).map((o) => ({ ...cell(o), color: enemy(o) ? foe.color : me.color, label: '' })),
+      pieces: objects
+        .filter((o) => !hq(o) && o.type !== ObjectType.ResourceField)
+        .map((o) => ({ ...cell(o), size: isUnit(o.type) || o.type === ObjectType.Wall || o.type === ObjectType.Defender ? 1 : 2, color: enemy(o) ? foe.color : me.color })),
+    },
+    560,
+    470,
+  );
 }
 
 /**

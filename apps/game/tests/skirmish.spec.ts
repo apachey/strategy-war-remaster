@@ -80,7 +80,7 @@ test('the skirmish screen picks a map, an opponent and money, then plays', async
   const errors = await open(page, '?s=4');
   await expect(page.locator('#modal')).toContainText('Скірміш');
   await expect(page.locator('#modal h1')).toHaveText('Арена');
-  await expect(page.locator('#modal button.active')).toContainText(['Українська', '4. Арена', 'Нормальний ШІ', '$3000', 'Хюмани', 'Ховери']);
+  await expect(page.locator('#modal button.active')).toContainText(['Українська', '4. Арена', 'Нормальний ШІ', '3000', 'Хюмани', 'Ховери']);
   await expect(page.locator('#modal')).toContainText('Ви');
   await expect(page.locator('#modal')).toContainText('Компʼютер');
   // Each side plays a faction; one in the other side's main colour cannot be picked.

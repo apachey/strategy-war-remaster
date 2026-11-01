@@ -196,8 +196,33 @@ body.duo .toast.side-2 { left: 75%; }
 #modal .screen .maps { display: grid; grid-template-columns: 1fr 1fr; gap: var(--u); align-content: start; }
 #modal .screen .maps > span, #modal .screen .option > span { grid-column: 1 / -1; display: block; color: var(--muted); min-width: 0; }
 #modal .screen .maps button { text-align: left; }
-#modal .screen .map { margin: 0; }
-#modal .screen .map .preview { margin: 0 0 var(--u); }
+/* The preview sits in a fixed square, so a wider or taller map never pushes the options beside it. */
+#modal .screen .map { margin: 0; width: 340px; height: 340px; display: flex; align-items: center; justify-content: center; background: #0b0a08; outline: var(--u) solid var(--line); }
+#modal .screen .map .preview { margin: 0; max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+#modal .setup .match { min-width: 0; }
+/* Texts that change with a choice keep their room: two lines each, so nothing below them moves. */
+#modal .setup .match .option + .hint { min-height: calc(2lh); }
+#modal .setup .match .goal { min-height: calc(2lh); }
+/*
+ * The campaign: chapters | the mission's map | its missions and briefing. Picking redraws only this screen and every
+ * column keeps its size, so nothing jumps.
+ */
+#modal .campaign { display: grid; grid-template-columns: 260px 580px minmax(0, 1fr); gap: calc(5 * var(--u)); min-height: 0; }
+#modal .campaign .chapters { display: flex; flex-direction: column; gap: var(--u); }
+#modal .campaign button { display: flex; align-items: center; gap: calc(3 * var(--u)); text-align: left; width: 100%; }
+#modal .campaign button .no { color: var(--muted); min-width: calc(14 * var(--u)); }
+#modal .campaign button.active .no { color: inherit; }
+#modal .campaign button .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#modal .campaign .pips { display: flex; gap: var(--u); }
+#modal .campaign .pip { width: calc(4 * var(--u)); height: calc(4 * var(--u)); background: #000; outline: var(--u) solid var(--line); }
+#modal .campaign .pip.done { background: var(--gold); }
+#modal .campaign .pip.open { background: var(--muted); }
+#modal .campaign-screen .map { width: 580px; height: 490px; }
+#modal .campaign .brief { display: flex; flex-direction: column; min-height: 0; }
+#modal .campaign .missions { display: flex; flex-direction: column; gap: var(--u); }
+#modal .campaign .mission .mark { color: var(--gold); }
+#modal .campaign .brief h2 { margin-top: calc(5 * var(--u)); }
+#modal .campaign .brief p { margin: 0; overflow: auto; color: var(--ink); }
 #modal .screen .match .goal { color: var(--gold); margin-top: calc(3 * var(--u)); }
 #modal .screen .match .option { display: block; }
 #modal .screen .match .option + .hint { margin: var(--u) 0 calc(3 * var(--u)); color: var(--muted); }
