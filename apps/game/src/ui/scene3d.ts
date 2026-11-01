@@ -5,6 +5,8 @@ import { MATERIALS, type MaterialName } from '../../../../tools/art/src/material
 import { RAMPS } from '../../../../tools/art/src/palette';
 import terrainUrl from '../../../../assets/sprites/terrain.png?url';
 import terrainData from '../../../../assets/sprites/terrain.json';
+import effectsUrl from '../../../../assets/sprites/effects.png?url';
+import effectsData from '../../../../assets/sprites/effects.json';
 
 /**
  * The style B models from tools/art, drawn live in the game at a low resolution: the main screen's battle, the
@@ -81,10 +83,21 @@ function rampTexture(colors: THREE.Color[]): THREE.DataTexture {
 
 const materials = new Map<string, THREE.ShaderMaterial>();
 
-function material(name: MaterialName, dress: Dress, charred = false): THREE.ShaderMaterial {
-  const id = `${name}/${dress.color}/${dress.color2}/${dress.color3}/${charred}`;
+function material(name: MaterialName, dress: Dress, charred = false, layer = 0): THREE.ShaderMaterial {
+  const id = `${name}/${dress.color}/${dress.color2}/${dress.color3}/${charred}/${layer}`;
   let m = materials.get(id);
   if (m) return m;
+  if (layer) {
+    // The same material and uniforms (ramp, flicker), only drawn a little nearer.
+    const base = material(name, dress, charred);
+    m = base.clone();
+    m.uniforms = base.uniforms;
+    m.polygonOffset = true;
+    m.polygonOffsetFactor = -layer * 0.05;
+    m.polygonOffsetUnits = -layer * 2;
+    materials.set(id, m);
+    return m;
+  }
   const def = MATERIALS[name] as { shift?: number; emissive?: boolean };
   const ramp = rampOf(name, dress, charred);
   m = new THREE.ShaderMaterial({
@@ -103,13 +116,20 @@ function material(name: MaterialName, dress: Dress, charred = false): THREE.Shad
   return m;
 }
 
+/** Layers a model's parts can be pushed forward by; a part's layer is its build order, capped here. */
+const LAYERS = 64;
+
 /** A model from the catalog, dressed in a side's colours (or burnt black). */
 export function model(name: string, dress: Dress, view = 0, frame = 'idle', charred = false): THREE.Object3D {
   const build = MODELS[name];
   if (!build) throw new Error(`No model ${name}`);
   const m = build(view, frame);
+  // Models lay stripes, windows and plates flush on the hulls they decorate. The sprites, drawn from straight above,
+  // hide that, but a live camera makes such twin faces flicker (z-fighting). Each part is drawn a hair in front of
+  // the parts built before it, so the later one, the detail, always wins.
+  let i = 0;
   m.traverse((o) => {
-    if (o instanceof THREE.Mesh) o.material = material((o.userData.mat as MaterialName) ?? 'steel', dress, charred);
+    if (o instanceof THREE.Mesh) o.material = material((o.userData.mat as MaterialName) ?? 'steel', dress, charred, Math.min(LAYERS, i++));
   });
   return m;
 }
@@ -552,6 +572,49 @@ export async function outcomeScene(canvas: HTMLCanvasElement, o: OutcomeScene, w
 /** The campaign's two sides, which the main screen always shows: white humans with olive accents, cyan hovers. */
 const CAMPAIGN: readonly [Dress, Dress] = CAMPAIGN_FACTIONS;
 
+interface Burst {
+  sprite: THREE.Sprite;
+  /** Shows frame `i` of the hit at a point, or hides it when `i` is out of the animation. */
+  at(i: number, x: number, y: number, z: number): void;
+}
+
+let effectsImage: Promise<THREE.Texture> | null = null;
+
+/** Hits as the map shows them: each race's frames from the effects atlas, sized as on the map (32 px a cell). */
+async function hits(): Promise<(race: Race, scale: number) => Burst> {
+  effectsImage ??= new THREE.TextureLoader().loadAsync(effectsUrl);
+  const sheet = await effectsImage;
+  const { w: W, h: H } = effectsData.meta.size;
+  const frames = effectsData.frames as Record<string, { frame: { x: number; y: number; w: number; h: number } }>;
+  const anim = { human: 'spark', hover: 'plasma', walker: 'acid' } as const;
+  return (race, scale) => {
+    const strip: { tex: THREE.Texture; w: number; h: number }[] = [];
+    for (let i = 0; frames[`${anim[race]}/${i}`]; i++) {
+      const f = frames[`${anim[race]}/${i}`]!.frame;
+      const tex = sheet.clone();
+      tex.magFilter = tex.minFilter = THREE.NearestFilter;
+      tex.generateMipmaps = false;
+      tex.repeat.set(f.w / W, f.h / H);
+      tex.offset.set(f.x / W, 1 - (f.y + f.h) / H);
+      tex.needsUpdate = true;
+      strip.push({ tex, w: f.w, h: f.h });
+    }
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: strip[0]!.tex, alphaTest: 0.5 }));
+    sprite.visible = false;
+    return {
+      sprite,
+      at(i, x, y, z) {
+        const f = strip[i];
+        sprite.visible = !!f && i >= 0;
+        if (!f || i < 0) return;
+        sprite.material.map = f.tex;
+        sprite.scale.set((f.w / 32) * scale, (f.h / 32) * scale, 1);
+        sprite.position.set(x, y, z);
+      },
+    };
+  };
+}
+
 /** One camera shot of the main screen's film: how long it runs and where the camera is at `k` (0..1) through it. */
 interface Shot {
   seconds: number;
@@ -570,7 +633,8 @@ export async function battleScene(canvas: HTMLCanvasElement, w = 480, h = 270): 
   s.frame(2, 0.11);
   const scene = s.scene;
   scene.add(await groundMesh('sand', 70));
-  type Unit = { group: THREE.Group; show: (i: number) => void; x: number; z: number; side: 0 | 1; phase: number; shell: THREE.Mesh; burst: THREE.Group };
+  const hit = await hits();
+  type Unit = { group: THREE.Group; show: (i: number) => void; x: number; z: number; side: 0 | 1; phase: number; shell: THREE.Object3D; burst: Burst };
   const units: Unit[] = [];
   const kinds = ['light_tank', 'middle_tank', 'heavy_tank', 'middle_tank', 'light_tank', 'heavy_tank', 'middle_tank'];
   for (const [side, dress, z0, view] of [
@@ -582,19 +646,17 @@ export async function battleScene(canvas: HTMLCanvasElement, w = 480, h = 270): 
       const group = new THREE.Group();
       group.add(f.group, shadow(0.4, 0, 0));
       scene.add(group);
-      const shell = new THREE.Mesh(new THREE.OctahedronGeometry(0.1, 0), material('flash', dress));
-      const burst = new THREE.Group();
-      for (let j = 0; j < 4; j++) {
-        const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.24 + (j % 2) * 0.12, 0), material(j % 2 ? 'ember' : 'flash', dress));
-        m.position.set(Math.sin(j * 2.4) * 0.14, 0.12 + j * 0.05, Math.cos(j * 1.9) * 0.14);
-        burst.add(m);
-      }
-      scene.add(shell, burst);
+      // The very shell and hit the game draws: the race's shot model, gun or cannon as the sim picks by damage, and
+      // the hit's pixel frames (sparks, plasma or acid) standing up as a billboard.
+      const shell = model(sprite(dress.race, 'shot'), dress, 0, k === 'light_tank' ? 'gun' : 'cannon');
+      const burst = hit(dress.race, k === 'light_tank' ? 0.9 : 1.25);
+      scene.add(shell, burst.sprite);
       units.push({ group, show: f.show, x: -4.8 + i * 1.6 + side * 0.7, z: z0 + ((i * 5) % 3) * 0.45 * (side ? -1 : 1), side, phase: (i * 0.29 + side * 0.53) % 1, shell, burst });
     });
+  // No fir at (-7, 7): the opening shot tracks through there and used to fly through its crown.
   scene.add(place(model(sprite(a.race, 'hq'), a, 0, 'idle0'), -3.5, 9.5), place(model(sprite(b.race, 'hq'), b, 4, 'idle0'), 4.5, -7.5));
   scene.add(place(model('resource', a, 0, 'idle'), 1.2, 1.4), place(model('resource', a, 1, 'idle'), -2.6, 0.6));
-  scenery(scene, a, true, [[-9, 2], [-8.2, -2.5], [9.5, 2.2], [8.8, 0.4], [-3.5, -6.5], [7, 6.5], [-7, 7]]);
+  scenery(scene, a, true, [[-9, 2], [-8.2, -2.5], [9.5, 2.2], [8.8, 0.4], [-3.5, -6.5], [7, 6.5], [-10.5, 4.5]]);
   treeline(scene, a, 70, -26, 26, -10, -24, 7);
   treeline(scene, a, 40, -26, 26, 13, 22, 11);
 
@@ -644,18 +706,14 @@ export async function battleScene(canvas: HTMLCanvasElement, w = 480, h = 270): 
       const target = foes[Math.floor(Math.abs(Math.sin(Math.floor(cycle) * 12.9 + u.phase * 78.2)) * foes.length)]!;
       const q = where(target, t);
       const ahead = u.side === 0 ? -1 : 1;
+      // Shells fly straight and level at the gun's height, as on the map, and burst on the target's hull.
+      const from = new THREE.Vector3(p.x, p.y, p.z + ahead * 0.4);
       if (k < FLIGHT) {
-        const f = k / FLIGHT;
         u.shell.visible = true;
-        u.shell.position.set(p.x + (q.x - p.x) * f, 0.42 + Math.sin(f * Math.PI) * 0.5, p.z + ahead * 0.4 + (q.z - p.z - ahead * 0.4) * f);
+        u.shell.position.lerpVectors(from, q, k / FLIGHT);
+        u.shell.rotation.y = Math.atan2(-(q.x - from.x), -(q.z - from.z));
       } else u.shell.visible = false;
-      const bk = (k - FLIGHT) / 0.4;
-      u.burst.visible = bk >= 0 && bk < 1;
-      if (u.burst.visible) {
-        u.burst.position.set(q.x, q.y, q.z);
-        u.burst.scale.setScalar(0.5 + bk * 0.9);
-        u.burst.children.forEach((m, j) => (m.visible = bk < 0.55 || j % 2 === 1));
-      }
+      u.burst.at(Math.floor((k - FLIGHT) / 0.055), q.x, q.y + 0.32, q.z);
     }
     let rest = t;
     const shot = shots.find((sh) => (rest -= sh.seconds) < 0) ?? shots[shots.length - 1]!;
@@ -669,7 +727,51 @@ export async function battleScene(canvas: HTMLCanvasElement, w = 480, h = 270): 
     }
     s.camera.position.copy(from);
     s.camera.lookAt(to);
+    // A shell grazing the lens would fill the frame with one ring; it slips by unseen instead.
+    for (const u of units) if (u.shell.visible && u.shell.position.distanceTo(from) < 1.2) u.shell.visible = false;
   };
+  s.render(0);
+  return s;
+}
+
+/**
+ * The app icon's picture, square: a human heavy tank on the sand in front of a tall cluster of the yellow crystals,
+ * firs at the sides, under the main screen's dusk sky. apps/desktop/scripts/icon.mjs scales it into the macOS shape.
+ */
+export async function iconScene(canvas: HTMLCanvasElement, size: number): Promise<PixelScene> {
+  const [a] = CAMPAIGN;
+  const s = new PixelScene(canvas, size, size, { top: '#0e0c22', mid: '#3a2846', bottom: '#b8744a', haze: '#a8785a', hill: '#3e2a3c', stars: true });
+  s.frame(1);
+  s.scene.add(await groundMesh('sand', 40));
+  // The shard the game is named after: a cluster of tall six-sided crystals, leaning out from one root.
+  for (const [x, z, h, r, lean, turn] of [
+    [0.55, -0.6, 1.6, 0.24, 0.08, 0.3],
+    [0.25, -0.45, 1.0, 0.18, 0.42, 0.9],
+    [0.9, -0.45, 0.9, 0.16, -0.45, 0.5],
+    [0.65, -0.1, 0.45, 0.12, -0.7, 1.6],
+  ] as const) {
+    const shard = new THREE.Group();
+    // Hard facets, as on the map's crystals: every face its own flat normal.
+    const facet = (g: THREE.BufferGeometry) => ((g = g.toNonIndexed()), g.computeVertexNormals(), g);
+    const body = new THREE.Mesh(facet(new THREE.CylinderGeometry(r, r * 0.92, h * 0.78, 6)), material('gold', a, false, 1));
+    body.position.y = h * 0.39;
+    const tip = new THREE.Mesh(facet(new THREE.CylinderGeometry(0, r, h * 0.3, 6)), material('crystal', a, false, 2));
+    tip.position.y = h * 0.78 + h * 0.15;
+    shard.add(body, tip);
+    shard.position.set(x, -0.05, z);
+    shard.rotation.set(0, turn, lean);
+    s.scene.add(shard);
+  }
+  s.scene.add(shadow(0.9, 0.6, -0.4));
+  const tank = place(model(sprite(a.race, 'heavy_tank'), a, 3, 'move0'), -0.55, 0.6);
+  s.scene.add(tank, shadow(0.45, -0.5, 0.6));
+  for (const [x, z, v] of [[-2.0, -1.8, 0], [2.6, -1.6, 1], [-3.4, -3.5, 2], [3.6, -3.8, 3]] as const) s.scene.add(place(model('fir', a, v, 'idle'), x, z));
+  treeline(s.scene, a, 30, -14, 14, -7, -14, 3);
+  s.camera.fov = 40;
+  s.camera.aspect = 1;
+  s.camera.position.set(0.1, 0.6, 4.2);
+  s.camera.lookAt(0.15, 0.75, 0);
+  s.camera.updateProjectionMatrix();
   s.render(0);
   return s;
 }

@@ -399,6 +399,7 @@ async function start(): Promise<void> {
   Object.assign(window, {
     __sw: {
       game,
+      hud,
       players: game.commanders,
       views,
       issue: (cmd: Command, side: Side = 'player') => issue(game.world, side, cmd),
