@@ -462,7 +462,8 @@ export class Hud {
         }),
       );
     });
-    const here = this.game.setup.kind === 'campaign' ? this.game.setup : null;
+    // From a mission, the screen opens on it; from the main screen, on the first mission not yet won.
+    const here = !this.menu && this.game.setup.kind === 'campaign' ? this.game.setup : null;
     let [pm, ps] = here && state[here.mapIndex]?.[here.missionIndex] !== 'locked' ? [here.mapIndex, here.missionIndex] : next;
     const render = () => {
       const T = t();
