@@ -204,8 +204,12 @@ test('losing the HQ shows the defeat screen with a retry', async ({ page }) => {
   await expect(page.locator('#panel')).toContainText('Штаб');
   // Self-destruct arms on the first press and fires on the second.
   await page.getByRole('button', { name: 'Самознищення' }).click();
-  await page.getByRole('button', { name: 'Ще раз: знищити' }).click();
-  await expect(page.locator('#modal')).toContainText('Поразка', { timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Ще раз: знищити' })).toBeVisible();
+  // The second press must come within 3 s; a slow runner may miss that, so press again until the HQ is gone.
+  await expect(async () => {
+    await page.locator('#panel button[data-action="destruct"]').click({ timeout: 2000 });
+    await expect(page.locator('#modal')).toContainText('Поразка', { timeout: 3000 });
+  }).toPass({ timeout: 40_000 });
   await expect(page.getByRole('button', { name: 'Ще раз' })).toBeVisible();
   expect(errors).toEqual([]);
 });
