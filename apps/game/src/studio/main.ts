@@ -18,8 +18,8 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = 
 const $$ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => [...root.querySelectorAll<T>(sel)];
 
 const state = {
-  own: { race: 'human', color: 'white', color2: 'olive' } as Dress,
-  foe: { race: 'hover', color: 'cyan', color2: 'white' } as Dress,
+  own: { race: 'human', color: 'white', color2: 'olive', color3: 'olive' } as Dress,
+  foe: { race: 'hover', color: 'cyan', color2: 'white', color3: 'white' } as Dress,
   k: 2,
   systemFont: false,
 };
@@ -77,6 +77,7 @@ function dressBar(s: HTMLElement, foe: boolean): void {
     toggles(foe ? 'Ви' : 'Раса', RACES, state.own.race, (r) => RACE_UA[r], (r) => ((state.own = { ...state.own, race: r }), dressChanged())),
     colorSelect('Колір', state.own.color, (c) => ((state.own = { ...state.own, color: c }), dressChanged())),
     colorSelect('Другий', state.own.color2, (c) => ((state.own = { ...state.own, color2: c }), dressChanged())),
+    colorSelect('Шасі', state.own.color3, (c) => ((state.own = { ...state.own, color3: c }), dressChanged())),
   );
   if (foe)
     bar.append(
@@ -122,7 +123,8 @@ function game(): void {
     const r = `${state.own.race},${state.foe.race}`;
     const c = `${state.own.color},${state.foe.color}`;
     const c2 = `${state.own.color2},${state.foe.color2}`;
-    const dress = `&r=${r}&c=${c}&c2=${c2}`;
+    const c3 = `${state.own.color3},${state.foe.color3}`;
+    const dress = `&r=${r}&c=${c}&c2=${c2}&c3=${c3}`;
     const src: Record<string, string> = {
       menu: GAME,
       campaign: `${GAME}?m=1.1`,

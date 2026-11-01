@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CAMPAIGN_RACES, DEFAULT_COLORS, DEFAULT_SECOND_COLORS, glowRamp, TEAM_COLORS, type Race, type TeamColor } from '@sw/data';
+import { CAMPAIGN_FACTIONS, glowRamp, TEAM_COLORS, type Race, type TeamColor } from '@sw/data';
 import { MODELS } from '../../../../tools/art/src/browser/models';
 import { MATERIALS, type MaterialName } from '../../../../tools/art/src/materials';
 import { RAMPS } from '../../../../tools/art/src/palette';
@@ -20,6 +20,8 @@ export interface Dress {
   race: Race;
   color: TeamColor;
   color2: TeamColor;
+  /** The chassis: tracks, tyres, walker legs, hover bellies. */
+  color3: TeamColor;
 }
 
 type Ground = 'sand' | 'plates' | 'forest';
@@ -35,6 +37,7 @@ function rampOf(name: MaterialName, dress: Dress, charred: boolean): THREE.Color
   if (def.ramp === 'team') return hexes(TEAM_COLORS[dress.color]);
   if (def.ramp === 'team2') return hexes(TEAM_COLORS[dress.color2]);
   if (def.ramp === 'team3') return hexes(glowRamp(dress.color2));
+  if (def.ramp === 'chassis') return hexes(TEAM_COLORS[dress.color3]);
   return hexes(RAMPS[def.ramp as keyof typeof RAMPS]);
 }
 
@@ -79,7 +82,7 @@ function rampTexture(colors: THREE.Color[]): THREE.DataTexture {
 const materials = new Map<string, THREE.ShaderMaterial>();
 
 function material(name: MaterialName, dress: Dress, charred = false): THREE.ShaderMaterial {
-  const id = `${name}/${dress.color}/${dress.color2}/${charred}`;
+  const id = `${name}/${dress.color}/${dress.color2}/${dress.color3}/${charred}`;
   let m = materials.get(id);
   if (m) return m;
   const def = MATERIALS[name] as { shift?: number; emissive?: boolean };
@@ -547,10 +550,7 @@ export async function outcomeScene(canvas: HTMLCanvasElement, o: OutcomeScene, w
 }
 
 /** The campaign's two sides, which the main screen always shows: white humans with olive accents, cyan hovers. */
-const CAMPAIGN: readonly [Dress, Dress] = [
-  { race: CAMPAIGN_RACES[0], color: DEFAULT_COLORS[0], color2: DEFAULT_SECOND_COLORS[0] },
-  { race: CAMPAIGN_RACES[1], color: DEFAULT_COLORS[1], color2: DEFAULT_SECOND_COLORS[1] },
-];
+const CAMPAIGN: readonly [Dress, Dress] = CAMPAIGN_FACTIONS;
 
 /** One camera shot of the main screen's film: how long it runs and where the camera is at `k` (0..1) through it. */
 interface Shot {
@@ -694,7 +694,7 @@ function portraitFrame(kind: string): { frame: string; view: number } {
  * three-quarter view in front; returns a PNG data URL, cached.
  */
 export function portrait(dress: Dress, kind: string, size = 64): string {
-  const id = `${dress.race}/${dress.color}/${dress.color2}/${kind}/${size}`;
+  const id = `${dress.race}/${dress.color}/${dress.color2}/${dress.color3}/${kind}/${size}`;
   const hit = portraits.get(id);
   if (hit) return hit;
   const name = kind === 'resource' ? 'resource' : sprite(dress.race, kind);

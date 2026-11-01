@@ -9,8 +9,8 @@ import effectsData from '../../../assets/sprites/effects.json';
 
 /**
  * The style B art from tools/art: one atlas of units, buildings, shots and trees, and one of ground tiles. Sprites are
- * drawn with the main colour in olive and the secondary in red; every side gets its own copy of the atlas recoloured
- * to its two colours, the same swap tools/art does for its previews. Pixels stay crisp (nearest filtering).
+ * drawn with the main colour in olive, the secondary in red and the chassis in blue; every side gets its own copy of the
+ * atlas recoloured to its three colours, the same swap tools/art does for its previews. Pixels stay crisp (nearest filtering).
  */
 
 /** Art pixels per 15 px map cell. */
@@ -20,11 +20,12 @@ interface Pipeline {
   teamRamp: string[];
   secondRamp: string[];
   glowRamp: string[];
+  chassisRamp: string[];
 }
 
 export interface Art {
-  /** The atlas recoloured for a side's main and secondary colour. */
-  sheet(color: TeamColor, color2: TeamColor): Spritesheet;
+  /** The atlas recoloured for a side's main, secondary and chassis colour. */
+  sheet(color: TeamColor, color2: TeamColor, color3: TeamColor): Spritesheet;
   /** Ground tiles: `sand`, `plates`, `forest/<mask>/<variant>`, `forest-fringe/<mask>`, `plate-edge/<mask>`. */
   terrain: Spritesheet;
   /** Pixel effects: explosions, smoke, sparks, fire, scorch and track marks (tools/art src/effects.ts). */
@@ -44,24 +45,24 @@ async function sheetOf(url: string, data: unknown): Promise<Spritesheet> {
 }
 const sheets = new Map<string, Spritesheet>();
 
-/** Loads both atlases and recolours the sprites for each pair of colours the game will draw; call before rendering. */
-export async function loadArt(pairs: ReadonlyArray<readonly [TeamColor, TeamColor]>): Promise<Art> {
+/** Loads both atlases and recolours the sprites for each set of colours the game will draw; call before rendering. */
+export async function loadArt(looks: ReadonlyArray<readonly [TeamColor, TeamColor, TeamColor]>): Promise<Art> {
   image ??= await loadImage(spritesUrl);
   terrain ??= await sheetOf(terrainUrl, terrainData);
   effects ??= await sheetOf(effectsUrl, effectsData);
-  for (const [c, c2] of pairs) {
-    const id = `${c}/${c2}`;
+  for (const [c, c2, c3] of looks) {
+    const id = `${c}/${c2}/${c3}`;
     if (sheets.has(id)) continue;
-    const texture = Texture.from(recolored(image, c, c2));
+    const texture = Texture.from(recolored(image, c, c2, c3));
     texture.source.scaleMode = 'nearest';
     const sheet = new Spritesheet(texture, spritesData as unknown as SpritesheetData);
     await sheet.parse();
     sheets.set(id, sheet);
   }
   return {
-    sheet: (c, c2) => {
-      const sheet = sheets.get(`${c}/${c2}`);
-      if (!sheet) throw new Error(`No sprite sheet for ${c}/${c2}`);
+    sheet: (c, c2, c3) => {
+      const sheet = sheets.get(`${c}/${c2}/${c3}`);
+      if (!sheet) throw new Error(`No sprite sheet for ${c}/${c2}/${c3}`);
       return sheet;
     },
     terrain,
@@ -81,8 +82,8 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 const rgb = (hex: string) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
 const key = (r: number, g: number, b: number) => (r << 16) | (g << 8) | b;
 
-/** The atlas with the drawn team, secondary and glow ramps swapped for a side's colours, step for step. */
-function recolored(img: HTMLImageElement, color: TeamColor, color2: TeamColor): HTMLCanvasElement {
+/** The atlas with the drawn team, secondary, glow and chassis ramps swapped for a side's colours, step for step. */
+function recolored(img: HTMLImageElement, color: TeamColor, color2: TeamColor, color3: TeamColor): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = img.width;
   canvas.height = img.height;
@@ -95,6 +96,7 @@ function recolored(img: HTMLImageElement, color: TeamColor, color2: TeamColor): 
   swap(meta.teamRamp, TEAM_COLORS[color]);
   swap(meta.secondRamp, TEAM_COLORS[color2]);
   swap(meta.glowRamp, glowRamp(color2));
+  swap(meta.chassisRamp, TEAM_COLORS[color3]);
   const px = data.data;
   for (let i = 0; i < px.length; i += 4) {
     if (!px[i + 3]) continue;

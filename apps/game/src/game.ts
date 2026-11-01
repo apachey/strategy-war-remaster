@@ -1,13 +1,12 @@
 import {
   campaign,
-  CAMPAIGN_RACES,
+  CAMPAIGN_FACTIONS,
   CELL,
-  DEFAULT_COLORS,
-  DEFAULT_SECOND_COLORS,
+  cleanFaction,
   ObjectType,
-  RACES,
   TEAM_COLOR_NAMES,
   type CampaignMap,
+  type Faction,
   type Race,
   type TeamColor,
 } from '@sw/data';
@@ -43,10 +42,8 @@ export type Setup =
       mapIndex: number;
       opponent: Opponent;
       money: number;
-      /** Race, team colour and secondary colour of each side, [first, second]; the main colours always differ. */
-      races: [Race, Race];
-      colors: [TeamColor, TeamColor];
-      colors2: [TeamColor, TeamColor];
+      /** The faction each side plays, [first, second]: race, name, symbol and colours. The main colours always differ. */
+      factions: [Faction, Faction];
     };
 
 /** The match both players share: the world, pause, speed and whether it has started. */
@@ -106,7 +103,15 @@ export class Game {
 
 function newWorld(setup: Setup): World {
   if (setup.kind === 'campaign') return createWorld(campaign.maps[setup.mapIndex]!, setup.missionIndex, 1, { difficulty: setup.difficulty });
-  return createSkirmish(setup.mapIndex, { opponent: setup.opponent, money: setup.money, races: setup.races, colors: setup.colors, colors2: setup.colors2 });
+  const [a, b] = setup.factions;
+  return createSkirmish(setup.mapIndex, {
+    opponent: setup.opponent,
+    money: setup.money,
+    races: [a.race, b.race],
+    colors: [a.color, b.color],
+    colors2: [a.color2, b.color2],
+    colors3: [a.color3, b.color3],
+  });
 }
 
 /** HQ type of a side: the second side's HQ is the alien one, also when a person plays it. */
@@ -371,7 +376,12 @@ export function parseSetup(search: string, difficulty: Difficulty): Setup {
       mapIndex,
       opponent: vs && OPPONENTS.includes(vs) ? vs : 'normal',
       money: (SKIRMISH_MONEY as readonly number[]).includes(money) ? money : DEFAULT_SKIRMISH_MONEY,
-      ...sidesLook(params.get('r')?.split(','), params.get('c')?.split(','), params.get('c2')?.split(',')),
+      factions: skirmishFactions(
+        [0, 1].map((i) => {
+          const at = (key: string) => params.get(key)?.split(',')[i];
+          return { race: at('r'), color: at('c'), color2: at('c2'), color3: at('c3'), symbol: at('sym'), name: params.get(`n${i + 1}`) ?? '' };
+        }),
+      ),
     };
   }
   return { kind: 'campaign', ...parseMission(search), difficulty };
@@ -380,25 +390,22 @@ export function parseSetup(search: string, difficulty: Difficulty): Setup {
 /** The URL query for a setup. */
 export function setupQuery(setup: Setup): Record<string, string> {
   if (setup.kind === 'campaign') return { m: `${setup.mapIndex + 1}.${setup.missionIndex + 1}` };
-  return { s: String(setup.mapIndex + 1), vs: setup.opponent, money: String(setup.money), r: setup.races.join(','), c: setup.colors.join(','), c2: setup.colors2.join(',') };
+  const f = setup.factions;
+  const list = (key: keyof Faction) => f.map((x) => x[key]).join(',');
+  const q: Record<string, string> = { s: String(setup.mapIndex + 1), vs: setup.opponent, money: String(setup.money), r: list('race'), c: list('color'), c2: list('color2'), c3: list('color3'), sym: list('symbol') };
+  f.forEach((x, i) => x.name && (q[`n${i + 1}`] = x.name));
+  return q;
 }
 
 /**
- * Races and colours of a skirmish from untrusted input (URL, stored settings): unknown values fall back to the
- * campaign's, and a second side wearing the first side's colour takes the next free one. Secondary colours may repeat.
+ * The two factions of a skirmish from untrusted input (URL, stored settings): unknown fields fall back to the
+ * campaign's sides, and a second side wearing the first side's main colour takes the next free one.
  */
-export function sidesLook(
-  races?: readonly unknown[],
-  colors?: readonly unknown[],
-  colors2?: readonly unknown[],
-): { races: [Race, Race]; colors: [TeamColor, TeamColor]; colors2: [TeamColor, TeamColor] } {
-  const race = (i: number) => (RACES.includes(races?.[i] as Race) ? (races![i] as Race) : CAMPAIGN_RACES[i]!);
-  const pick = (list: readonly unknown[] | undefined, fallback: readonly TeamColor[], i: number) =>
-    TEAM_COLOR_NAMES.includes(list?.[i] as TeamColor) ? (list![i] as TeamColor) : fallback[i]!;
-  const first = pick(colors, DEFAULT_COLORS, 0);
-  let second = pick(colors, DEFAULT_COLORS, 1);
-  if (second === first) second = nextColor(first, 1, first);
-  return { races: [race(0), race(1)], colors: [first, second], colors2: [pick(colors2, DEFAULT_SECOND_COLORS, 0), pick(colors2, DEFAULT_SECOND_COLORS, 1)] };
+export function skirmishFactions(raw?: readonly unknown[]): [Faction, Faction] {
+  const first = cleanFaction(raw?.[0], CAMPAIGN_FACTIONS[0]);
+  const second = cleanFaction(raw?.[1], CAMPAIGN_FACTIONS[1]);
+  if (second.color === first.color) second.color = nextColor(first.color, 1, first.color);
+  return [first, second];
 }
 
 /** The colour `step` places after `from` in the list, skipping `taken` (the other side's). */

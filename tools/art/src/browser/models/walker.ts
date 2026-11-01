@@ -4,7 +4,7 @@ import { facing, limb, plate, slump, thornShot, wallPiece, type Builder } from '
 
 /**
  * The walkers: jointed many-legged creatures of the open sand. Faceted carapace plates in the team colour on thin
- * dark legs, eyes glowing neon in the secondary colour, and muzzles of green acid that shoot thorns in the main
+ * legs in the chassis colour, eyes glowing neon in the secondary colour, and muzzles of green acid that shoot thorns in the main
  * colour. Their buildings are grown, not built: hive mounds held in arching spines, sacs on roots, a clawed womb.
  */
 
@@ -32,7 +32,7 @@ function legs(pairs: number, z0: number, z1: number, hipX: number, hipY: number,
       const hip: Vec3 = [sx * hipX, hipY, z];
       const knee: Vec3 = [sx * (hipX + reach * 0.55), hipY + 0.08, z + swing];
       const foot: Vec3 = [sx * (hipX + reach), 0, z + swing * 1.6 + (z / Math.abs(z || 1)) * 0.03];
-      out.push(limb(hip, knee, r, 'teamDark'), limb(knee, foot, r * 0.8, 'teamDark'), ball(r * 1.3, 'team2Light', knee, 4));
+      out.push(limb(hip, knee, r, 'chassisDark'), limb(knee, foot, r * 0.8, 'chassisDark'), ball(r * 1.3, 'chassisLight', knee, 4));
     }
   }
   return out;
@@ -68,9 +68,9 @@ const lightTank: Builder = (view, frame) => {
   const g = group(
     mesh(body, 'team', [0, 0.26, 0]),
     cyl(0, 0.035, 0.12, 'teamDark', [0, 0.36, 0.14], 4),
-    limb([0, 0.24, -0.12], [0, 0.0, -0.3 - step], 0.034, 'teamDark'),
-    limb([-0.08, 0.24, 0.12], [-0.3, 0.0, 0.26 + step], 0.034, 'teamDark'),
-    limb([0.08, 0.24, 0.12], [0.3, 0.0, 0.26 - step], 0.034, 'teamDark'),
+    limb([0, 0.24, -0.12], [0, 0.0, -0.3 - step], 0.034, 'chassisDark'),
+    limb([-0.08, 0.24, 0.12], [-0.3, 0.0, 0.26 + step], 0.034, 'chassisDark'),
+    limb([0.08, 0.24, 0.12], [0.3, 0.0, 0.26 - step], 0.034, 'chassisDark'),
     ball(0.03, 'team2Light', [0, 0.0, -0.3 - step], 4),
     ball(0.03, 'team2Light', [-0.3, 0.0, 0.26 + step], 4),
     ball(0.03, 'team2Light', [0.3, 0.0, 0.26 - step], 4),

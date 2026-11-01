@@ -83,10 +83,10 @@ test('the skirmish screen picks a map, an opponent and money, then plays', async
   await expect(page.locator('#modal button.active')).toContainText(['Українська', '4. Арена', 'Нормальний ШІ', '$3000', 'Хюмани', 'Ховери']);
   await expect(page.locator('#modal')).toContainText('Ви');
   await expect(page.locator('#modal')).toContainText('Компʼютер');
-  // Each side wears a colour the other one cannot pick.
-  await expect(page.locator('#modal [data-color0="olive"]')).toHaveClass(/active/);
-  await expect(page.locator('#modal [data-color0="red"]')).toBeDisabled();
-  await expect(page.locator('#modal [data-color1="olive"]')).toBeDisabled();
+  // Each side plays a faction; one in the other side's main colour cannot be picked.
+  await expect(page.locator('#modal [data-faction0="0"]')).toHaveClass(/active/);
+  await expect(page.locator('#modal [data-faction0="1"]')).toBeDisabled();
+  await expect(page.locator('#modal [data-faction1="0"]')).toBeDisabled();
   await page.screenshot({ path: 'test-results/skirmish-setup.png' });
   // Choices redraw the screen without loading anything; Start loads the match and goes straight in.
   await page.getByRole('button', { name: 'Важкий ШІ' }).click();
@@ -103,28 +103,35 @@ test('the skirmish screen picks a map, an opponent and money, then plays', async
   expect(errors).toEqual([]);
 });
 
-test('each side picks its race and colours; objects carry their race names', async ({ page }) => {
+test('the faction studio makes a faction the skirmish plays; objects carry their race names', async ({ page }) => {
   const errors = await open(page, '?s=4&vs=hard');
-  await page.locator('#modal [data-race0="walker"]').click();
-  await page.locator('#modal [data-color0="blue"]').click();
-  await page.locator('#modal [data-color1="red"]').click();
-  // Secondary colours: black accents for the first side, and red on red for the second (its own main colour).
-  await expect(page.locator('#modal')).toContainText('Другий колір');
-  await expect(page.locator('#modal [data-second0]')).toHaveCount(24);
-  await expect(page.locator('#modal [data-second0]:disabled, #modal [data-second1]:disabled')).toHaveCount(0);
-  await expect(page.locator('#modal [data-second0="cyan"]')).toHaveClass(/active/);
-  await page.locator('#modal [data-second0="black"]').click();
-  await page.locator('#modal [data-second1="red"]').click();
-  await expect(page.locator('#modal button.active')).toContainText(['Ходуни', 'Ховери']);
-  await expect(page.locator('#modal [data-color1="blue"]')).toBeDisabled();
-  await expect(page.locator('#modal [data-color0="black"]')).toHaveAttribute('title', 'Чорний');
+  // The studio opens on the first side's faction; a new walker faction in blue with black accents and lime legs.
+  await page.locator('#modal [data-studio0]').click();
+  await expect(page.locator('#modal')).toContainText('Студія фракцій');
+  await page.locator('#modal [data-new]').click();
+  await page.locator('#modal [data-race="walker"]').click();
+  await expect(page.locator('#modal')).toContainText('Шасі · ноги');
+  await page.locator('#modal [data-color="blue"]').click();
+  await page.locator('#modal [data-second="black"]').click();
+  await page.locator('#modal [data-chassis="lime"]').click();
+  await page.locator('#modal [data-symbol="skull"]').click();
+  await page.locator('#modal [data-name]').fill('Синя рать');
+  await expect(page.locator('#modal h1')).toHaveText('Синя рать');
+  await page.locator('#modal [data-save]').click();
+  await expect(page.locator('#modal .faction-list .active')).toHaveText('Синя рать');
+  await page.screenshot({ path: 'test-results/faction-studio.png' });
+  // Back on the skirmish screen the first side plays it, and both sides can pick it from now on.
+  await page.locator('#modal [data-back]').click();
+  await expect(page.locator('#modal [data-side="0"] .who')).toContainText('Синя рать');
+  await expect(page.locator('#modal .faction-chip', { hasText: 'Синя рать' })).toHaveCount(2);
   await page.screenshot({ path: 'test-results/skirmish-setup-races.png' });
-  await startMatch(page, /c2=black%2Cred|c2=black,red/);
+  await startMatch(page, /c3=lime/);
   const sides = await page.evaluate(() => {
-    const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { race: string; color: string; color2: string }> } } } }).__sw.game.world;
-    return { player: [w.sides.player!.race, w.sides.player!.color, w.sides.player!.color2], enemy: [w.sides.enemy!.race, w.sides.enemy!.color, w.sides.enemy!.color2] };
+    const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { race: string; color: string; color2: string; color3: string }> } } } }).__sw.game.world;
+    const look = (s: { race: string; color: string; color2: string; color3: string }) => [s.race, s.color, s.color2, s.color3];
+    return { player: look(w.sides.player!), enemy: look(w.sides.enemy!) };
   });
-  expect(sides).toEqual({ player: ['walker', 'blue', 'black'], enemy: ['hover', 'red', 'red'] });
+  expect(sides).toEqual({ player: ['walker', 'blue', 'black', 'lime'], enemy: ['hover', 'red', 'white', 'white'] });
   // The computer's HQ, shown through the shroud, has its race's own name.
   await page.evaluate(() => {
     const h = (window as unknown as { __sw: Hook & { players: Array<{ select(ids: number[]): void }>; game: { world: { sides: Record<string, { explored: Uint8Array }> } } } }).__sw;
@@ -143,59 +150,55 @@ test('each side picks its race and colours; objects carry their race names', asy
   await expect(page.locator('#panel button.build')).toContainText(['Запасник', 'Інкубатор', 'Плювач', 'Шипи']);
   // The choice is remembered for the Skirmish button.
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('sw.settings') ?? '{}').skirmish);
-  expect(stored).toMatchObject({ races: ['walker', 'hover'], colors: ['blue', 'red'], colors2: ['black', 'red'] });
+  expect(stored.factions[0]).toEqual({ name: 'Синя рать', race: 'walker', color: 'blue', color2: 'black', color3: 'lime', symbol: 'skull' });
   expect(errors).toEqual([]);
 });
 
-test('the colour grids pick dark and light shades and fit a 1280×720 window', async ({ page }) => {
+test('the studio colour grids pick dark and light shades, and the studio and skirmish screens fit 1280×720', async ({ page }) => {
   const errors = await open(page, '?s=4&vs=hard');
-  // Each side has a main grid and a smaller secondary grid: 8 hues across, light, base and dark shades down.
-  for (const attr of ['color0', 'second0', 'color1', 'second1']) await expect(page.locator(`#modal [data-${attr}]`)).toHaveCount(24);
-  const grid = page.locator('#modal [data-side="0"] .colors').first().locator('button');
-  const hues = await grid.evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.color0));
+  const fits = async () => {
+    const card = page.locator('#modal .card');
+    expect(await card.evaluate((c) => c.scrollHeight <= c.clientHeight)).toBe(true);
+    const box = await page.locator('#modal footer button.primary').boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(1280);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(720);
+  };
+  await fits();
+  await page.locator('#modal [data-studio1]').click();
+  // Main, secondary and chassis grids: 8 hues across, light, base and dark shades down.
+  for (const attr of ['color', 'second', 'chassis']) await expect(page.locator(`#modal [data-${attr}]`)).toHaveCount(24);
+  const hues = await page.locator('#modal [data-color]').evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.color));
   expect(hues.slice(0, 8)).toEqual(['pink', 'peach', 'sunny', 'lime', 'sky', 'lightblue', 'lilac', 'white']);
   expect(hues.slice(16)).toEqual(['crimson', 'brown', 'olive', 'forest', 'cyan', 'indigo', 'purple', 'black']);
-  const pick = async (attr: string, color: string) => {
-    await page.locator(`#modal [data-${attr}="${color}"]`).click();
-    await expect(page.locator(`#modal [data-${attr}="${color}"]`)).toHaveClass(/active/);
-  };
-  // A dark main colour and a light accent for the first side, a light main colour and a dark accent for the second.
-  await pick('color0', 'crimson');
-  await pick('second0', 'sky');
-  await pick('color1', 'pink');
-  await pick('second1', 'indigo');
-  // Only the other side's exact colour is taken; the other shades of its hue stay free.
-  await expect(page.locator('#modal [data-color1="crimson"]')).toBeDisabled();
-  await expect(page.locator('#modal [data-color0="pink"]')).toBeDisabled();
-  await expect(page.locator('#modal [data-color0="red"]')).toBeEnabled();
-  await expect(page.locator('#modal [data-color0]:disabled, #modal [data-color1]:disabled')).toHaveCount(2);
-  await expect(page.locator('#modal [data-color0="lightblue"]')).toHaveAttribute('title', 'Світло-синій');
-  await expect(page.locator('#modal [data-second1="purple"]')).toHaveAttribute('aria-label', 'Глибокий фіолетовий');
-  // The whole setup, Start included, fits the window without scrolling.
-  const card = page.locator('#modal .card');
-  expect(await card.evaluate((c) => c.scrollHeight <= c.clientHeight)).toBe(true);
-  const start = await page.getByRole('button', { name: 'Почати' }).boundingBox();
-  expect(start).not.toBeNull();
-  expect(start!.x).toBeGreaterThanOrEqual(0);
-  expect(start!.y).toBeGreaterThanOrEqual(0);
-  expect(start!.x + start!.width).toBeLessThanOrEqual(1280);
-  expect(start!.y + start!.height).toBeLessThanOrEqual(720);
+  await expect(page.locator('#modal [data-color="lightblue"]')).toHaveAttribute('title', 'Світло-синій');
+  await expect(page.locator('#modal [data-second="purple"]')).toHaveAttribute('aria-label', 'Глибокий фіолетовий');
+  // A light main colour and a dark accent for a hover faction; its chassis is the skirt it floats on.
+  await page.locator('#modal [data-color="pink"]').click();
+  await page.locator('#modal [data-second="indigo"]').click();
+  await expect(page.locator('#modal')).toContainText('Шасі · черево');
+  await page.locator('#modal [data-chassis="sky"]').click();
+  for (const [attr, c] of [['color', 'pink'], ['second', 'indigo'], ['chassis', 'sky']]) await expect(page.locator(`#modal [data-${attr}="${c}"]`)).toHaveClass(/active/);
+  await fits();
+  await page.locator('#modal [data-save]').click();
+  await page.locator('#modal [data-back]').click();
+  // The second side now plays it; the first side cannot pick a faction in pink any more.
+  await expect(page.locator('#modal [data-side="1"] .faction-chip.active')).toHaveCount(1);
+  await expect(page.locator('#modal [data-faction0="3"]')).toBeDisabled();
   await page.screenshot({ path: 'test-results/skirmish-setup-grid.png' });
-  await startMatch(page, /c2=sky%2Cindigo|c2=sky,indigo/);
+  await startMatch(page, /c2=cyan%2Cindigo|c2=cyan,indigo/);
   const sides = await page.evaluate(() => {
-    const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { color: string; color2: string }> } } } }).__sw.game.world;
-    return [w.sides.player!.color, w.sides.player!.color2, w.sides.enemy!.color, w.sides.enemy!.color2];
+    const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { color: string; color2: string; color3: string }> } } } }).__sw.game.world;
+    return [w.sides.enemy!.color, w.sides.enemy!.color2, w.sides.enemy!.color3];
   });
-  expect(sides).toEqual(['crimson', 'sky', 'pink', 'indigo']);
+  expect(sides).toEqual(['pink', 'indigo', 'sky']);
   expect(errors).toEqual([]);
 });
 
 test('a mirror match names the other side\'s race; English names follow the race', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('sw.settings', JSON.stringify({ lang: 'en', difficulty: 'normal' })));
   const errors = await open(page, '?s=4&vs=hard&r=hover,hover&c=violet,orange&c2=white,black');
-  await expect(page.locator('#modal')).toContainText('Second colour');
-  await expect(page.locator('#modal [data-second1="black"]')).toHaveClass(/active/);
-  await expect(page.locator('#modal [data-color0="black"]')).toHaveAttribute('title', 'Black');
+  await expect(page.locator('#modal [data-side="1"] .who')).toContainText('Hovers');
   await page.getByRole('button', { name: 'Start' }).click();
   await page.keyboard.press('KeyH');
   await expect(page.locator('#panel .title')).toHaveText('Sanctum');

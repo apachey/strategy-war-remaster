@@ -1,4 +1,21 @@
-import { campaign, LANGS, ObjectType, RACES, spriteName, TEAM_COLOR_GRID, TEAM_COLORS, TEAM_HUES, type Lang, type Race, type TeamColor } from '@sw/data';
+import {
+  campaign,
+  FACTION_NAME_MAX,
+  FACTION_SYMBOLS,
+  LANGS,
+  ObjectType,
+  PRESET_FACTIONS,
+  RACES,
+  spriteName,
+  TEAM_COLOR_GRID,
+  TEAM_COLORS,
+  TEAM_HUES,
+  type Faction,
+  type FactionSymbol,
+  type Lang,
+  type Race,
+  type TeamColor,
+} from '@sw/data';
 import {
   BUILDING_RULES,
   buildBlockedGrid,
@@ -22,8 +39,9 @@ import {
   type Team,
   type UnitType,
 } from '@sw/sim';
-import { hqType, nextMission, type Commander, type Game, type Setup } from './game';
-import { completed, markCompleted, readSave, SLOTS, type Slot } from './storage';
+import { hqType, nextMission, skirmishFactions, type Commander, type Game, type Setup } from './game';
+import { completed, loadFactions, markCompleted, readSave, saveFactions, SLOTS, type Slot } from './storage';
+import { emblemHtml } from './ui/emblems';
 import { logoHtml } from './ui/logo';
 import { flagHtml } from './ui/flags';
 import type { Dress, PixelScene } from './ui/scene3d';
@@ -39,7 +57,7 @@ let scene3d: typeof import('./ui/scene3d') | null = null;
 let faces: typeof import('./ui/faces') | null = null;
 const scene3dReady = Promise.all([import('./ui/scene3d'), import('./ui/faces')]).then(([m, f]) => ((faces = f), (scene3d = m)));
 
-const dress = (s: SideState): Dress => ({ race: s.race, color: s.color, color2: s.color2 });
+const dress = (s: SideState): Dress => ({ race: s.race, color: s.color, color2: s.color2, color3: s.color3 });
 
 type SkirmishSetup = Extract<Setup, { kind: 'skirmish' }>;
 
@@ -103,6 +121,10 @@ export class Hud {
   readonly panels: PlayerPanel[];
   /** The skirmish screen's choices before Start loads them. */
   private draft: SkirmishSetup | null = null;
+  /** The faction studio's open faction: which of the player's factions it is (-1 for a new one) and its edits. */
+  private studio: { index: number; edit: Faction } | null = null;
+  /** The faction last saved since the studio opened, handed to its `back` when it closes. */
+  private studioSaved: Faction | null = null;
 
   constructor(
     private readonly game: Game,
@@ -239,22 +261,26 @@ export class Hud {
            <p class="goal">${s.opponent === 'human' ? T.duoGoal : T.skirmishGoal}</p>
          </div>
        </div>
-       <div class="sides">${[0, 1].map((i) => sideOptions(s, i)).join('')}</div>
+       <div class="sides">${[0, 1].map((i) => sideOptions(s, i, loadFactions())).join('')}</div>
        <footer><button data-campaign>${T.campaign}</button><button class="primary" data-go>${T.start}</button></footer>`,
     );
     m.querySelector('.card')!.classList.add('setup', 'screen');
-    drawPreview(m.querySelector('canvas')!, s.mapIndex, s.colors);
+    drawPreview(m.querySelector('canvas')!, s.mapIndex, [s.factions[0].color, s.factions[1].color]);
     const change = (patch: Partial<SkirmishSetup>) => {
       this.draft = { ...s, ...patch };
       this.showSkirmishSetup();
     };
     m.querySelectorAll<HTMLButtonElement>('[data-map]').forEach((b) => (b.onclick = () => change({ mapIndex: Number(b.dataset.map) })));
     m.querySelectorAll<HTMLButtonElement>('[data-opponent]').forEach((b) => (b.onclick = () => change({ opponent: b.dataset.opponent as Opponent })));
+    const choices = [...PRESET_FACTIONS, ...loadFactions()];
+    const seat = (i: 0 | 1, f: Faction) => skirmishFactions(i === 0 ? [f, s.factions[1]] : [s.factions[0], f]);
     for (const i of [0, 1] as const) {
-      const pair = <V>(list: [V, V], v: V): [V, V] => (i === 0 ? [v, list[1]] : [list[0], v]);
-      m.querySelectorAll<HTMLButtonElement>(`[data-race${i}]`).forEach((b) => (b.onclick = () => change({ races: pair(s.races, b.dataset[`race${i}`] as Race) })));
-      m.querySelectorAll<HTMLButtonElement>(`[data-color${i}]`).forEach((b) => (b.onclick = () => change({ colors: pair(s.colors, b.dataset[`color${i}`] as TeamColor) })));
-      m.querySelectorAll<HTMLButtonElement>(`[data-second${i}]`).forEach((b) => (b.onclick = () => change({ colors2: pair(s.colors2, b.dataset[`second${i}`] as TeamColor) })));
+      m.querySelectorAll<HTMLButtonElement>(`[data-faction${i}]`).forEach((b) => (b.onclick = () => change({ factions: seat(i, choices[Number(b.dataset[`faction${i}`])]!) })));
+      m.querySelector<HTMLButtonElement>(`[data-studio${i}]`)!.onclick = () =>
+        this.showFactionStudio((made) => {
+          if (made) this.draft = { ...s, factions: seat(i, made) };
+          this.showSkirmishSetup();
+        }, s.factions[i]);
     }
     m.querySelectorAll<HTMLButtonElement>('[data-money]').forEach((b) => (b.onclick = () => change({ money: Number(b.dataset.money) })));
     m.querySelector<HTMLButtonElement>('[data-campaign]')!.onclick = () => this.showMissions();
@@ -315,6 +341,7 @@ export class Hud {
            `<button data-campaign>${T.campaign}</button>`,
            `<button data-skirmish>${T.skirmish}</button>`,
            `<button data-duo>${T.duo}</button>`,
+           `<button data-factions>${T.factions}</button>`,
            `<button data-saves>${T.load}</button>`,
            `<button data-settings>${T.settings}</button>`,
            inApp() ? `<button data-exit>${T.exit}</button>` : '',
@@ -334,6 +361,7 @@ export class Hud {
     on('skirmish', () => this.actions.open({ ...last, opponent: last.opponent === 'human' ? 'normal' : last.opponent }));
     on('duo', () => this.actions.open({ ...last, opponent: 'human' }));
     on('saves', () => this.showSaves());
+    on('factions', () => this.showFactionStudio(() => this.showMenu()));
     on('settings', () => this.showSettings());
     on('exit', () => {
       const tauri = (window as unknown as { __TAURI_INTERNALS__?: { invoke(cmd: string, args?: unknown): Promise<unknown> } }).__TAURI_INTERNALS__;
@@ -470,6 +498,99 @@ export class Hud {
     m.querySelector<HTMLButtonElement>('[data-close]')!.onclick = close;
   }
 
+  /**
+   * The faction studio: the player's own factions on the left, the open one large in the middle (its emblem and its
+   * army) and its race, name, symbol and three colours on the right. `back` gets the faction that was last saved, or
+   * null; `start` is the faction to open (one of the player's, or a new one made from it).
+   */
+  showFactionStudio(back: (saved: Faction | null) => void, start?: Faction): void {
+    const T = t();
+    const mine = loadFactions();
+    if (!this.studio || start) {
+      const k = start ? mine.findIndex((f) => sameFaction(f, start)) : -1;
+      this.studio = { index: k, edit: { ...(start ?? PRESET_FACTIONS[0]!) } };
+      this.studioSaved = null;
+    }
+    const st = this.studio;
+    const f = st.edit;
+    const redraw = () => this.showFactionStudio(back);
+    const chip = (c: Faction, attr: string, on: boolean) =>
+      `<button class="faction-chip${on ? ' active' : ''}" ${attr}>${emblemHtml(c, 2)}<span>${factionName(c)}</span></button>`;
+    const symbols = FACTION_SYMBOLS.map(
+      (sym) => `<button class="symbol${sym === f.symbol ? ' active' : ''}" data-symbol="${sym}" title="${T.symbol[sym]}" aria-label="${T.symbol[sym]}">${emblemHtml({ ...f, symbol: sym }, 2)}</button>`,
+    ).join('');
+    const army = [ObjectType.PlayerHQ, ObjectType.Harvester, ObjectType.LightTank, ObjectType.HeavyTank].map((type) => img(portraitFor(f, type, 96))).join('');
+    const m = this.modal(
+      `<header><div class="kicker">${T.factionStudio}</div><h1>${factionName(f)}</h1></header>
+       <div class="studio-body">
+         <nav class="faction-list">
+           <span>${T.myFactions}</span>
+           ${mine.map((c, k) => chip(c, `data-mine="${k}"`, k === st.index)).join('')}
+           <button class="faction-chip new${st.index < 0 ? ' active' : ''}" data-new>+ ${T.newFaction}</button>
+           <span>${T.presetFactions}</span>
+           ${PRESET_FACTIONS.map((c, k) => chip(c, `data-preset="${k}"`, false)).join('')}
+         </nav>
+         <figure class="faction-show" style="--c: ${TEAM_COLORS[f.color][1]}">${emblemHtml(f, 6, 'emblem big')}<div class="army">${army}</div></figure>
+         <div class="faction-edit">
+           <label class="name"><span>${T.nameLabel}</span><input type="text" maxlength="${FACTION_NAME_MAX}" value="${f.name}" placeholder="${T.race[f.race]}" data-name></label>
+           <div class="option"><span>${T.raceLabel}</span><div class="races">${choice('race', RACES, f.race, (r) => T.race[r])}</div></div>
+           <div class="option"><span>${T.symbolLabel}</span><div class="symbols">${symbols}</div></div>
+           <div class="palettes">
+             ${swatches('color', T.colorLabel, f.color, null, true)}
+             ${swatches('second', T.color2Label, f.color2, null, true)}
+             ${swatches('chassis', `${T.color3Label} · ${T.chassisOf[f.race]}`, f.color3, null, true)}
+           </div>
+         </div>
+       </div>
+       <footer><button data-back>${T.back}</button><span class="spacer"></span>${st.index >= 0 ? `<button data-delete>${T.deleteFaction}</button>` : ''}<button class="primary" data-save>${T.saveFaction}</button></footer>`,
+    );
+    m.querySelector('.card')!.classList.add('faction-studio', 'screen');
+    const set = (patch: Partial<Faction>) => {
+      st.edit = { ...st.edit, ...patch };
+      redraw();
+    };
+    const each = (attr: string, f: (v: string) => void) =>
+      m.querySelectorAll<HTMLButtonElement>(`[data-${attr}]`).forEach((b) => (b.onclick = () => f(b.getAttribute(`data-${attr}`)!)));
+    each('race', (v) => set({ race: v as Race }));
+    each('symbol', (v) => set({ symbol: v as FactionSymbol }));
+    each('color', (v) => set({ color: v as TeamColor }));
+    each('second', (v) => set({ color2: v as TeamColor }));
+    each('chassis', (v) => set({ color3: v as TeamColor }));
+    each('mine', (v) => ((this.studio = { index: Number(v), edit: { ...mine[Number(v)]! } }), redraw()));
+    each('preset', (v) => ((this.studio = { index: -1, edit: { ...PRESET_FACTIONS[Number(v)]! } }), redraw()));
+    each('new', () => ((this.studio = { index: -1, edit: { ...f, name: '' } }), redraw()));
+    // Typing changes only the draft and the title, so the field keeps its focus.
+    const name = m.querySelector<HTMLInputElement>('[data-name]')!;
+    name.oninput = () => {
+      st.edit = { ...st.edit, name: name.value.replace(/[<>&"|]/g, '') };
+      m.querySelector('header h1')!.textContent = factionName(st.edit);
+    };
+    m.querySelector<HTMLButtonElement>('[data-save]')!.onclick = () => {
+      const list = loadFactions();
+      const edit = { ...st.edit, name: st.edit.name.trim() };
+      if (st.index >= 0 && st.index < list.length) list[st.index] = edit;
+      else st.index = list.push(edit) - 1;
+      st.edit = edit;
+      saveFactions(list);
+      this.studioSaved = edit;
+      this.toast(T.factionSaved);
+      redraw();
+    };
+    m.querySelector<HTMLButtonElement>('[data-delete]')?.addEventListener('click', () => {
+      const list = loadFactions();
+      list.splice(st.index, 1);
+      saveFactions(list);
+      this.studio = { index: -1, edit: { ...f } };
+      redraw();
+    });
+    m.querySelector<HTMLButtonElement>('[data-back]')!.onclick = () => {
+      this.studio = null;
+      back(this.studioSaved);
+    };
+    if (!scene3d) void scene3dReady.then(() => this.studio === st && $('modal').querySelector('.faction-studio') && redraw());
+  }
+
+
   showSaves(): void {
     const close = this.pauseBehind();
     const T = t();
@@ -532,18 +653,30 @@ function swatches(attr: string, label: string, current: TeamColor, taken: TeamCo
   return `<div class="colors${small ? ' small' : ''}"><span>${label}</span><div class="grid" role="group" aria-label="${label}">${cells.join('')}</div></div>`;
 }
 
+/** A faction's name to show: the player's own, or its race's. */
+const factionName = (f: Faction) => f.name || t().race[f.race];
+const sameFaction = (a: Faction, b: Faction) => JSON.stringify(a) === JSON.stringify(b);
+
 /**
- * One side's race, team colour and secondary colour on the skirmish screen. The colour the other side wears cannot be
- * picked, so the two sides never look alike (other shades of its hue can); any secondary colour can, also one already worn.
+ * One side on the skirmish screen: its faction's emblem, name and army, and every faction it can play (the ready-made
+ * ones, then the player's own from the studio). A faction in the other side's main colour cannot be picked, so the two
+ * sides never look alike; the studio button opens the faction studio on this side's faction.
  */
-function sideOptions(s: SkirmishSetup, i: number): string {
+function sideOptions(s: SkirmishSetup, i: number, mine: readonly Faction[]): string {
   const T = t();
   const who = s.opponent === 'human' ? T.playerName(i + 1) : i === 0 ? T.you : T.computer;
-  const look: Dress = { race: s.races[i]!, color: s.colors[i]!, color2: s.colors2[i]! };
-  const army = ARMY.map((type) => img(portraitFor(look, type, 64))).join('');
-  return `<div class="side" data-side="${i}"><div class="who"><b>${who}</b><div class="races">${choice(`race${i}`, RACES, s.races[i]!, (r) => T.race[r])}</div></div>
-    <div class="look"><div class="army" style="--c: ${TEAM_COLORS[look.color][1]}">${army}</div>
-    <div class="palettes">${swatches(`color${i}`, T.colorLabel, s.colors[i]!, s.colors[1 - i]!)}${swatches(`second${i}`, T.color2Label, s.colors2[i]!, null, true)}</div></div></div>`;
+  const f = s.factions[i]!;
+  const other = s.factions[1 - i]!;
+  const army = ARMY.map((type) => img(portraitFor(f, type, 64))).join('');
+  const chips = [...PRESET_FACTIONS, ...mine]
+    .map((c, k) => {
+      const on = sameFaction(c, f);
+      return `<button class="faction-chip${on ? ' active' : ''}" data-faction${i}="${k}" title="${factionName(c)}"${!on && c.color === other.color ? ' disabled' : ''}>${emblemHtml(c, 2)}<span>${factionName(c)}</span></button>`;
+    })
+    .join('');
+  return `<div class="side" data-side="${i}"><div class="who"><b>${who}</b>${emblemHtml(f, 2)}<span class="faction-name">${factionName(f)}</span>
+    <button class="studio-link" data-studio${i}>${T.factionStudio}</button></div>
+    <div class="look"><div class="army" style="--c: ${TEAM_COLORS[f.color][1]}">${army}</div><div class="faction-chips">${chips}</div></div></div>`;
 }
 
 /** What the skirmish screen shows of each side's army: its HQ and the three tanks. */
