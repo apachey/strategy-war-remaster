@@ -56,14 +56,21 @@ export interface UnitRules {
   buildMs: number;
 }
 
+/**
+ * 1.2: the heavy tank keeps the original's 4 cells, one more than the middle tank, so the slow and expensive tank
+ * outranges the rest (still within the 4 cells every unit sees).
+ */
+const HEAVY_RANGE_CELLS = 4;
+
 function unit(type: UnitType, gun: typeof LIGHT_GUN | typeof CANNON | null): UnitRules {
   const b = ORIGINAL_BALANCE.units[type];
+  const rangeCells = type === ObjectType.HeavyTank ? HEAVY_RANGE_CELLS : b.rangeCells + RANGE_CHANGE_CELLS;
   return {
     price: b.price,
     hp: b.hp,
     stepMs: b.stepDelayMs,
-    rangeCells: b.rangeCells + RANGE_CHANGE_CELLS,
-    weapon: gun && { ...gun, reloadMs: 2000, range: (b.rangeCells + RANGE_CHANGE_CELLS) * CELL },
+    rangeCells,
+    weapon: gun && { ...gun, reloadMs: 2000, range: rangeCells * CELL },
     buildMs: b.hp * 100,
   };
 }

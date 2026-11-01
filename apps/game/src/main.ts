@@ -222,6 +222,10 @@ async function start(): Promise<void> {
   /** Where player 1 was last attacked, for Space. */
   let lastAlert: { x: number; y: number } | null = null;
 
+  /** The last plain click on an object, so a second one on it soon after selects every unit of its type. */
+  let lastClick: { id: number; at: number } | null = null;
+  const DOUBLE_CLICK_MS = 400;
+
   app.canvas.addEventListener('pointerdown', (ev) => {
     if (!game.started || !v1.contains(ev.offsetX, ev.offsetY)) return;
     const p = v1.toWorld(ev.offsetX, ev.offsetY);
@@ -267,7 +271,14 @@ async function start(): Promise<void> {
       p1.selectBox(d.x0, d.y0, d.x1, d.y1, d.shift);
     } else {
       const hit = p1.pick(d.x0, d.y0);
-      if (hit) p1.select([hit.id], d.shift);
+      const now = performance.now();
+      const double = hit && lastClick && lastClick.id === hit.id && now - lastClick.at < DOUBLE_CLICK_MS;
+      lastClick = hit && !double ? { id: hit.id, at: now } : null;
+      if (hit && double) {
+        const a = v1.toWorld(v1.rect.x, v1.rect.y);
+        const b = v1.toWorld(v1.rect.x + v1.rect.w, v1.rect.y + v1.rect.h);
+        p1.selectSameType(hit, a.x, a.y, b.x, b.y, d.shift);
+      } else if (hit) p1.select([hit.id], d.shift);
       else if (!d.shift) p1.select([]);
     }
   });

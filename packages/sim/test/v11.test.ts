@@ -52,7 +52,8 @@ describe('version 1.1', () => {
   it('units see 4 cells, every weapon reaches one cell less, shells fly at new speeds, a factory costs 500', () => {
     expect(UNIT_RULES[ObjectType.LightTank].weapon).toMatchObject({ range: 2 * CELL, speed: 340 });
     expect(UNIT_RULES[ObjectType.MiddleTank].weapon).toMatchObject({ range: 3 * CELL, speed: 65 });
-    expect(UNIT_RULES[ObjectType.HeavyTank].weapon!.range).toBe(3 * CELL);
+    // 1.2 gives the heavy tank its 4 cells back.
+    expect(UNIT_RULES[ObjectType.HeavyTank].weapon!.range).toBe(4 * CELL);
     expect(BUILDING_RULES[ObjectType.Defender].weapon!.range).toBe(4 * CELL);
     expect(BUILDING_RULES[ObjectType.TankFactory].price).toBe(500);
     const w = arena([...HQS, { type: ObjectType.LightTank, x: 150, y: 150, hp: 70 }]);
