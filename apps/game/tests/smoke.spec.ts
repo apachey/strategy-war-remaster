@@ -188,8 +188,9 @@ test('losing the HQ shows the defeat screen with a retry', async ({ page }) => {
   await page.getByRole('button', { name: 'Почати' }).click();
   await page.keyboard.press('KeyH');
   await expect(page.locator('#panel')).toContainText('Штаб');
-  page.once('dialog', (d) => void d.accept());
+  // The button asks for a second press instead of a system dialog (which does nothing in the macOS app).
   await page.getByRole('button', { name: 'Самознищення' }).click();
+  await page.getByRole('button', { name: 'Знищити обʼєкт?' }).click();
   await expect(page.locator('#modal')).toContainText('Поразка', { timeout: 15_000 });
   await expect(page.getByRole('button', { name: 'Ще раз' })).toBeVisible();
   expect(errors).toEqual([]);

@@ -206,6 +206,15 @@ export class Commander {
     if (ids.length > 0 || !add) this.select(ids, add);
   }
 
+  /** Double click: every unit of this side of the same type inside the map rectangle (what is on screen). */
+  selectSameType(e: Entity, x0: number, y0: number, x1: number, y1: number, add: boolean): void {
+    if (e.team !== this.side || !isUnit(e.type)) return this.select([e.id], add);
+    const ids = this.world.entities
+      .filter((o) => o.team === this.side && o.type === e.type && !o.hidden && o.x + o.size > x0 && o.x < x1 && o.y + o.size > y0 && o.y < y1)
+      .map((o) => o.id);
+    this.select(ids.includes(e.id) ? ids : [e.id, ...ids], add);
+  }
+
   /** Every armed unit of this side: a quick way to grab the army with a gamepad. */
   selectArmy(): void {
     this.select(this.world.entities.filter((e) => e.team === this.side && isUnit(e.type) && UNIT_RULES[e.type as UnitType].weapon).map((e) => e.id));
