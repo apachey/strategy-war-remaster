@@ -249,6 +249,36 @@ body.duo .toast.side-2 { left: 75%; }
 #modal button.swatch.active { z-index: 1; border-color: #fff; outline: var(--u) solid #000; }
 /* The other side's colour: crossed out. */
 #modal button.swatch:disabled { opacity: 0.45; background: linear-gradient(to top right, transparent 44%, var(--ink) 44% 56%, transparent 56%), var(--c); }
+/* Factions: chips with an emblem and a name, on the skirmish screen and in the faction studio. */
+#modal .emblem { image-rendering: pixelated; flex: none; }
+#modal .faction-chips { display: flex; flex-wrap: wrap; align-content: flex-start; gap: var(--u); flex: 1; min-width: 0; }
+#modal button.faction-chip { display: flex; align-items: center; gap: calc(2 * var(--u)); min-width: 0; padding: var(--u) calc(2 * var(--u)); text-align: left; }
+#modal button.faction-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#modal .side .who .faction-name { color: var(--gold); }
+#modal .side .who .studio-link { margin-left: auto; }
+/* The faction studio: list | the faction large | its controls; everything fits 1280×720. */
+#modal .faction-studio { grid-template-rows: auto minmax(0, 1fr) auto; }
+#modal .studio-body { display: grid; grid-template-columns: minmax(0, 15rem) auto minmax(0, 1fr); gap: calc(5 * var(--u)); min-height: 0; }
+#modal .faction-list { display: flex; flex-direction: column; gap: var(--u); overflow-y: auto; min-height: 0; }
+#modal .faction-list > span { color: var(--muted); margin-top: calc(2 * var(--u)); }
+#modal .faction-show {
+  margin: 0; display: flex; flex-direction: column; align-items: center; gap: calc(3 * var(--u)); padding: calc(3 * var(--u));
+  background: radial-gradient(ellipse at 50% 60%, color-mix(in srgb, var(--c) 35%, #14110c), #0b0a08 80%);
+  border: var(--u) solid #000; outline: var(--u) solid var(--line);
+}
+#modal .faction-show .army { display: grid; grid-template-columns: repeat(2, 128px); grid-auto-rows: 128px; gap: var(--u); }
+#modal .faction-show .army img { width: 100%; height: 100%; image-rendering: pixelated; }
+#modal .faction-edit { display: flex; flex-direction: column; gap: calc(3 * var(--u)); min-width: 0; overflow-y: auto; }
+#modal .faction-edit .option { display: block; }
+#modal .faction-edit .option > span, #modal .faction-edit .name > span { display: block; color: var(--muted); margin-bottom: var(--u); }
+#modal .faction-edit .name input { font: inherit; color: var(--ink); background: #0b0a08; border: var(--u) solid var(--line); padding: var(--u) calc(2 * var(--u)); width: 100%; max-width: 20rem; }
+#modal .faction-edit .races { display: flex; gap: var(--u); }
+#modal .faction-edit .symbols { display: grid; grid-template-columns: repeat(6, auto); justify-content: start; gap: var(--u); }
+#modal button.symbol { padding: var(--u); min-width: 0; line-height: 0; }
+#modal button.symbol.active { outline: var(--u) solid #fff; }
+#modal .faction-edit .palettes { display: flex; flex-wrap: wrap; gap: calc(5 * var(--u)); }
+#modal .faction-studio footer .spacer { flex: 1; }
+#modal .faction-studio footer { gap: calc(2 * var(--u)); }
 #modal .preview { display: block; max-width: 100%; margin: var(--u) 0 calc(3 * var(--u)); image-rendering: pixelated; border: var(--u) solid #000; }
 #modal .slots { display: flex; flex-direction: column; gap: calc(3 * var(--u)); }
 #modal .slot { display: grid; grid-template-columns: 1fr auto auto; gap: var(--u) calc(3 * var(--u)); align-items: center; }

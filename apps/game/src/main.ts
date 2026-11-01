@@ -38,7 +38,7 @@ document.documentElement.style.setProperty('--k', '2');
 /** Loads a mission or a skirmish; `start` skips its start screen (the skirmish screen already showed the choices). */
 function open(setup: Setup, load?: Slot, start = false): void {
   const p = new URLSearchParams(location.search);
-  for (const key of ['m', 's', 'vs', 'money', 'r', 'c', 'c2', 'd', 'load', 'go']) p.delete(key);
+  for (const key of ['m', 's', 'vs', 'money', 'r', 'c', 'c2', 'c3', 'sym', 'n1', 'n2', 'd', 'load', 'go']) p.delete(key);
   for (const [k, v] of Object.entries(setupQuery(setup))) p.set(k, v);
   if (load) p.set('load', load);
   if (start) p.set('go', '1');
@@ -109,8 +109,8 @@ async function start(): Promise<void> {
   document.getElementById('stage')!.appendChild(app.canvas);
   const { player: s1, enemy: s2 } = game.world.sides;
   const art = await loadArt([
-    [s1.color, s1.color2],
-    [s2.color, s2.color2],
+    [s1.color, s1.color2, s1.color3],
+    [s2.color, s2.color2, s2.color3],
   ]);
   app.canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
 

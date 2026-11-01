@@ -3,19 +3,22 @@ import { ball, barrel, box, cyl, dome, group, lathe, mesh, paintAll, slab, type 
 import { chips, facing, lightSlot, limb, plasmaFlash, slump, spike, wallPiece, type Builder } from './parts';
 
 /**
- * The hover race: the original's enemy. Smooth oval shells in the main colour skimming the ground, grooves and
- * raised plates in the secondary colour, grey guns, light strips on the nose and plasma guns; nothing touches the
- * ground and they bob between move frames. Their buildings are monolithic vaults in the main colour standing on
- * their corners, with crystals in the secondary colour glowing inside, on the light plated ground they live on.
+ * The hover race: the original's enemy. Smooth oval shells in the main colour on a skirt in the chassis colour,
+ * skimming the ground; grooves and raised plates in the secondary colour, grey guns, light strips on the nose and
+ * plasma guns; nothing touches the ground and they bob between move frames. Their buildings are monolithic vaults in
+ * the main colour standing on their corners, with crystals in the secondary colour glowing inside, on the light plated ground they live on.
  */
 
-/** Smooth half-oval hull floating over a dark belly; returns it with the height of its top. */
+/**
+ * Smooth half-oval hull floating on a skirt, the hover race's chassis: a ring in the chassis colour that sticks out a
+ * little round the foot of the shell. Returns it with the height of its top.
+ */
 function hoverHull(rx: number, ry: number, rz: number, y: number): { g: THREE.Group; top: number } {
   const shell = new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
   shell.scale(rx, ry, rz);
-  const belly = new THREE.CylinderGeometry(rx * 0.95, rx * 0.8, 0.06, 12);
-  belly.scale(1, 1, rz / rx);
-  return { g: group(mesh(belly, 'team2Dark', [0, y - 0.02, 0]), mesh(shell, 'team', [0, y, 0])), top: y + ry };
+  const skirt = new THREE.CylinderGeometry(rx * 1.07, rx * 0.86, 0.08, 14);
+  skirt.scale(1, 1, rz / rx);
+  return { g: group(mesh(skirt, 'chassis', [0, y - 0.01, 0]), mesh(shell, 'team', [0, y + 0.02, 0])), top: y + 0.02 + ry };
 }
 
 /** Floating height of a hover unit for a frame: it bobs between the two move frames. */
@@ -71,10 +74,10 @@ const middleTank: Builder = (view, frame) => {
   const fire = frame === 'fire';
   const shell = new THREE.SphereGeometry(0.4, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
   shell.scale(0.95, 0.3, 1.12);
-  const belly = new THREE.CylinderGeometry(0.38, 0.32, 0.06, 12);
-  belly.scale(1, 1, 1.12);
+  const skirt = new THREE.CylinderGeometry(0.41, 0.33, 0.08, 14);
+  skirt.scale(1, 1, 1.12);
   const g = group(
-    mesh(belly, 'team2Dark', [0, 0.08 + y, 0]),
+    mesh(skirt, 'chassis', [0, 0.08 + y, 0]),
     mesh(shell, 'team', [0, 0.1 + y, 0]),
     // Spine: two raised plates either side of a dark groove.
     slab(0.09, 0.08, 0.56, 'team2Light', [-0.08, 0.17 + y, 0.08], 0.6),
@@ -448,7 +451,7 @@ const factory: Builder = (_view, frame) => {
   );
   if (work) {
     const tank = middleTank(4, 'move0');
-    paintAll(tank, 'steel', ['steelDark', 'lamp', 'team2Dark']);
+    paintAll(tank, 'steel', ['steelDark', 'lamp', 'team2Dark', 'chassis']);
     tank.position.set(-0.2, 0.12, 0.12);
     g.add(tank, mesh(new THREE.TorusGeometry(0.36, 0.02, 4, 16).rotateX(Math.PI / 2), 'lamp', [-0.2, 0.08, 0.12]));
   }

@@ -4,6 +4,7 @@ import {
   CELL,
   DEFAULT_COLORS,
   DEFAULT_SECOND_COLORS,
+  defaultChassisColor,
   ObjectType,
   TILE_FOREST,
   type CampaignMap,
@@ -153,10 +154,11 @@ export type GameEvent =
   | { kind: 'harvesterNotice'; team: Side; id: number; notice: HarvesterNotice; x: number; y: number };
 
 export interface SideState {
-  /** How the side looks: its race, team colour and secondary (accent) colour. None of them changes any rule. */
+  /** How the side looks: its race, team colour, secondary (accent) colour and chassis colour. None of them changes any rule. */
   race: Race;
   color: TeamColor;
   color2: TeamColor;
+  color3: TeamColor;
   money: number;
   /** 1 = cell has been seen. The original has a classic shroud: once seen, always shown. */
   explored: Uint8Array;
@@ -299,6 +301,8 @@ export interface WorldOptions {
   colors?: readonly [TeamColor, TeamColor];
   /** Secondary colours of the two seats; they may match each other or a main colour. Default turquoise (cyan) and white. */
   colors2?: readonly [TeamColor, TeamColor];
+  /** Chassis colours (tracks, legs, hover bellies); any pair. Default `defaultChassisColor` of each side. */
+  colors3?: readonly [TeamColor, TeamColor];
 }
 
 export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, options: WorldOptions = {}): World {
@@ -309,6 +313,10 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, op
   const [playerColor, enemyColor] = options.colors ?? DEFAULT_COLORS;
   if (playerColor === enemyColor) throw new Error(`Both sides cannot wear ${playerColor}`);
   const [playerColor2, enemyColor2] = options.colors2 ?? DEFAULT_SECOND_COLORS;
+  const [playerColor3, enemyColor3] = options.colors3 ?? [
+    defaultChassisColor(playerRace, playerColor, playerColor2),
+    defaultChassisColor(enemyRace, enemyColor, enemyColor2),
+  ];
   const grid = buildBlockedGrid(map);
   const cells = grid.cols * grid.rows;
   const world: World = {
@@ -318,8 +326,8 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, op
     byId: new Map(),
     projectiles: [],
     sides: {
-      player: { race: playerRace, color: playerColor, color2: playerColor2, money: mission.money, explored: new Uint8Array(cells), stats: newStats(), alert: null },
-      enemy: { race: enemyRace, color: enemyColor, color2: enemyColor2, money: 0, explored: new Uint8Array(cells), stats: newStats(), alert: null },
+      player: { race: playerRace, color: playerColor, color2: playerColor2, color3: playerColor3, money: mission.money, explored: new Uint8Array(cells), stats: newStats(), alert: null },
+      enemy: { race: enemyRace, color: enemyColor, color2: enemyColor2, color3: enemyColor3, money: 0, explored: new Uint8Array(cells), stats: newStats(), alert: null },
     },
     tick: 0,
     rngState: seed >>> 0,

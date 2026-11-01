@@ -1,7 +1,7 @@
-import { LANGS, type Lang } from '@sw/data';
+import { CAMPAIGN_FACTIONS, cleanFaction, LANGS, type Faction, type Lang } from '@sw/data';
 import { campaign } from '@sw/data';
 import { DEFAULT_SKIRMISH_MONEY, DIFFICULTIES, OPPONENTS, SAVE_VERSION, SKIRMISH_MONEY, type Difficulty, type WorldSave } from '@sw/sim';
-import { sidesLook, type Setup } from './game';
+import { skirmishFactions, type Setup } from './game';
 
 /**
  * Settings, campaign progress and save slots in localStorage. Storage can be missing or full (private windows,
@@ -44,7 +44,7 @@ const volume = (v: unknown, fallback: number) => (typeof v === 'number' && v >= 
 
 export function loadSettings(): Settings {
   const s = read<Partial<Settings>>('settings') ?? {};
-  const k = s.skirmish;
+  const k = s.skirmish as (SkirmishSetup & { races?: unknown[]; colors?: unknown[]; colors2?: unknown[] }) | undefined;
   return {
     lang: s.lang && LANGS.includes(s.lang) ? s.lang : 'uk',
     difficulty: s.difficulty && DIFFICULTIES.includes(s.difficulty) ? s.difficulty : 'normal',
@@ -55,7 +55,8 @@ export function loadSettings(): Settings {
       mapIndex: k && k.mapIndex >= 0 && k.mapIndex < campaign.maps.length ? k.mapIndex : 3,
       opponent: k && OPPONENTS.includes(k.opponent) ? k.opponent : 'normal',
       money: k && (SKIRMISH_MONEY as readonly number[]).includes(k.money) ? k.money : DEFAULT_SKIRMISH_MONEY,
-      ...sidesLook(k?.races, k?.colors, k?.colors2),
+      // Settings from 1.1 have races and colours instead of factions.
+      factions: skirmishFactions(k?.factions ?? [0, 1].map((i) => ({ race: k?.races?.[i], color: k?.colors?.[i], color2: k?.colors2?.[i] }))),
     },
   };
 }
@@ -93,4 +94,14 @@ export function readSave(slot: Slot): SaveGame | null {
 
 export function writeSave(slot: Slot, save: SaveGame): boolean {
   return write(`save.${slot}`, save);
+}
+
+/** The factions the player made in the faction studio, in the order they were first saved. */
+export function loadFactions(): Faction[] {
+  const list = read<unknown[]>('factions');
+  return Array.isArray(list) ? list.map((f) => cleanFaction(f, CAMPAIGN_FACTIONS[0])) : [];
+}
+
+export function saveFactions(list: readonly Faction[]): boolean {
+  return write('factions', list);
 }
