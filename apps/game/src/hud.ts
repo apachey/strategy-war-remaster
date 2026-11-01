@@ -691,6 +691,8 @@ export class PlayerPanel {
   private readonly toastEl: HTMLElement;
   /** Self-destruct waits for a second press on the same object within ARM_MS. */
   private armed: { id: number; at: number } | null = null;
+  private infoShown = '';
+  private gridShown = '';
 
   constructor(
     private readonly c: Commander,
@@ -757,9 +759,14 @@ export class PlayerPanel {
     this.key = key;
     this.money.innerHTML = `${CRYSTAL}<span>${c.money}</span>`;
     this.money.dataset.name = t().crystals;
-    this.info.innerHTML = this.infoHtml(sel);
-    this.grid.innerHTML = this.gridHtml(sel);
-    this.assignKeys();
+    // Only replace what changed: a button that stays the same element keeps a press that lands mid-redraw.
+    const info = this.infoHtml(sel);
+    if (info !== this.infoShown) this.info.innerHTML = this.infoShown = info;
+    const grid = this.gridHtml(sel);
+    if (grid !== this.gridShown) {
+      this.grid.innerHTML = this.gridShown = grid;
+      this.assignKeys();
+    }
     const buttons = this.focusable();
     buttons.forEach((b, i) => b.classList.toggle('pad-focus', c.cursor !== null && i === c.focus % buttons.length));
     // The redraw replaced the button under the mouse: point the tooltip at its successor.
