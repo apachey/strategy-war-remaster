@@ -27,7 +27,7 @@ html, body { margin: 0; height: 100%; background: #14110c; overflow: hidden; use
 h1, h2, b, strong, .title { font-weight: 700; }
 
 /* Pixel frame: panels, dialogs, the top bar. */
-.frame, .panel, #modal .card, #topbar, .badge, #help, .toast {
+.frame, .panel, #modal .card, .toast {
   border: calc(6 * var(--u)) solid transparent;
   border-image: var(--frame) 24 fill / calc(6 * var(--u)) repeat;
   background: none;
@@ -35,7 +35,7 @@ h1, h2, b, strong, .title { font-weight: 700; }
 }
 
 button {
-  font: inherit; color: var(--ink); cursor: pointer; padding: calc(1 * var(--u)) calc(3 * var(--u));
+  font: inherit; color: var(--ink); cursor: inherit; padding: calc(1 * var(--u)) calc(3 * var(--u));
   border: calc(3 * var(--u)) solid transparent; border-radius: 0; background: none;
   border-image: var(--btn-normal) 12 fill / calc(3 * var(--u)) repeat; image-rendering: pixelated;
   position: relative;
@@ -45,7 +45,8 @@ button:active:not(:disabled) { border-image-source: var(--btn-down); }
 button.active { border-image-source: var(--btn-on); color: #fff; }
 button.primary { border-image-source: var(--btn-primary); color: var(--ink-primary); font-weight: 700; }
 button.primary:hover:not(:disabled) { border-image-source: var(--btn-on); color: #fff; }
-button:disabled { border-image-source: var(--btn-disabled); color: #6c6450; cursor: default; }
+button:disabled { border-image-source: var(--btn-disabled); color: #6c6450; }
+input, label, a { cursor: inherit; }
 button.danger { color: #ffb4a6; }
 button small { display: block; color: var(--muted); }
 button:disabled small { color: #5a5444; }
@@ -56,26 +57,42 @@ button kbd {
 button:disabled kbd { color: #5a5444; }
 .crystal { color: var(--gold); }
 
-#topbar {
-  position: fixed; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: calc(4 * var(--u));
-  padding: 0 calc(2 * var(--u));
-}
-#topbar .spacer { flex: 1; }
-#hud { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#money { color: var(--gold); font-weight: 700; }
-body.paused #topbar::after {
-  content: attr(data-paused); position: fixed; left: 50%; top: calc(36 * var(--u)); transform: translateX(-50%);
-  padding: var(--u) calc(4 * var(--u)); background: #14110c; color: var(--accent); font-weight: 700; font-size: var(--t2);
-}
+/* Pause from the P key: a label in the middle of the top; the pause menu (Escape) covers it. */
+#paused { display: none; position: fixed; left: 50%; top: calc(8 * var(--u)); transform: translateX(-50%); z-index: 5; padding: var(--u) calc(4 * var(--u)); background: #14110c; color: var(--accent); font-weight: 700; font-size: var(--t2); line-height: calc(24px * var(--k)); pointer-events: none; }
+#paused.show { display: block; }
 
-.panel { position: fixed; left: calc(4 * var(--u)); bottom: calc(4 * var(--u)); min-width: 300px; max-width: 560px; padding: var(--u) calc(2 * var(--u)); }
 /*
- * The selection: a big portrait (64 art pixels, 1.5 CSS pixels each, so 3 screen pixels on a Retina Mac) framed like
- * a monitor, then the stats as segmented bars and a status light, then Move / Attack / Stop as a column on the right.
+ * The bar along the bottom of each view: minimap and crystals | the selection | a 5 × 3 grid of icon buttons.
+ * Its size is fixed, so it never jumps when the selection changes.
  */
-.panel .sel { display: flex; gap: calc(4 * var(--u)); align-items: stretch; }
+.panel {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; box-sizing: border-box; height: calc(84 * var(--u) + 14 * var(--u));
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: calc(4 * var(--u)); padding: var(--u) calc(2 * var(--u));
+}
+body.duo .panel { right: 50%; }
+body.duo .panel.side-2 { left: 50%; right: 0; }
+.panel .mm { display: flex; flex-direction: column; gap: var(--u); width: 132px; }
+.panel .mm-slot { flex: 1; display: flex; align-items: center; justify-content: center; background: #0b0a08; border: var(--u) solid #000; outline: var(--u) solid var(--line); }
+.minimap { display: block; cursor: inherit; touch-action: none; image-rendering: pixelated; }
+.panel .money { display: flex; align-items: center; gap: calc(2 * var(--u)); color: var(--gold); font-weight: 700; line-height: calc(12px * var(--k)); }
+.icon { width: calc(9 * var(--u)); height: calc(9 * var(--u)); flex: none; }
+.icon.crystal { width: calc(7 * var(--u)); }
+.icon.small { width: calc(7 * var(--u)); height: calc(9 * var(--u)); }
+
+/* The middle: empty, a squad, or one object with its portrait and bars. */
+.panel .info { min-width: 0; overflow: hidden; background: rgb(0 0 0 / 0.22); border: var(--u) solid rgb(0 0 0 / 0.5); padding: calc(2 * var(--u)); }
+.panel .info .hint { color: var(--muted); }
+.panel .squad { display: flex; flex-wrap: wrap; align-content: flex-start; gap: var(--u); }
+.panel .squad .mini { display: flex; flex-direction: column; width: calc(22 * var(--u)); padding: 0; border: var(--u) solid #000; border-image: none; background: #0b0e10; }
+.panel .squad .mini:hover { outline: var(--u) solid var(--accent); }
+.panel .squad .mini img { width: calc(20 * var(--u)); height: calc(20 * var(--u)); image-rendering: pixelated; display: block; }
+.panel .squad .meter { height: calc(2 * var(--u)); border-width: 0; box-shadow: none; }
+.panel .squad .more { align-self: center; color: var(--muted); padding: 0 var(--u); }
+.panel .one { display: flex; gap: calc(4 * var(--u)); height: 100%; }
+.panel .one .pic { flex: none; width: calc(48 * var(--u)); display: flex; flex-direction: column; gap: var(--u); }
+.panel .one .about { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(2 * var(--u)); }
 .panel .portrait {
-  flex: none; width: calc(48 * var(--u)); height: calc(48 * var(--u)); image-rendering: pixelated;
+  flex: none; width: calc(48 * var(--u)); height: calc(48 * var(--u)); image-rendering: pixelated; box-sizing: border-box;
   background: radial-gradient(circle at 50% 40%, #2a3a3c, #0b0e10 75%);
   border: var(--u) solid #000; outline: var(--u) solid var(--line); outline-offset: 0;
   box-shadow: inset 0 0 0 var(--u) rgb(255 255 255 / 0.06);
@@ -85,10 +102,15 @@ body.paused #topbar::after {
 .portrait.face::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, rgb(0 0 0 / 0.18) 0 var(--u), transparent 0 calc(3 * var(--u))); pointer-events: none; }
 /* A percentage position moves the strip by (box - strip) × p, so a whole loop is frames / (frames - 1). */
 @keyframes face { from { background-position: 0 0; } to { background-position: calc(100% * var(--frames) / (var(--frames) - 1)) 0; } }
-.panel .stats { flex: 1; min-width: calc(80 * var(--u)); display: flex; flex-direction: column; gap: var(--u); }
-.panel .gauge { display: grid; grid-template-columns: 1fr auto; column-gap: calc(2 * var(--u)); color: var(--muted); }
-.panel .gauge b { color: var(--ink); font-weight: 400; }
-.panel .gauge .meter { grid-column: 1 / -1; }
+.panel .bar { display: flex; align-items: center; gap: var(--u); line-height: calc(12px * var(--k)); }
+.panel .bar .meter { flex: 1; min-width: calc(12 * var(--u)); }
+.panel .meter.big { height: calc(10 * var(--u)); }
+.panel .meter.big i { opacity: 0.5; }
+.panel .meter.big b {
+  position: absolute; inset: 0; text-align: center; font-weight: 400; color: #fff; white-space: nowrap; line-height: calc(10 * var(--u));
+  text-shadow: var(--u) 0 #000, calc(-1 * var(--u)) 0 #000, 0 var(--u) #000, 0 calc(-1 * var(--u)) #000;
+}
+.panel .one .about .bar { max-width: calc(120 * var(--u)); }
 .panel .meter {
   position: relative; display: block; height: calc(4 * var(--u)); background: #0b0a08;
   border: var(--u) solid #000; box-shadow: 0 0 0 var(--u) var(--line);
@@ -113,44 +135,44 @@ body.paused #topbar::after {
 .panel .chip.idle { color: var(--muted); }
 .panel .chip.idle::before { background: #a99d7f; box-shadow: none; animation: blink 1.2s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0.2; } }
-.panel .squad { display: flex; flex-wrap: wrap; gap: var(--u); max-width: calc(6 * 26 * var(--u)); }
-.panel .squad .mini { display: flex; flex-direction: column; width: calc(24 * var(--u)); background: #0b0e10; }
-.panel .squad .mini img { width: calc(24 * var(--u)); height: calc(24 * var(--u)); image-rendering: pixelated; }
-.panel .squad .meter { height: calc(2 * var(--u)); border-width: 0; box-shadow: none; }
-.panel .squad .more { align-self: center; color: var(--muted); padding: 0 var(--u); }
-.panel .buttons.cmds { flex-direction: column; flex-wrap: nowrap; margin: 0; gap: var(--u); justify-content: space-between; }
-.panel .cmd { display: flex; align-items: center; gap: calc(2 * var(--u)); min-width: calc(62 * var(--u)); padding-right: calc(7 * var(--u)); text-align: left; flex: 1; }
-.panel .cmd .icon { width: calc(9 * var(--u)); height: calc(9 * var(--u)); flex: none; color: var(--accent); }
-.panel .cmd[data-action='attack'] .icon { color: #e05a3a; }
-.panel .cmd:disabled .icon { color: #5a5444; }
-.panel .cmd.active { outline: var(--u) solid var(--accent); outline-offset: calc(-2 * var(--u)); }
-.panel .title { color: var(--accent); }
+.panel .title { color: var(--accent); overflow-wrap: anywhere; }
+/* Half a screen each: smaller button cells leave the selection room. */
+body.duo .panel .grid .group { grid-template-columns: repeat(5, calc(22 * var(--u))); grid-auto-rows: calc(22 * var(--u)); }
 .panel .title.foe { color: var(--enemy); }
 .panel .title.neutral { color: var(--gold); }
-.panel .info, .panel .hint { color: var(--muted); }
-.panel .buttons { display: flex; flex-wrap: wrap; gap: calc(2 * var(--u)); margin-top: calc(3 * var(--u)); }
-.panel .build { padding-right: calc(7 * var(--u)); min-width: 120px; text-align: left; display: grid; grid-template-columns: auto 1fr; column-gap: calc(2 * var(--u)); align-items: center; }
-.panel .build img { grid-row: span 2; width: calc(16 * var(--u)); height: calc(16 * var(--u)); image-rendering: pixelated; }
-.panel button.pad-focus { outline: var(--u) solid var(--accent); outline-offset: var(--u); }
 /* The factory's queue: a portrait per tank, a progress bar on the one being built. */
-.panel .queue { display: flex; gap: var(--u); margin-top: calc(2 * var(--u)); }
+.panel .queue { display: flex; flex-wrap: wrap; gap: var(--u); }
 .panel .queue button { padding: 0; width: calc(22 * var(--u)); height: calc(22 * var(--u)); }
 .panel .queue img { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
 .panel .queue i { position: absolute; left: 0; bottom: 0; height: var(--u); background: var(--accent); }
 
-/* Two players: each half of the screen has its own panel, money badge and toasts. */
-body.duo .panel { max-width: calc(50vw - 36px); }
-body.duo .panel.side-2 { left: calc(50% + 4 * var(--u)); }
-.badge { position: fixed; top: calc(26 * var(--u)); left: calc(4 * var(--u)); padding: 0 calc(2 * var(--u)); color: var(--gold); font-weight: 700; }
-.badge.side-2 { left: calc(50% + 4 * var(--u)); }
-body.duo #help { display: none; }
-body.duo.paused #help { display: block; left: 50%; right: auto; transform: translateX(-50%); bottom: 50%; max-width: 640px; text-align: center; color: var(--ink); }
+/* The buttons: two rows that build or command, then a row of controls set apart by a line. */
+.panel .grid { display: flex; flex-direction: column; gap: calc(2 * var(--u)); }
+.panel .grid .group { display: grid; grid-template-columns: repeat(5, calc(26 * var(--u))); grid-auto-rows: calc(26 * var(--u)); gap: var(--u); }
+.panel .grid .ctl { padding-top: calc(2 * var(--u)); border-top: var(--u) solid var(--line); }
+.panel .grid .cell { background: rgb(0 0 0 / 0.25); border: var(--u) solid rgb(0 0 0 / 0.35); }
+.panel .cmd { padding: 0; display: flex; align-items: center; justify-content: center; }
+.panel .cmd img { width: calc(20 * var(--u)); height: calc(20 * var(--u)); image-rendering: pixelated; }
+.panel .cmd:disabled img { filter: grayscale(1) brightness(0.55); }
+.panel .cmd .icon { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--ink); }
+.panel .cmd:disabled .icon { opacity: 0.35; }
+.panel .cmd.active { outline: var(--u) solid var(--accent); outline-offset: calc(-3 * var(--u)); }
+.panel .cmd.danger.active { outline-color: #e05a3a; animation: blink 0.5s steps(2) infinite; }
+.panel button.pad-focus { outline: var(--u) solid var(--accent); outline-offset: var(--u); }
 
-#help { pointer-events: none; position: fixed; right: calc(4 * var(--u)); bottom: calc(4 * var(--u)); max-width: 380px; padding: 0 var(--u); color: var(--muted); text-align: right; }
+/* The tooltip: the button's name, its price in crystals and its hotkey. */
+.tip {
+  display: none; position: fixed; z-index: 8; pointer-events: none; white-space: nowrap; align-items: center; gap: calc(3 * var(--u));
+  padding: 0 calc(3 * var(--u)); background: #0b0a08; border: var(--u) solid #000; outline: var(--u) solid var(--line); color: var(--ink);
+}
+.tip.show { display: flex; }
+.tip .price { display: flex; align-items: center; gap: var(--u); color: var(--gold); }
+.tip kbd { font: inherit; color: var(--accent); border: var(--u) solid var(--line); padding: 0 var(--u); }
+.tip small { color: var(--muted); }
 
-.toast { position: fixed; left: 50%; top: calc(30 * var(--u)); transform: translateX(-50%); padding: 0 calc(2 * var(--u)); color: #ffd9d0; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.toast { position: fixed; left: 50%; top: calc(8 * var(--u)); z-index: 4; transform: translateX(-50%); padding: 0 calc(2 * var(--u)); color: #ffd9d0; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
 .toast.show { opacity: 1; }
-body.duo .toast { top: calc(48 * var(--u)); left: 25%; }
+body.duo .toast { left: 25%; }
 body.duo .toast.side-2 { left: 75%; }
 
 #modal { position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.55); }
@@ -234,9 +256,6 @@ body.duo .toast.side-2 { left: 75%; }
 #modal .slot span { grid-column: 1; grid-row: 2; color: var(--muted); }
 #modal .slot button { grid-row: 1 / span 2; }
 
-/* The minimap, top right of each view. */
-.minimap { position: fixed; top: calc(26 * var(--u)); border: var(--u) solid #000; outline: var(--u) solid var(--line); background: #0b0a08; cursor: pointer; touch-action: none; image-rendering: pixelated; }
-.minimap.side-2 { cursor: default; }
 
 /* Settings: volume sliders and the about box. */
 #modal .about { margin: 0 0 var(--u); font-weight: 700; }
@@ -249,8 +268,12 @@ body.duo .toast.side-2 { left: 75%; }
 /* Main screen, victory and defeat: a low-resolution 3D scene behind a pixel card. */
 #scene { position: fixed; inset: 0; z-index: 9; display: none; width: 100vw; height: 100vh; object-fit: cover; image-rendering: pixelated; background: #0b0a08; }
 body.menu #scene, body.outcome #scene { display: block; }
-body.menu #topbar, body.menu #help, body.menu .panel, body.menu .minimap, body.menu #stage { display: none; }
+body.menu .panel, body.menu #stage, body.menu #paused { display: none; }
 #modal.over-scene { background: none; }
+/* The pause menu shades the game lightly; it stays visible behind. */
+#modal.dim { background: rgba(0, 0, 0, 0.35); }
+#modal .card.pause { width: min(380px, calc(100vw - 32px)); padding-bottom: calc(5 * var(--u)); margin-bottom: calc(98 * var(--u)); }
+#modal .card.pause .kicker { color: var(--muted); }
 /*
  * The main screen: no dialog, a dark glass strip down the left edge over the battle, the name in big machined
  * letters and the menu as numbered blades with chamfered corners, lit in the player's accent colour on hover.
@@ -272,7 +295,7 @@ body.menu #topbar, body.menu #help, body.menu .panel, body.menu .minimap, body.m
   font-size: 12px; line-height: 16px; letter-spacing: 1px; text-transform: uppercase; color: rgba(232, 220, 190, 0.32);
   border-top: 1px solid rgba(232, 220, 190, 0.14); padding-top: calc(2 * var(--u));
 }
-#modal .menu-buttons { display: flex; flex-direction: column; gap: calc(2 * var(--u)); }
+#modal .menu-buttons, #modal .card.pause .menu-buttons { display: flex; flex-direction: column; gap: calc(2 * var(--u)); }
 #modal .menu-buttons button {
   position: relative; text-align: left; font-size: var(--t); padding: calc(3 * var(--u)) calc(6 * var(--u)) calc(3 * var(--u)) calc(4 * var(--u));
   border: 0; border-image: none; background: rgba(255, 255, 255, 0.05); color: var(--ink);

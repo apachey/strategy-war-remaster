@@ -54,8 +54,17 @@ test('mission 1 opens with its briefing, then the map', async ({ page }) => {
   await expect(page.locator('#modal button.active')).toContainText(['Нормально', 'Українська']);
   await page.screenshot({ path: 'test-results/mission-1-1-briefing.png' });
   await page.getByRole('button', { name: 'Почати' }).click();
-  await expect(page.locator('#hud')).toContainText('Початок · Перші кроки');
-  await expect(page.locator('#money')).toHaveText('$1000');
+  await expect(page.locator('#money')).toHaveText('1000');
+  // Escape opens the pause menu, which names the mission; a second Escape closes it.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modal .pause .kicker')).toContainText('Початок · Перші кроки');
+  expect((await page.evaluate(() => (window as unknown as { __sw: Hook }).__sw.game.paused))).toBe(true);
+  await page.screenshot({ path: 'test-results/pause-menu.png' });
+  await page.getByRole('button', { name: 'Головне меню' }).click();
+  await expect(page.locator('#modal')).toContainText('Вийти в головне меню?');
+  await page.getByRole('button', { name: 'Ні' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modal')).not.toHaveClass(/show/);
   // The campaign is olive humans (turquoise accents) against red hovers (white accents).
   const sides = await page.evaluate(() => {
     const w = (window as unknown as { __sw: { game: { world: { sides: Record<string, { race: string; color: string; color2: string }> } } } }).__sw.game.world;
@@ -69,7 +78,7 @@ test('mission 1 opens with its briefing, then the map', async ({ page }) => {
 test('click selects the tank and right click sends it', async ({ page }) => {
   const errors = await open(page, '?m=1.1');
   await page.getByRole('button', { name: 'Почати' }).click();
-  await expect(page.locator('#panel')).toContainText('Виділіть');
+  await expect(page.locator('#panel .info')).toHaveText('');
   const tank = await screenOf(page, 101);
   // On a slow CI runner the first frames can lag behind the click, so retry the click until it registers.
   await expect(async () => {
@@ -95,7 +104,7 @@ test('the HQ builds a silo where the player clicks', async ({ page }) => {
   await page.mouse.move(hq.x - 105 * z, hq.y + 30 * z);
   await page.screenshot({ path: 'test-results/mission-1-1-placing.png' });
   await page.mouse.click(hq.x - 105 * z, hq.y + 30 * z);
-  await expect(page.locator('#money')).toHaveText('$600');
+  await expect(page.locator('#money')).toHaveText('600');
   await page.waitForTimeout(3000);
   await page.screenshot({ path: 'test-results/mission-1-1-silo.png' });
   expect(errors).toEqual([]);
@@ -105,7 +114,9 @@ test('opens a later mission by URL', async ({ page }) => {
   await open(page, '?m=6.2');
   await expect(page.locator('#modal')).toContainText('Перевантаження');
   await page.getByRole('button', { name: 'Почати' }).click();
-  await expect(page.locator('#hud')).toContainText('Шукач');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modal .pause .kicker')).toContainText('Шукач');
+  await page.keyboard.press('Escape');
   await page.screenshot({ path: 'test-results/mission-6-2.png' });
 });
 
@@ -148,7 +159,9 @@ test('difficulty and language are chosen on the briefing and remembered', async 
   await expect(page.locator('#modal')).toContainText('yellow crystals');
   await page.screenshot({ path: 'test-results/mission-1-2-briefing-en.png' });
   await page.getByRole('button', { name: 'Start' }).click();
-  await expect(page.locator('#hud')).toContainText('Beginning · Harvest · Hard');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modal .pause .kicker')).toContainText('Beginning · Harvest · Hard');
+  await page.keyboard.press('Escape');
   expect((await hook(page)).difficulty).toBe('hard');
   await page.reload();
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
@@ -170,6 +183,7 @@ test('quick save and quick load continue the game where it was', async ({ page }
   const loaded = await hook(page);
   expect(loaded.started).toBe(true);
   expect(loaded.tick).toBeGreaterThanOrEqual(saved);
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Збереження' }).click();
   await expect(page.locator('#modal')).toContainText('1.2 Жнива');
   await page.screenshot({ path: 'test-results/saves.png' });
@@ -180,7 +194,7 @@ test('the original cheat codes still work', async ({ page }) => {
   await open(page, '?m=1.1');
   await page.getByRole('button', { name: 'Почати' }).click();
   await page.keyboard.type('12986');
-  await expect(page.locator('#money')).toHaveText('$2000');
+  await expect(page.locator('#money')).toHaveText('2000');
 });
 
 test('losing the HQ shows the defeat screen with a retry', async ({ page }) => {
@@ -188,8 +202,9 @@ test('losing the HQ shows the defeat screen with a retry', async ({ page }) => {
   await page.getByRole('button', { name: 'Почати' }).click();
   await page.keyboard.press('KeyH');
   await expect(page.locator('#panel')).toContainText('Штаб');
-  page.once('dialog', (d) => void d.accept());
+  // Self-destruct arms on the first press and fires on the second.
   await page.getByRole('button', { name: 'Самознищення' }).click();
+  await page.getByRole('button', { name: 'Ще раз: знищити' }).click();
   await expect(page.locator('#modal')).toContainText('Поразка', { timeout: 15_000 });
   await expect(page.getByRole('button', { name: 'Ще раз' })).toBeVisible();
   expect(errors).toEqual([]);
@@ -198,6 +213,7 @@ test('losing the HQ shows the defeat screen with a retry', async ({ page }) => {
 test('settings show the version, and the volumes are remembered', async ({ page }) => {
   const errors = await open(page, '?m=1.1');
   await page.getByRole('button', { name: 'Почати' }).click();
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Налаштування' }).click();
   await expect(page.locator('#modal')).toContainText(`Версія ${VERSION}`);
   await expect(page.locator('#modal')).toContainText('Jiří Mikula');
@@ -243,8 +259,8 @@ test('the factory answers a click on its roof, queues tanks and sets a rally poi
     });
     await page.mouse.click(buggy.x, buggy.y, { delay: 150 });
   }
-  await expect(page.locator('#panel')).toContainText('(+1)');
-  await expect(page.locator('#money')).toHaveText('$900');
+  await expect(page.locator('#panel .queue button')).toHaveCount(2);
+  await expect(page.locator('#money')).toHaveText('900');
   await page.mouse.click(f.x + 60 * z, f.y + 20 * z, { button: 'right' });
   const rally = await page.evaluate(() => {
     const sw = (window as unknown as { __sw: { game: { world: { entities: Array<{ type: number; team: string; rally: unknown }> } } } }).__sw;
