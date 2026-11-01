@@ -94,8 +94,10 @@ test('the skirmish screen picks a map, an opponent and money, then plays', async
   await expect(page.locator('#modal h1')).toHaveText('Шукач');
   expect(page.url()).toContain('s=4');
   await startMatch(page, /s=6/);
-  await expect(page.locator('#hud')).toContainText('Скірміш · Шукач · Важкий ШІ');
-  await expect(page.locator('#money')).toHaveText('$3000');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modal .pause .kicker')).toContainText('Скірміш · Шукач · Важкий ШІ');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#money')).toHaveText('3000');
   const s = await sw(page);
   expect(s.mode).toBe('skirmish');
   expect(s.players).toHaveLength(1);
@@ -147,7 +149,7 @@ test('the faction studio makes a faction the skirmish plays; objects carry their
   // The walker HQ builds walker buildings.
   await page.keyboard.press('KeyH');
   await expect(page.locator('#panel .title')).toHaveText('Вулик');
-  await expect(page.locator('#panel button.build')).toContainText(['Запасник', 'Інкубатор', 'Плювач', 'Шипи']);
+  expect((await page.locator('#panel button[data-action="place"]').evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.name)))).toEqual(['Запасник', 'Інкубатор', 'Плювач', 'Шипи']);
   // The choice is remembered for the Skirmish button.
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('sw.settings') ?? '{}').skirmish);
   expect(stored.factions[0]).toEqual({ name: 'Синя рать', race: 'walker', color: 'blue', color2: 'black', color3: 'lime', symbol: 'skull' });
@@ -202,7 +204,7 @@ test('a mirror match names the other side\'s race; English names follow the race
   await page.getByRole('button', { name: 'Start' }).click();
   await page.keyboard.press('KeyH');
   await expect(page.locator('#panel .title')).toHaveText('Sanctum');
-  await expect(page.locator('#panel button.build')).toContainText(['Crystal Vault', 'Hangar', 'Plasma Spire', 'Barrier']);
+  expect((await page.locator('#panel button[data-action="place"]').evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.name)))).toEqual(['Crystal Vault', 'Hangar', 'Plasma Spire', 'Barrier']);
   await page.evaluate(() => {
     const h = (window as unknown as { __sw: Hook & { players: Array<{ select(ids: number[]): void }>; game: { world: { sides: Record<string, { explored: Uint8Array }> } } } }).__sw;
     h.game.world.sides.player!.explored.fill(1);
@@ -239,9 +241,11 @@ test('two players split the screen, each with their own money and panel', async 
   await expect(page.locator('#modal')).toContainText('Удвох');
   await expect(page.locator('#modal')).toContainText('геймпад');
   await page.getByRole('button', { name: 'Почати' }).click();
-  await expect(page.locator('#hud')).toContainText('Скірміш · Арена · Удвох');
-  await expect(page.locator('#badge-1')).toHaveText('Гравець 1 · $3000');
-  await expect(page.locator('#badge-2')).toHaveText('Гравець 2 · $3000');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modal .pause .kicker')).toContainText('Скірміш · Арена · Удвох');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#money')).toHaveText('3000');
+  await expect(page.locator('#money-2')).toHaveText('3000');
   const s = await sw(page);
   expect(s.players.map((p) => p.side)).toEqual(['player', 'enemy']);
   expect(s.views[0]!.w).toBeLessThan(700);
@@ -249,7 +253,7 @@ test('two players split the screen, each with their own money and panel', async 
   // Player 1's mouse works on the left half: H selects the HQ, and the panel on the left shows it.
   await page.keyboard.press('KeyH');
   await expect(page.locator('#panel')).toContainText('Штаб');
-  await expect(page.locator('#panel-2')).toContainText('Виділіть');
+  await expect(page.locator('#panel-2 .info')).not.toContainText('Штаб');
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/two-players.png' });
   expect(errors).toEqual([]);
@@ -275,9 +279,9 @@ test('player 2 plays with a gamepad: cursor, select, build menu, pause', async (
   // Player 2 plays the hovers, so the HQ is a sanctum and builds hover buildings.
   await press(page, PAD.Y);
   await expect(page.locator('#panel-2')).toContainText('Святилище');
-  await expect(page.locator('#panel-2 button.pad-focus')).toContainText('Кристалосховище');
+  await expect(page.locator('#panel-2 button.pad-focus')).toHaveAttribute('data-name', 'Кристалосховище');
   await press(page, PAD.RB);
-  await expect(page.locator('#panel-2 button.pad-focus')).toContainText('Ангар');
+  await expect(page.locator('#panel-2 button.pad-focus')).toHaveAttribute('data-name', 'Ангар');
   await press(page, PAD.X);
   await expect.poll(async () => (await sw(page)).players[1]!.placing).toBe(2);
   await page.screenshot({ path: 'test-results/two-players-gamepad.png' });
@@ -334,6 +338,7 @@ test('a skirmish saves and loads like a mission', async ({ page }) => {
   const s = await sw(page);
   expect(s.started).toBe(true);
   expect(s.mode).toBe('skirmish');
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Збереження' }).click();
   await expect(page.locator('#modal')).toContainText('Скірміш · Окраїни · Легкий ШІ');
   expect(errors).toEqual([]);

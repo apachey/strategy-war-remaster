@@ -13,7 +13,7 @@ export interface Rect {
 }
 
 /** Height of the top bar the canvas runs under. */
-const TOP = 44;
+const TOP = 12;
 
 /**
  * Zoom moves in steps of half an art pixel: the sprites have 32 art pixels per 15 px cell, so at zoom n × 16/15 one

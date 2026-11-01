@@ -148,6 +148,7 @@ async function start(): Promise<void> {
   const views = game.commanders.map((c, i) => new View(c, art, panelHeight(i)));
   for (const v of views) app.stage.addChild(v.root);
   const minimaps = views.map((v, i) => new Minimap(v, i, i === 0));
+  minimaps.forEach((m, i) => hud.panels[i]!.mountMinimap(m.element));
   const divider = new Graphics();
   app.stage.addChild(divider);
   const layout = () => {
@@ -161,7 +162,6 @@ async function start(): Promise<void> {
       divider.clear().rect(half - 1, 0, 2, h).fill(0x4a4234);
     }
     for (const v of views) v.fit();
-    for (const m of minimaps) m.place();
   };
   layout();
   window.addEventListener('resize', () => requestAnimationFrame(layout));
@@ -299,7 +299,7 @@ async function start(): Promise<void> {
     if (ev.key.length === 1) cheat(ev.key);
     // A letter on a panel button presses it (Q W E R T, A S D F G, X stop), ahead of any other use of the key.
     const letter = /^Key([A-Z])$/.exec(ev.code)?.[1];
-    if (letter && !ev.metaKey && !ev.ctrlKey && game.started && hud.panels[0]!.pressKey(letter)) {
+    if (letter && !ev.metaKey && !ev.ctrlKey && game.started && !hud.dialogOpen && hud.panels[0]!.pressKey(letter)) {
       ev.preventDefault();
       return;
     }
@@ -322,9 +322,10 @@ async function start(): Promise<void> {
     }
     switch (ev.code) {
       case 'Escape':
-        if (p1.placing) p1.placing = null;
-        else if (p1.aiming) p1.aiming = null;
-        else p1.select([]);
+        // Escape first drops a building being placed or a Move/Attack waiting for its target; then it pauses.
+        if (p1.placing && !hud.dialogOpen) p1.placing = null;
+        else if (p1.aiming && !hud.dialogOpen) p1.aiming = null;
+        else hud.escape();
         break;
       case 'Space':
         // Space jumps to the last place under attack; pause moved to P.

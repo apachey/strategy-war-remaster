@@ -3,12 +3,12 @@ import { isUnit, type Side } from '@sw/sim';
 import type { View } from './view';
 
 /** Largest side of the minimap in screen points. */
-const MAX = 168;
+const MAX = 132;
 const REDRAW_MS = 200;
 const PING_MS = 4000;
 
 /**
- * A small map in the top right corner of a view: forest, crystal fields, what this person has explored, every object
+ * A small map in the left corner of a view's bar: forest, crystal fields, what this person has explored, every object
  * they can see in its side's colour, and a frame round what the view shows. Clicking or dragging on it (with the mouse,
  * for the mouse player's view) moves the camera there.
  */
@@ -59,10 +59,9 @@ export class Minimap {
     this.canvas.addEventListener('pointerup', () => (down = false));
   }
 
-  /** Keeps the minimap in the top right corner of its view. */
-  place(): void {
-    const r = this.view.rect;
-    this.canvas.style.left = `${r.x + r.w - this.canvas.offsetWidth - 12}px`;
+  /** The canvas, which the player's bar takes into its corner. */
+  get element(): HTMLCanvasElement {
+    return this.canvas;
   }
 
   /** Marks a spot where `side` is under attack, if it is this view's side. */
