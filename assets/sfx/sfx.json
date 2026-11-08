@@ -1,122 +1,206 @@
 [
   {
-    "name": "shot_light",
-    "seconds": 0.35,
-    "channels": 1,
+    "name": "shot_light_0",
+    "seconds": 0.9,
+    "channels": 2,
     "gain": 0.55,
-    "description": "Light trike-tank cannon: a snappy dry crack with a small thump."
+    "description": "Light trike-tank cannon: a small sharp blast, thin steel ringing, the autoloader."
   },
   {
-    "name": "shot_middle",
-    "seconds": 0.6,
-    "channels": 1,
+    "name": "shot_light_1",
+    "seconds": 0.9,
+    "channels": 2,
+    "gain": 0.55,
+    "description": "Light trike-tank cannon: a small sharp blast, thin steel ringing, the autoloader."
+  },
+  {
+    "name": "shot_light_2",
+    "seconds": 0.9,
+    "channels": 2,
+    "gain": 0.55,
+    "description": "Light trike-tank cannon: a small sharp blast, thin steel ringing, the autoloader."
+  },
+  {
+    "name": "shot_middle_0",
+    "seconds": 1.3,
+    "channels": 2,
     "gain": 0.65,
-    "description": "Middle tank cannon: a crack over a round boom, the barrel ringing low."
+    "description": "Middle tank cannon: a fuller blast with a rolling body and the breech after."
   },
   {
-    "name": "shot_heavy",
-    "seconds": 1.1,
-    "channels": 1,
+    "name": "shot_middle_1",
+    "seconds": 1.3,
+    "channels": 2,
+    "gain": 0.65,
+    "description": "Middle tank cannon: a fuller blast with a rolling body and the breech after."
+  },
+  {
+    "name": "shot_middle_2",
+    "seconds": 1.3,
+    "channels": 2,
+    "gain": 0.65,
+    "description": "Middle tank cannon: a fuller blast with a rolling body and the breech after."
+  },
+  {
+    "name": "shot_heavy_0",
+    "seconds": 1.8,
+    "channels": 2,
     "gain": 0.75,
-    "description": "Heavy tank cannon: a deep chesty blast with a sub drop and a long rumble."
+    "description": "Heavy tank cannon: a deep blast, a long roar, the barrel booming."
   },
   {
-    "name": "shot_defender",
-    "seconds": 0.5,
-    "channels": 1,
+    "name": "shot_heavy_1",
+    "seconds": 1.8,
+    "channels": 2,
+    "gain": 0.75,
+    "description": "Heavy tank cannon: a deep blast, a long roar, the barrel booming."
+  },
+  {
+    "name": "shot_heavy_2",
+    "seconds": 1.8,
+    "channels": 2,
+    "gain": 0.75,
+    "description": "Heavy tank cannon: a deep blast, a long roar, the barrel booming."
+  },
+  {
+    "name": "shot_defender_0",
+    "seconds": 1,
+    "channels": 2,
     "gain": 0.6,
-    "description": "Defender turret: a clanking mechanical double tap."
+    "description": "Defender turret: an autocannon double tap on a clanking mount."
   },
   {
-    "name": "shot_alien",
-    "seconds": 0.7,
-    "channels": 1,
+    "name": "shot_defender_1",
+    "seconds": 1,
+    "channels": 2,
     "gain": 0.6,
-    "description": "Alien energy weapon: a falling, beating, ring-modulated plasma bolt."
+    "description": "Defender turret: an autocannon double tap on a clanking mount."
   },
   {
-    "name": "impact",
-    "seconds": 0.5,
-    "channels": 1,
+    "name": "shot_defender_2",
+    "seconds": 1,
+    "channels": 2,
+    "gain": 0.6,
+    "description": "Defender turret: an autocannon double tap on a clanking mount."
+  },
+  {
+    "name": "shot_alien_0",
+    "seconds": 1,
+    "channels": 2,
+    "gain": 0.6,
+    "description": "Hover energy weapon: an electric zap over a ringing coil, crackle and air."
+  },
+  {
+    "name": "shot_alien_1",
+    "seconds": 1,
+    "channels": 2,
+    "gain": 0.6,
+    "description": "Hover energy weapon: an electric zap over a ringing coil, crackle and air."
+  },
+  {
+    "name": "shot_alien_2",
+    "seconds": 1,
+    "channels": 2,
+    "gain": 0.6,
+    "description": "Hover energy weapon: an electric zap over a ringing coil, crackle and air."
+  },
+  {
+    "name": "impact_0",
+    "seconds": 0.8,
+    "channels": 2,
     "gain": 0.55,
-    "description": "Shell hitting armour: a hard click, a thud and a clank of plate."
+    "description": "Shell hitting armour: a clang of thick plate, a thud and chips of metal."
+  },
+  {
+    "name": "impact_1",
+    "seconds": 0.8,
+    "channels": 2,
+    "gain": 0.55,
+    "description": "Shell hitting armour: a clang of thick plate, a thud and chips of metal."
+  },
+  {
+    "name": "impact_2",
+    "seconds": 0.8,
+    "channels": 2,
+    "gain": 0.55,
+    "description": "Shell hitting armour: a clang of thick plate, a thud and chips of metal."
   },
   {
     "name": "explosion_small",
-    "seconds": 1.6,
-    "channels": 1,
+    "seconds": 2,
+    "channels": 2,
     "gain": 0.8,
-    "description": "Unit destroyed: a boom with a falling dusty roar and bits of metal."
+    "description": "Unit destroyed: a blast, a short roar, metal and sand coming down."
   },
   {
     "name": "explosion_big",
     "seconds": 3,
-    "channels": 1,
+    "channels": 2,
     "gain": 0.9,
-    "description": "Building destroyed: a deep double blast, debris and a rolling sub rumble."
+    "description": "Building destroyed: a double blast, a long roar, girders and sand falling."
   },
   {
     "name": "build_start",
-    "seconds": 0.7,
-    "channels": 1,
+    "seconds": 0.9,
+    "channels": 2,
     "gain": 0.5,
-    "description": "Construction starts: a clamp clunk and a servo winding up."
+    "description": "Construction starts: a clamp locking, a hydraulic hiss, a ratchet."
   },
   {
     "name": "build_done",
     "seconds": 1.3,
-    "channels": 1,
+    "channels": 2,
     "gain": 0.6,
-    "description": "Building or unit finished: a pneumatic release and a dark D bell chord."
+    "description": "Building or unit finished: clamps letting go with a sigh, a hull settling."
   },
   {
     "name": "unit_ready",
-    "seconds": 1.3,
-    "channels": 1,
+    "seconds": 1.5,
+    "channels": 2,
     "gain": 0.6,
-    "description": "New tank out of the factory: an engine rev under a short low brass call."
+    "description": "New tank out of the factory: a hatch, the engine catching and revving, an air brake."
   },
   {
     "name": "select",
-    "seconds": 0.14,
-    "channels": 1,
+    "seconds": 0.3,
+    "channels": 2,
     "gain": 0.35,
-    "description": "Unit selected: a soft low blip."
+    "description": "Unit selected: a relay closing."
   },
   {
     "name": "order",
-    "seconds": 0.22,
-    "channels": 1,
+    "seconds": 0.45,
+    "channels": 2,
     "gain": 0.35,
-    "description": "Order acknowledged: two quick muted notes rising A to D."
+    "description": "Order acknowledged: a toggle switch and a pneumatic puff."
   },
   {
     "name": "error",
-    "seconds": 0.36,
-    "channels": 1,
-    "gain": 0.25,
-    "description": "Can't do that: a dull buzzy double bzz on a clashing semitone."
+    "seconds": 0.6,
+    "channels": 2,
+    "gain": 0.3,
+    "description": "Can't do that: a locked lever clunking against its stop twice."
   },
   {
     "name": "click",
-    "seconds": 0.06,
-    "channels": 1,
+    "seconds": 0.15,
+    "channels": 2,
     "gain": 0.3,
-    "description": "UI button: a tiny dark tick."
+    "description": "UI button: a small push switch."
   },
   {
     "name": "alert",
     "seconds": 1.45,
-    "channels": 1,
+    "channels": 2,
     "gain": 0.5,
-    "description": "Base under attack: a dark D/Eb alarm over a low pulse."
+    "description": "Base under attack: three strokes of an alarm bell over distant blasts."
   },
   {
     "name": "self_destruct",
     "seconds": 1.5,
-    "channels": 1,
+    "channels": 2,
     "gain": 0.6,
-    "description": "Autodestruct armed: a rising saw beeping faster, cut off at the top."
+    "description": "Autodestruct armed: a relay ticking faster over a charging whine, then a snap."
   },
   {
     "name": "victory",

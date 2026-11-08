@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { SFX } from '../src/sfx';
 import { SAMPLE_RATE } from '../src/synth';
 
+const VARIED = ['shot_light', 'shot_middle', 'shot_heavy', 'shot_defender', 'shot_alien', 'impact'];
 const NAMES = [
-  'shot_light', 'shot_middle', 'shot_heavy', 'shot_defender', 'shot_alien', 'impact', 'explosion_small', 'explosion_big',
+  ...VARIED.flatMap((n) => [0, 1, 2].map((v) => `${n}_${v}`)),
+  'explosion_small', 'explosion_big',
   'build_start', 'build_done', 'unit_ready', 'select', 'order', 'error', 'click', 'alert',
   'self_destruct', 'victory', 'defeat',
   'harvest_human', 'harvest_hover', 'harvest_walker', 'amb_wind', 'amb_forest', 'amb_crystals', 'amb_base', 'amb_factory',

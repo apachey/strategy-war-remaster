@@ -66,9 +66,10 @@ export class Soundscape {
       const r = v.rect;
       const dx = Math.max(r.x - p.x, 0, p.x - (r.x + r.w));
       const dy = Math.max(r.y - p.y, 0, p.y - (r.y + r.h));
-      const gain = Math.max(0, 1 - Math.hypot(dx, dy) / 700) * (dx || dy ? 0.6 : 1);
+      const far = Math.min(1, Math.hypot(dx, dy) / 700);
+      const gain = (1 - far) * (dx || dy ? 0.6 : 1);
       const pan = Math.max(-1, Math.min(1, (p.x - (r.x + r.w / 2)) / (r.w / 2))) * 0.6;
-      if (gain > best.gain) best = { gain, pan };
+      if (gain > best.gain) best = { gain, pan, far };
     }
     return best;
   }
@@ -85,7 +86,7 @@ export class Soundscape {
         if (at.gain > 0.3 || locals.includes(ev.team)) this.lastCombatTick = w.tick;
       } else if (ev.kind === 'hit') {
         const at = this.placement(ev.x, ev.y);
-        this.sound.play('impact', { gain: at.gain * (ev.weapon === 'gun' ? 0.6 : 1), pan: at.pan });
+        this.sound.play('impact', { ...at, gain: at.gain * (ev.weapon === 'gun' ? 0.6 : 1) });
       } else if (ev.kind === 'destroyed') {
         if (ev.type === ObjectType.ResourceField) continue;
         const big = !isUnit(ev.type) && ev.type !== ObjectType.Wall;
