@@ -74,7 +74,13 @@ const VOICE_GAP_MS = 180;
 export interface Placement {
   gain: number;
   pan: number;
+  /** How far off screen (0 in view .. 1 at the edge of hearing): distance and sand take away the highs. */
+  far?: number;
 }
+
+/** Guns and hits rendered in three variants (`shot_light_0` .. `_2`, tools/music/src/sfx.ts), so a volley is not one sound. */
+const VARIED = new Set<string>(['shot_light', 'shot_middle', 'shot_heavy', 'shot_defender', 'shot_alien', 'impact']);
+const SFX_VARIANTS = 3;
 
 export class Sound {
   private ctx: AudioContext | null = null;
@@ -146,18 +152,28 @@ export class Sound {
   /** Plays an effect, `at` a place on the map (quieter and to one side when off screen), or in the interface. */
   play(name: SfxName, at: Placement = { gain: 1, pan: 0 }): void {
     const ctx = this.ctx;
-    const buffer = this.buffers.get(name);
-    if (!ctx || !buffer || !this.sfxBus || at.gain <= 0.02 || this.sfxVolume <= 0) return;
+    if (!ctx || !this.sfxBus || at.gain <= 0.02 || this.sfxVolume <= 0) return;
+    const file = VARIED.has(name) ? `${name}_${this.variant(name, SFX_VARIANTS)}` : name;
+    const buffer = this.buffers.get(file);
+    if (!buffer) return;
     const now = performance.now();
     if (now - (this.lastStart.get(name) ?? -1e9) < (MIN_GAP_MS[name] ?? DEFAULT_GAP_MS)) return;
     this.lastStart.set(name, now);
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     const gain = ctx.createGain();
-    gain.gain.value = (GAIN.get(name) ?? 0.6) * at.gain;
+    gain.gain.value = (GAIN.get(file) ?? 0.6) * at.gain;
     const pan = ctx.createStereoPanner();
     pan.pan.value = Math.max(-1, Math.min(1, at.pan));
-    src.connect(gain).connect(pan).connect(this.sfxBus);
+    let tail: AudioNode = src;
+    if (at.far && at.far > 0) {
+      // 12 kHz on the screen's edge down to 600 Hz at the edge of hearing.
+      const muffle = ctx.createBiquadFilter();
+      muffle.type = 'lowpass';
+      muffle.frequency.value = 600 * 20 ** (1 - Math.min(1, at.far));
+      tail = tail.connect(muffle);
+    }
+    tail.connect(gain).connect(pan).connect(this.sfxBus);
     src.start();
   }
 

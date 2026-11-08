@@ -2,15 +2,17 @@ import { reverb } from './effects';
 import { braam, throat, wail, warDrums } from './instruments';
 import { LOOPS } from './loops';
 import type { Note } from './midi';
-import { add, bell, blip, buffer, cents, drive, finish, hiss, PLATE, ring, rumble, TAU, thump, verb } from './parts';
-import { Bandpass, hz, Lowpass, noise, pulse, SAMPLE_RATE, saw, Stereo } from './synth';
+import { air, blast, debris, DESERT, engine, metal, place, plasma, roar, ROOM, thud } from './acoustic';
+import { buffer, drive, finish } from './parts';
+import { SAMPLE_RATE, Stereo } from './synth';
 import { VOICES } from './voices';
 
 /**
- * The game's sound effects, synthesised like the music: the same dark desert palette, low and weighty with a
- * little alien metal. Player tanks fire powder cannons (a crack, a thump and a ring of steel); the enemy's hover
- * vehicles fire energy bolts that fall in pitch and beat against themselves. UI sounds are short, soft and low.
- * Every effect renders a fixed length; `finish` normalises the peak to -1 dBFS and fades the edges.
+ * The game's sound effects, built from acoustic models (src/acoustic.ts) rather than oscillators, so they sound like
+ * things and not like a game console: guns are blast waves and hot gas, metal rings with inharmonic modes, explosions
+ * throw debris and sand, engines fire into an exhaust. Battle sounds are placed in the open desert with echoes off
+ * dunes; the interface is relays and switches in a small bunker. Only the victory and defeat stingers use the music's
+ * instruments. Every effect renders a fixed length; `finish` normalises the peak to -1 dBFS and fades the edges.
  */
 
 export interface Sfx {
@@ -28,295 +30,200 @@ export interface Sfx {
 }
 
 // --- Weapons ---------------------------------------------------------------------------------------------------
+// Each gun has three variants (`v`): other seeds and a slightly different size, so a volley is never one sound.
 
-/** Light trike-tank: a snappy dry crack with a small thump and a brief ring of thin steel. */
-export function shotLight(): Float32Array[] {
-  const out = buffer(0.35);
-  hiss(out, 0, 0.1, 11, () => 2000, (t) => Math.exp(-t * 70) * 3, 1.2);
-  thump(out, 0, 230, 95, 45, 0.04, 0.7);
-  rumble(out, 0, 0.3, 12, (t) => 2600 * Math.exp(-t * 12) + 400, (t) => Math.exp(-t * 24) * 1.6);
-  ring(out, 0.002, 740, PLATE, 0.18);
+const VARIANTS = 3;
+/** -3 %, 0, +4 %: variant 1 is the reference, the others a touch smaller and larger. */
+const nudge = (v: number) => [0.97, 1, 1.04][v]!;
+
+/** Light trike-tank: a small sharp blast, a ring of thin steel and the autoloader clacking behind it. */
+export function shotLight(v = 1): Float32Array[] {
+  const out = buffer(0.9);
+  blast(out, 0, 0.9 * nudge(v), 101 + v * 50, 1);
+  metal(out, 0.004, 1150 * nudge(v), 102 + v * 50, 0.12, 0.05);
+  metal(out, 0.11, 2300, 103 + v * 50, 0.05, 0.02, 6);
+  drive(out, 1.4);
+  return place(out, DESERT, 0.4, 110 + v);
+}
+
+/** Middle tank: a fuller blast with a rolling body, the spiral barrel ringing low, the breech after. */
+export function shotMiddle(v = 1): Float32Array[] {
+  const out = buffer(1.3);
+  blast(out, 0, 1.5 * nudge(v), 151 + v * 50, 1);
+  roar(out, 0.004, 0.7, 152 + v * 50, (t) => 1800 * Math.exp(-t * 7) + 140, (t) => Math.exp(-t * 6) * Math.min(1, t * 200) * 1.4);
+  metal(out, 0.005, 520 * nudge(v), 153 + v * 50, 0.14, 0.1);
+  metal(out, 0.22, 900, 154 + v * 50, 0.07, 0.04, 6);
+  drive(out, 1.5);
+  return place(out, DESERT, 0.42, 160 + v);
+}
+
+/** Heavy tank: a deep blast with a long turbulent roar, the barrel booming and a heavy breech clank. */
+export function shotHeavy(v = 1): Float32Array[] {
+  const out = buffer(1.8);
+  blast(out, 0, 2.4 * nudge(v), 201 + v * 50, 1);
+  roar(out, 0.005, 1.2, 202 + v * 50, (t) => 1400 * Math.exp(-t * 5) + 90, (t) => Math.exp(-t * 3.5) * Math.min(1, t * 200) * 2.4);
+  metal(out, 0.006, 260 * nudge(v), 203 + v * 50, 0.18, 0.18);
+  metal(out, 0.32, 410, 204 + v * 50, 0.1, 0.07);
   drive(out, 1.6);
-  return [out];
+  return place(out, DESERT, 0.45, 210 + v);
 }
 
-/** Middle tank: a fuller cannon, a crack over a round boom, and the spiral turret's barrel ringing low. */
-export function shotMiddle(): Float32Array[] {
-  const out = buffer(0.6);
-  hiss(out, 0, 0.12, 21, () => 1500, (t) => Math.exp(-t * 55) * 2.4, 1.2);
-  thump(out, 0, 170, 62, 28, 0.08, 0.9);
-  rumble(out, 0, 0.55, 22, (t) => 2200 * Math.exp(-t * 9) + 250, (t) => Math.exp(-t * 12) * 2.6);
-  ring(out, 0.003, 410, PLATE, 0.16);
-  drive(out, 1.8);
-  return [verb(out, 0.25)];
-}
-
-/** Heavy tank: a deep, chesty blast with a sub drop, a dark muzzle roar and a long low rumble. */
-export function shotHeavy(): Float32Array[] {
-  const out = buffer(1.1);
-  hiss(out, 0, 0.12, 31, () => 800, (t) => Math.exp(-t * 45) * 2.4, 1.2);
-  thump(out, 0, 115, 42, 16, 0.2, 0.9);
-  thump(out, 0, 170, 85, 30, 0.07, 0.7);
-  rumble(out, 0, 1.1, 32, (t) => 1300 * Math.exp(-t * 6) + 160, (t) => Math.min(1, t * 300) * Math.exp(-t * 4.5) * 4.5);
-  ring(out, 0.004, 196, PLATE, 0.14);
-  drive(out, 2.2);
-  return [verb(out, 0.35)];
-}
-
-/** Defender turret: a mechanical double tap, two quick clanking shots from a fixed autocannon. */
-export function shotDefender(): Float32Array[] {
-  const out = buffer(0.5);
-  for (const [k, at] of [0, 0.085].entries()) {
-    hiss(out, at, 0.08, 41 + k, () => 1700 - k * 200, (t) => Math.exp(-t * 75) * 2.6, 1.4);
-    thump(out, at, 175, 75, 40, 0.04, 0.7);
-    ring(out, at + 0.002, 300 - k * 12, PLATE, 0.5);
+/** Defender turret: an autocannon's double tap, two quick blasts on a fixed mount that clanks with each. */
+export function shotDefender(v = 1): Float32Array[] {
+  const out = buffer(1);
+  for (const [k, at] of [0, 0.09].entries()) {
+    blast(out, at, 1.1 * nudge(v), 251 + v * 50 + k, 0.9);
+    metal(out, at + 0.003, 640 - k * 30, 253 + v * 50 + k, 0.2, 0.05, 8);
   }
-  rumble(out, 0, 0.5, 43, (t) => 1400 * Math.exp(-t * 8) + 250, (t) => Math.exp(-t * 12) * 1.8);
-  drive(out, 1.7);
-  return [verb(out, 0.2)];
+  thud(out, 0, 180, 0.05, 255 + v, 1.2);
+  drive(out, 1.5);
+  return place(out, DESERT, 0.4, 260 + v);
 }
 
 /**
- * Alien hover vehicles' energy weapon: a plasma bolt that falls from a whine to a growl, two detuned voices beating
- * against each other, ring-modulated so it never sounds quite tuned, with a breath of hissing charge.
+ * Hover vehicles' energy weapon: an electric discharge, a zap falling in pitch over a coil that rings with it,
+ * crackle and a push of displaced air.
  */
-export function shotAlien(): Float32Array[] {
-  const out = buffer(0.7);
-  const ph = [0, 0.37];
-  const bp = new Bandpass(3);
-  const lp = new Lowpass(1.4);
-  add(out, 0, 0.7, (t) => {
-    const f = 140 + 900 * Math.exp(-t * 9);
-    let v = 0;
-    for (let k = 0; k < 2; k++) {
-      const inc = (f * cents(k ? 31 : -31)) / SAMPLE_RATE;
-      ph[k] = (ph[k]! + inc) % 1;
-      v += saw(ph[k]!, inc);
-    }
-    const ringMod = 0.55 + 0.45 * Math.sin(TAU * 43 * t);
-    const body = bp.run(v, f * 2.2) * 1.4 + lp.run(v, f * 3) * 0.6;
-    return body * ringMod * Math.min(1, t * 600) * Math.exp(-t * 5.5);
-  });
-  hiss(out, 0, 0.5, 51, (t) => 2600 * Math.exp(-t * 6) + 500, (t) => Math.min(1, t * 200) * Math.exp(-t * 9) * 0.9, 4);
-  thump(out, 0, 90, 45, 20, 0.08, 0.5);
-  drive(out, 1.5);
-  return [verb(out, 0.4, 0.8)];
+export function shotAlien(v = 1): Float32Array[] {
+  const out = buffer(1);
+  plasma(out, 0, nudge(v), 301 + v * 50, 0.9);
+  drive(out, 1.3);
+  return place(out, DESERT, 0.35, 310 + v);
 }
 
 // --- Hits and explosions ---------------------------------------------------------------------------------------
 
-/** A shell hitting armour: a hard click, a dull thud and a clank of plate that dies quickly. */
-export function impact(): Float32Array[] {
-  const out = buffer(0.5);
-  hiss(out, 0, 0.04, 61, () => 3200, (t) => Math.exp(-t * 120) * 1.6, 1);
-  thump(out, 0, 210, 80, 35, 0.04, 0.6);
-  ring(out, 0.001, 520, PLATE, 0.8);
-  rumble(out, 0, 0.3, 62, () => 1400, (t) => Math.exp(-t * 25) * 0.5);
-  drive(out, 1.5);
-  return [out];
+/** A shell hitting armour: a hard clang of thick plate, the thud of the mass, a few chips of metal. */
+export function impact(v = 1): Float32Array[] {
+  const out = buffer(0.8);
+  blast(out, 0, 0.5, 351 + v * 50, 0.6);
+  metal(out, 0.001, 420 * nudge(v), 352 + v * 50, 0.4, 0.07);
+  thud(out, 0, 260, 0.04, 353 + v * 50, 1.6);
+  debris(out, 0.03, 0.3, 5, 354 + v * 50, 0.12, 'metal');
+  drive(out, 1.4);
+  return place(out, DESERT, 0.35, 360 + v);
 }
 
-/** A unit destroyed: a boom with a falling dusty roar, crackle and a few bits of metal landing. */
+/** A unit destroyed: a blast, a short roar, the hull's metal flying and landing, sand pattering down. */
 export function explosionSmall(): Float32Array[] {
-  const out = buffer(1.6);
-  thump(out, 0, 110, 40, 12, 0.22, 0.9);
-  rumble(out, 0, 1.6, 71, (t) => 1900 * Math.exp(-t * 4) + 200, (t) => Math.min(1, t * 400) * Math.exp(-t * 3) * 5);
-  hiss(out, 0, 1, 73, (t) => 500 - t * 200, (t) => Math.min(1, t * 300) * Math.exp(-t * 4) * 2.5, 1.5);
-  // Crackle: rare single impulses rung through a band, thinning out.
-  const sparks = noise(72);
-  const crackle = new Bandpass(3);
-  add(out, 0.02, 0.9, (t) => {
-    const r = sparks();
-    return crackle.run(Math.abs(r) > 0.996 ? r * 6 : 0, 2200) * Math.exp(-t * 4);
-  });
-  ring(out, 0.32, 380, PLATE, 0.12);
-  ring(out, 0.55, 290, PLATE, 0.09);
-  drive(out, 1.8);
-  return [verb(out, 0.45, 0.8)];
+  const out = buffer(2);
+  blast(out, 0, 2.8, 371, 1);
+  roar(out, 0, 1.8, 372, (t) => 2000 * Math.exp(-t * 3) + 120, (t) => Math.min(1, t * 150) * Math.exp(-t * 2.2) * 3);
+  debris(out, 0.15, 1.1, 18, 373, 0.16, 'metal');
+  debris(out, 0.05, 1.5, 70, 374, 0.09, 'sand');
+  drive(out, 1.6);
+  return place(out, DESERT, 0.45, 380);
 }
 
-/**
- * A building destroyed: a deep double blast, a long roar of falling debris, girders clanking down and a sub rumble
- * that rolls away for a couple of seconds.
- */
+/** A building destroyed: a double blast, a long roar with a low rumble under it, girders and sand coming down. */
 export function explosionBig(): Float32Array[] {
   const out = buffer(3);
-  thump(out, 0, 90, 32, 8, 0.45, 1);
-  thump(out, 0.19, 75, 28, 9, 0.35, 0.7);
-  rumble(out, 0, 3, 81, (t) => 1700 * Math.exp(-t * 2.4) + 160, (t) => Math.min(1, t * 200) * Math.exp(-t * 1.5) * 5);
-  rumble(out, 0.19, 2.8, 82, (t) => 1500 * Math.exp(-t * 2.8) + 140, (t) => Math.min(1, t * 200) * Math.exp(-t * 1.6) * 4);
-  rumble(out, 0, 3, 83, () => 80, (t) => Math.min(1, t * 10) * Math.exp(-t * 1.3) * 2.5, 1.2);
-  hiss(out, 0, 2.5, 84, (t) => 450 - t * 120, (t) => Math.min(1, t * 200) * Math.exp(-t * 2) * 2.5, 1.5);
-  const debris: [number, number][] = [
-    [0.42, 260],
-    [0.61, 340],
-    [0.83, 210],
-    [1.05, 300],
-    [1.37, 180],
-  ];
-  for (const [at, f] of debris) ring(out, at, f, PLATE, 0.1);
-  drive(out, 1.9);
-  return [verb(out, 0.55, 0.85)];
+  blast(out, 0, 4, 401, 1);
+  blast(out, 0.17, 3, 402, 0.7);
+  roar(out, 0, 2.9, 403, (t) => 2200 * Math.exp(-t * 2.2) + 110, (t) => Math.min(1, t * 150) * Math.exp(-t * 1.4) * 4);
+  roar(out, 0, 2.9, 404, () => 90, (t) => Math.min(1, t * 20) * Math.exp(-t * 1.1) * 3);
+  debris(out, 0.25, 1.9, 34, 405, 0.18, 'metal');
+  debris(out, 0.1, 2.4, 120, 406, 0.1, 'sand');
+  drive(out, 1.7);
+  return place(out, DESERT, 0.45, 410);
 }
 
 // --- Economy and production ------------------------------------------------------------------------------------
 
-/** Construction starts: a heavy clamp clunk and a servo whir winding up. */
+/** Construction starts: a heavy clamp locking, a hydraulic hiss and a ratchet winding. */
 export function buildStart(): Float32Array[] {
-  const out = buffer(0.7);
-  thump(out, 0, 160, 60, 30, 0.06, 0.9);
-  ring(out, 0.001, 230, PLATE, 0.3);
-  const lp = new Lowpass(2.5);
-  let ph = 0;
-  add(out, 0.06, 0.6, (t) => {
-    const f = 70 + 110 * (1 - Math.exp(-t * 5));
-    const inc = f / SAMPLE_RATE;
-    ph = (ph + inc) % 1;
-    const env = Math.min(1, t * 20) * (1 - t / 0.6) ** 1.5;
-    return lp.run(saw(ph, inc), f * 5) * env * 0.5;
-  });
-  hiss(out, 0.06, 0.6, 111, (t) => 900 + t * 900, (t) => Math.min(1, t * 20) * (1 - t / 0.6) * 0.25, 3);
-  drive(out, 1.4);
-  return [out];
+  const out = buffer(0.9);
+  metal(out, 0, 230, 451, 0.4, 0.09);
+  thud(out, 0, 200, 0.05, 452, 1.6);
+  air(out, 0.05, 0.4, 453, (t) => 1200 + t * 2500, (t) => Math.min(1, t * 40) * Math.exp(-t * 6) * 0.6, 2);
+  for (let k = 0; k < 7; k++) metal(out, 0.12 + k * 0.055, 1700 + k * 40, 454 + k, 0.08, 0.008, 5);
+  return place(out, DESERT, 0.3, 460);
 }
 
-/** A building or unit finished: a pneumatic release and a dark bell chord on D (D3, A3, D4) that rings out. */
+/** A building or unit finished: the clamps let go with a pneumatic sigh, a deep hull settles and rings once. */
 export function buildDone(): Float32Array[] {
   const out = buffer(1.3);
-  hiss(out, 0, 0.18, 121, () => 2000, (t) => Math.min(1, t * 200) * Math.exp(-t * 18) * 0.6, 1);
-  thump(out, 0, 140, 70, 35, 0.05, 0.6);
-  bell(out, 0.05, hz(50), 0.5, 0.35);
-  bell(out, 0.05, hz(57), 0.45, 0.25);
-  bell(out, 0.05, hz(62), 0.4, 0.2);
-  return [verb(out, 0.35)];
+  air(out, 0, 0.35, 501, (t) => 3800 - t * 4000, (t) => Math.min(1, t * 200) * Math.exp(-t * 9) * 0.8, 1);
+  metal(out, 0.02, 1500, 502, 0.12, 0.01, 6);
+  metal(out, 0.05, 1600, 503, 0.1, 0.01, 6);
+  thud(out, 0.12, 160, 0.08, 504, 1.4);
+  metal(out, 0.12, 180, 505, 0.25, 0.35, 7);
+  return place(out, DESERT, 0.35, 510);
 }
 
-/** A new tank rolls out: the engine revs up from idle, with a short low brass call over it. */
+/** A new tank rolls out: the hatch clanks shut, the engine catches and revs, the air brake lets go. */
 export function unitReady(): Float32Array[] {
-  const out = buffer(1.3);
-  const lp = new Lowpass(1.2);
-  const rnd = noise(131);
-  let ph = 0;
-  add(out, 0, 1.2, (t) => {
-    const f = 38 + 30 * Math.min(1, t * 2.5) - 12 * Math.max(0, t - 0.6);
-    const inc = f / SAMPLE_RATE;
-    ph = (ph + inc) % 1;
-    const chug = pulse(ph, inc, 0.25) + rnd() * 0.3;
-    const env = Math.min(1, t * 15) * (t < 0.9 ? 1 : 1 - (t - 0.9) / 0.3);
-    return lp.run(chug, 250 + 500 * Math.min(1, t * 2.5)) * env * 0.6;
-  });
-  // The call: D3 then A3, detuned saws through a filter that opens and closes, like a small braam.
-  const call: [number, number, number][] = [
-    [0.15, 50, 0.3],
-    [0.42, 57, 0.55],
-  ];
-  for (const [at, pitch, len] of call) {
-    const f = hz(pitch);
-    const flt = new Lowpass(1.1);
-    const p2 = [0, 0.3, 0.6];
-    add(out, at, len + 0.15, (t) => {
-      let v = 0;
-      for (let k = 0; k < 3; k++) {
-        const inc = (f * cents((k - 1) * 9)) / SAMPLE_RATE;
-        p2[k] = (p2[k]! + inc) % 1;
-        v += saw(p2[k]!, inc);
-      }
-      const env = Math.min(1, t * 25) * (t < len ? 1 : Math.max(0, 1 - (t - len) / 0.15));
-      return Math.tanh(flt.run(v, 200 + 1200 * Math.sin(Math.PI * Math.min(1, t / (len + 0.15)))) * 1.5) * env * 0.35;
-    });
-  }
-  return [verb(out, 0.3)];
+  const out = buffer(1.5);
+  metal(out, 0, 330, 801, 0.35, 0.09);
+  engine(out, 0.08, 1.35, 802, (t) => 9 + 22 * Math.min(1, t * 1.8) - 8 * Math.max(0, t - 0.9), (t) => Math.min(1, t * 8) * (t < 1 ? 1 : Math.max(0, 1 - (t - 1) / 0.35)), 0.9);
+  air(out, 0.95, 0.45, 803, (t) => 4200 - t * 2000, (t) => Math.min(1, t * 80) * Math.exp(-t * 7) * 0.7, 1.2);
+  drive(out, 1.3);
+  return place(out, DESERT, 0.3, 810);
 }
 
 // --- Interface -------------------------------------------------------------------------------------------------
+// The interface is the commander's bunker: relays, switches and levers in a small hard room.
 
-/** A unit selected: a soft, low two-partial blip with a tiny tick on top. */
+/** A unit selected: a relay closing, its contact bouncing once, the armature's tiny thunk. */
 export function select(): Float32Array[] {
-  const out = buffer(0.14);
-  blip(out, 0, 62, 0.14, 0.7, 0.35, 3);
-  hiss(out, 0, 0.02, 141, () => 2500, (t) => Math.exp(-t * 300) * 0.4, 2);
-  return [out];
+  const out = buffer(0.3);
+  metal(out, 0, 2400, 551, 0.35, 0.006, 6);
+  metal(out, 0.006, 3100, 552, 0.15, 0.004, 5);
+  thud(out, 0, 260, 0.006, 553, 2.5);
+  return place(out, ROOM, 0.25, 560);
 }
 
-/** An order acknowledged: two quick low notes rising A3 to D4, muted and short. */
+/** An order acknowledged: a toggle switch thrown and a short pneumatic puff. */
 export function order(): Float32Array[] {
-  const out = buffer(0.22);
-  blip(out, 0, 57, 0.09, 0.6);
-  blip(out, 0.07, 62, 0.15, 0.7);
-  return [out];
+  const out = buffer(0.45);
+  metal(out, 0, 1800, 601, 0.3, 0.008, 6);
+  metal(out, 0.012, 1300, 602, 0.25, 0.01, 6);
+  air(out, 0.03, 0.18, 603, (t) => 3500 - t * 6000, (t) => Math.min(1, t * 150) * Math.exp(-t * 22) * 0.6, 1);
+  return place(out, ROOM, 0.25, 610);
 }
 
-/** Can't do that: a buzzy, dull double "bzz" on a clashing semitone (Eb against D). */
+/** Can't do that: a locked lever, two dull clunks against its stop, the second one harder. */
 export function error(): Float32Array[] {
-  const out = buffer(0.36);
-  for (const at of [0, 0.17]) {
-    const lp = new Lowpass(1.5);
-    const ph = [0, 0.5];
-    add(out, at, 0.14, (t) => {
-      let v = 0;
-      for (const [k, p] of [50, 51].entries()) {
-        const inc = hz(p) / SAMPLE_RATE;
-        ph[k] = (ph[k]! + inc) % 1;
-        v += pulse(ph[k]!, inc, 0.5);
-      }
-      const env = Math.min(1, t * 300) * Math.min(1, (0.14 - t) * 60);
-      return lp.run(v, 700) * env * 0.5;
-    });
+  const out = buffer(0.6);
+  for (const [k, at] of [0, 0.13].entries()) {
+    metal(out, at, 170 + k * 15, 701 + k, 0.35 + k * 0.15, 0.03, 7);
+    thud(out, at, 400, 0.014, 703 + k, 2.5);
   }
-  drive(out, 1.3);
-  return [out];
+  return place(out, ROOM, 0.3, 710);
 }
 
-/** A UI button: a tiny dark tick, like a heavy switch far away. */
+/** A UI button: a small push switch, click and release. */
 export function click(): Float32Array[] {
-  const out = buffer(0.06);
-  hiss(out, 0, 0.03, 151, () => 1600, (t) => Math.exp(-t * 350) * 1.2, 1.5);
-  thump(out, 0, 420, 260, 80, 0.008, 0.6);
-  return [out];
+  const out = buffer(0.15);
+  metal(out, 0, 2900, 751, 0.3, 0.004, 6);
+  metal(out, 0.035, 3400, 752, 0.12, 0.003, 5);
+  return place(out, ROOM, 0.2, 760);
 }
 
 // --- Warnings --------------------------------------------------------------------------------------------------
 
-/** Base under attack: a dark alarm alternating D and Eb three times through a vocal-ish formant, over a low pulse. */
+/** Base under attack: three strokes of a struck alarm bell in the bunker, each over a blast far outside. */
 export function alert(): Float32Array[] {
   const out = buffer(1.45);
-  const f1 = new Bandpass(4);
-  const f2 = new Bandpass(6);
-  const ph = [0, 0.5];
-  add(out, 0, 1.4, (t) => {
-    const slot = Math.floor(t / 0.22);
-    const pitch = slot % 2 ? 63 : 62;
-    const inc = hz(pitch) / SAMPLE_RATE;
-    ph[0] = (ph[0]! + inc) % 1;
-    ph[1] = (ph[1]! + inc * 0.5) % 1;
-    const src = saw(ph[0]!, inc) + pulse(ph[1]!, inc * 0.5, 0.3) * 0.6;
-    const local = t - slot * 0.22;
-    const gate = slot < 6 ? Math.min(1, local * 80) * Math.min(1, (0.2 - local) * 60) : 0;
-    return (f1.run(src, 650) * 1.3 + f2.run(src, 1100) * 0.6) * Math.max(0, gate) * 1.4;
-  });
-  for (let k = 0; k < 3; k++) thump(out, k * 0.44, 90, 45, 25, 0.1, 0.5);
-  drive(out, 1.5);
-  return [verb(out, 0.3)];
+  for (let k = 0; k < 3; k++) {
+    for (let h = 0; h < 4; h++) metal(out, k * 0.38 + h * 0.045, 880, 851 + k, 0.22, 0.12, 6);
+    thud(out, k * 0.38, 120, 0.12, 855 + k, 1.8);
+  }
+  drive(out, 1.4);
+  return place(out, ROOM, 0.35, 860);
 }
 
-/** Autodestruct armed: a saw tone climbing two octaves, beeping faster and faster, cut off at the top. */
+/** Autodestruct armed: a relay ticking faster and faster over a charging capacitor's rising whine, then a snap. */
 export function selfDestruct(): Float32Array[] {
   const out = buffer(1.5);
-  const lp = new Lowpass(2);
-  let ph = 0;
-  let gatePh = 0;
-  add(out, 0, 1.45, (t) => {
-    const x = t / 1.45;
-    const f = 98 * 4 ** x;
-    const inc = f / SAMPLE_RATE;
-    ph = (ph + inc) % 1;
-    gatePh = (gatePh + (5 + 17 * x * x) / SAMPLE_RATE) % 1;
-    const gate = gatePh < 0.55 ? Math.min(1, gatePh * 60) : Math.max(0, 1 - (gatePh - 0.55) * 60);
-    const end = Math.min(1, (1.45 - t) * 200);
-    return lp.run(saw(ph, inc) + pulse(ph, inc, 0.2) * 0.4, f * 4) * gate * end * 0.6;
-  });
-  drive(out, 1.4);
-  return [verb(out, 0.2)];
+  let t = 0;
+  for (let k = 0; t < 1.35; k++) {
+    metal(out, t, 2200, 901 + k, 0.25 + 0.2 * (t / 1.35), 0.006, 5);
+    t += 0.2 * Math.exp(-k * 0.16) + 0.03;
+  }
+  air(out, 0, 1.4, 960, (u) => 400 * 6 ** (u / 1.4), (u) => (u / 1.4) ** 2 * 0.9, 12);
+  metal(out, 1.38, 600, 961, 0.6, 0.04, 9);
+  return place(out, ROOM, 0.3, 970);
 }
 
 // --- Stingers --------------------------------------------------------------------------------------------------
@@ -360,35 +267,40 @@ export function defeat(): Float32Array[] {
 
 // --- Catalogue and mastering -----------------------------------------------------------------------------------
 
-const table: [string, () => Float32Array[], number, string][] = [
-  ['shot_light', shotLight, 0.55, 'Light trike-tank cannon: a snappy dry crack with a small thump.'],
-  ['shot_middle', shotMiddle, 0.65, 'Middle tank cannon: a crack over a round boom, the barrel ringing low.'],
-  ['shot_heavy', shotHeavy, 0.75, 'Heavy tank cannon: a deep chesty blast with a sub drop and a long rumble.'],
-  ['shot_defender', shotDefender, 0.6, 'Defender turret: a clanking mechanical double tap.'],
-  ['shot_alien', shotAlien, 0.6, 'Alien energy weapon: a falling, beating, ring-modulated plasma bolt.'],
-  ['impact', impact, 0.55, 'Shell hitting armour: a hard click, a thud and a clank of plate.'],
-  ['explosion_small', explosionSmall, 0.8, 'Unit destroyed: a boom with a falling dusty roar and bits of metal.'],
-  ['explosion_big', explosionBig, 0.9, 'Building destroyed: a deep double blast, debris and a rolling sub rumble.'],
-  ['build_start', buildStart, 0.5, 'Construction starts: a clamp clunk and a servo winding up.'],
-  ['build_done', buildDone, 0.6, 'Building or unit finished: a pneumatic release and a dark D bell chord.'],
-  ['unit_ready', unitReady, 0.6, 'New tank out of the factory: an engine rev under a short low brass call.'],
-  ['select', select, 0.35, 'Unit selected: a soft low blip.'],
-  ['order', order, 0.35, 'Order acknowledged: two quick muted notes rising A to D.'],
-  ['error', error, 0.25, "Can't do that: a dull buzzy double bzz on a clashing semitone."],
-  ['click', click, 0.3, 'UI button: a tiny dark tick.'],
-  ['alert', alert, 0.5, 'Base under attack: a dark D/Eb alarm over a low pulse.'],
-  ['self_destruct', selfDestruct, 0.6, 'Autodestruct armed: a rising saw beeping faster, cut off at the top.'],
+type Make = (v?: number) => Float32Array[];
+
+const table: [string, Make, number, string, boolean?][] = [
+  ['shot_light', shotLight, 0.55, 'Light trike-tank cannon: a small sharp blast, thin steel ringing, the autoloader.', true],
+  ['shot_middle', shotMiddle, 0.65, 'Middle tank cannon: a fuller blast with a rolling body and the breech after.', true],
+  ['shot_heavy', shotHeavy, 0.75, 'Heavy tank cannon: a deep blast, a long roar, the barrel booming.', true],
+  ['shot_defender', shotDefender, 0.6, 'Defender turret: an autocannon double tap on a clanking mount.', true],
+  ['shot_alien', shotAlien, 0.6, 'Hover energy weapon: an electric zap over a ringing coil, crackle and air.', true],
+  ['impact', impact, 0.55, 'Shell hitting armour: a clang of thick plate, a thud and chips of metal.', true],
+  ['explosion_small', explosionSmall, 0.8, 'Unit destroyed: a blast, a short roar, metal and sand coming down.'],
+  ['explosion_big', explosionBig, 0.9, 'Building destroyed: a double blast, a long roar, girders and sand falling.'],
+  ['build_start', buildStart, 0.5, 'Construction starts: a clamp locking, a hydraulic hiss, a ratchet.'],
+  ['build_done', buildDone, 0.6, 'Building or unit finished: clamps letting go with a sigh, a hull settling.'],
+  ['unit_ready', unitReady, 0.6, 'New tank out of the factory: a hatch, the engine catching and revving, an air brake.'],
+  ['select', select, 0.35, 'Unit selected: a relay closing.'],
+  ['order', order, 0.35, 'Order acknowledged: a toggle switch and a pneumatic puff.'],
+  ['error', error, 0.3, "Can't do that: a locked lever clunking against its stop twice."],
+  ['click', click, 0.3, 'UI button: a small push switch.'],
+  ['alert', alert, 0.5, 'Base under attack: three strokes of an alarm bell over distant blasts.'],
+  ['self_destruct', selfDestruct, 0.6, 'Autodestruct armed: a relay ticking faster over a charging whine, then a snap.'],
   ['victory', victory, 0.8, 'Victory stinger: taiko and brass climbing Bb, C to an open D major chord.'],
   ['defeat', defeat, 0.8, 'Defeat stinger: brass falling Eb to D minor, a throat voice and a last boom.'],
 ];
 
-/** Most effects stay under 1.5 s; explosions may ring for 2 to 3 s and the stingers run to 4 s. */
-const BUDGET: Record<string, number> = { explosion_small: 2, explosion_big: 3, victory: 4, defeat: 4 };
+/** Most effects stay under 1.5 s; the heavy gun rings to 1.8 s, explosions to 2 and 3 s, the stingers to 4 s. */
+const BUDGET: Record<string, number> = { shot_heavy: 1.8, explosion_small: 2, explosion_big: 3, victory: 4, defeat: 4 };
 
-export const SFX: Sfx[] = table.map(([name, make, gain, description]) => ({
-  name,
-  description,
-  gain,
-  budget: BUDGET[name] ?? 1.5,
-  render: () => finish(make()),
-})).concat(LOOPS, VOICES);
+/** Guns and hits render as `<name>_0` .. `<name>_2`; the game picks one each time. */
+export const SFX: Sfx[] = table.flatMap(([name, make, gain, description, varied]) =>
+  (varied ? Array.from({ length: VARIANTS }, (_, v) => [`${name}_${v}`, () => make(v)] as const) : [[name, () => make()] as const]).map(([n, render]) => ({
+    name: n,
+    description,
+    gain,
+    budget: BUDGET[name] ?? 1.5,
+    render: () => finish(render()),
+  })),
+).concat(LOOPS, VOICES);
