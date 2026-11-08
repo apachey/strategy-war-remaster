@@ -1,5 +1,5 @@
 /**
- * The shared palette of style B: 43 colours for units and buildings, 5 for fire in the effects, plus 19 for the
+ * The shared palette of style B: 48 colours for units and buildings, 5 for fire in the effects, plus 19 for the
  * ground (fir trees, soil, sand and the hover race's plates).
  * Every sprite and tile is quantised to these colours, so units, buildings and terrain always sit together.
  * Colours are grouped into ramps, dark to light; a 3D material picks a ramp and the lighting picks the step inside
@@ -18,6 +18,8 @@ export const RAMPS = {
   cyan: ['#003333', '#006666', '#009999', '#33cccc', '#99ffff'],
   // Secondary team colour as drawn (the game recolours it): red, which nothing else uses.
   accent: ['#4a0c0a', '#8a1c16', '#c4362a', '#ee6a4e', '#ffae8e'],
+  // Chassis team colour as drawn (the game recolours it): TEAM_COLORS.blue, which nothing else uses.
+  frame: ['#0c1440', '#1c2e7a', '#3554b8', '#6a8ae6', '#b0c8ff'],
   gold: ['#996600', '#cc9933', '#ffcc00', '#ffff33'],
   concrete: ['#4d4a3c', '#7a7660', '#a8a388', '#d4cfb2'],
   fire: ['#ff8a1c', '#ffffcc'],
@@ -52,6 +54,8 @@ export const ramp = (name: RampName): Rgb[] => RAMPS[name].map(hex);
 export const TEAM_RAMP = 'olive' satisfies RampName;
 /** Every "team2" (secondary colour) surface is drawn in this ramp: TEAM_COLORS.red. */
 export const SECOND_RAMP = 'accent' satisfies RampName;
+/** Every "chassis" surface (tracks, tyres, walker legs, hover bellies) is drawn in this ramp: TEAM_COLORS.blue. */
+export const CHASSIS_RAMP = 'frame' satisfies RampName;
 /** Light in the secondary colour ("team3": the walkers' eyes) is drawn in this ramp; it becomes `glowRamp(secondary)`. */
 export const GLOW_RAMP = 'glow' satisfies RampName;
 

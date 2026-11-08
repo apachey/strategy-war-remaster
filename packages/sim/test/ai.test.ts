@@ -36,7 +36,8 @@ describe('computer enemy', () => {
   });
 
   it('builds a silo and a factory, then harvests with its own harvesters', () => {
-    const w = arena(base, 0, { difficulty: 'normal' });
+    // $600 keeps the idle player in the game: a factory and a tank (1.2 ends it for a side that can do nothing).
+    const w = arena(base, 600, { difficulty: 'normal' });
     expect(w.sides.enemy.money).toBe(700);
     run(w, 300);
     expect(count(w, 'enemy', ObjectType.Silo)).toBe(1);
@@ -48,7 +49,7 @@ describe('computer enemy', () => {
   });
 
   it('fields the same tank types as the player and sends them at the player base in waves', () => {
-    const w = arena(base, 0, { difficulty: 'hard' });
+    const w = arena(base, 600, { difficulty: 'hard' });
     run(w, 240);
     const types = new Set(w.entities.filter((e) => e.team === 'enemy').map((e) => e.type));
     expect(types.has(ObjectType.MiddleTank) || types.has(ObjectType.HeavyTank)).toBe(true);

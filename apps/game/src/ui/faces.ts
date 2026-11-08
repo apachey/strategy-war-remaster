@@ -394,7 +394,7 @@ export function face(dress: Dress, who: Speaker, size = 32): string {
 
 /** The face's loop as a strip of FACE_FRAMES frames side by side: a PNG data URL, cached. */
 export function faceStrip(dress: Dress, who: Speaker, size = 32): string {
-  const id = `${dress.race}/${dress.color}/${dress.color2}/${who}/${size}`;
+  const id = `${dress.race}/${dress.color}/${dress.color2}/${dress.color3}/${who}/${size}`;
   const hit = strips.get(id);
   if (hit) return hit;
   const c = document.createElement('canvas');

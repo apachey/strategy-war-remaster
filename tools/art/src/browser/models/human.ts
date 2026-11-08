@@ -4,8 +4,8 @@ import { barrel, box, cyl, dome, group, lathe, mesh, paintAll, prism, slab, trac
 import { chips, facing, gaussFlash, lightSlot, tube, wallPiece, wreck, type Builder } from './parts';
 
 /**
- * The humans: the original's player side. Chunky chamfered blocks of armour in the main colour, running gear and
- * fittings in the secondary colour, cyan light slots; buildings with shells in the main colour and glass, bands and
+ * The humans: the original's player side. Chunky chamfered blocks of armour in the main colour, tracks and tyres in
+ * the chassis colour, fittings in the secondary colour, cyan light slots; buildings with shells in the main colour and glass, bands and
  * fittings in the secondary, on grey platforms. Their guns are human, a little ahead of today: gauss rifles and coil
  * cannons that fire yellow-hot slugs.
  */
@@ -24,7 +24,7 @@ function guns(count: 1 | 2, r: number, len: number, y: number, z: number, spread
 }
 
 /**
- * Wheel turning about the x axis: a chunky tyre in the secondary colour with tread blocks that move on between
+ * Wheel turning about the x axis: a chunky tyre in the chassis colour with tread blocks that move on between
  * frames, and a grey hub with a pale cap.
  */
 function wheel(r: number, w: number, pos: Vec3, phase: number): THREE.Group {
@@ -34,11 +34,11 @@ function wheel(r: number, w: number, pos: Vec3, phase: number): THREE.Group {
   hub.rotateZ(Math.PI / 2);
   const cap = new THREE.CylinderGeometry(r * 0.18, r * 0.18, w + 0.024, 6);
   cap.rotateZ(Math.PI / 2);
-  const g = group(mesh(tyre, 'team2'), mesh(hub, 'steel'), mesh(cap, 'steelLight'));
+  const g = group(mesh(tyre, 'chassis'), mesh(hub, 'steel'), mesh(cap, 'steelLight'));
   const n = 8;
   for (let i = 0; i < n; i++) {
     const a = ((i + phase * 0.5) / n) * Math.PI * 2;
-    g.add(mesh(new THREE.BoxGeometry(w + 0.01, r * 0.22, r * 0.36), i % 2 ? 'team2Light' : 'team2', [0, Math.cos(a) * r, Math.sin(a) * r], [-a, 0, 0]));
+    g.add(mesh(new THREE.BoxGeometry(w + 0.01, r * 0.22, r * 0.36), i % 2 ? 'chassisLight' : 'chassis', [0, Math.cos(a) * r, Math.sin(a) * r], [-a, 0, 0]));
   }
   g.position.set(...pos);
   return g;
@@ -50,7 +50,7 @@ interface HullSpec {
   h: number;
   trackW: number;
   trackH: number;
-  /** Track link colours; the secondary colour, dark on the tanks and pale on the harvester. */
+  /** Track link colours; the chassis colour, dark on the tanks and pale on the harvester. */
   tracks?: [MaterialName, MaterialName];
 }
 
@@ -59,8 +59,8 @@ function chassis(spec: HullSpec, phase: number): { g: THREE.Group; top: number; 
   const { w, l, h, trackW, trackH } = spec;
   const trackX = w / 2 + trackW / 2 - 0.02;
   const g = group(
-    track(l, trackW, trackH, -trackX, phase, 0, spec.tracks ?? ['team2Dark', 'team2']),
-    track(l, trackW, trackH, trackX, phase, 0, spec.tracks ?? ['team2Dark', 'team2']),
+    track(l, trackW, trackH, -trackX, phase, 0, spec.tracks ?? ['chassisDark', 'chassis']),
+    track(l, trackW, trackH, trackX, phase, 0, spec.tracks ?? ['chassisDark', 'chassis']),
     slab(w, h, l * 0.96, 'team', [0, trackH * 0.45, 0], 0.88),
   );
   return { g, top: trackH * 0.45 + h, trackX };
@@ -197,7 +197,7 @@ const harvester: Builder = (view, frame) => {
   const harvest = frame.startsWith('harvest');
   // Harvesting runs four frames: the tracks stand still, only the cutter turns and throws chips.
   const k = harvest ? Number(frame.slice(-1)) : 0;
-  const { g, top } = chassis({ w: 0.42, l: 0.82, h: 0.1, trackW: 0.13, trackH: 0.13, tracks: ['team2Light', 'team2'] }, harvest ? 0 : phase);
+  const { g, top } = chassis({ w: 0.42, l: 0.82, h: 0.1, trackW: 0.13, trackH: 0.13, tracks: ['chassisLight', 'chassis'] }, harvest ? 0 : phase);
   g.add(
     // Cab: glass walls under a roof, pillars in the corners and down the middle.
     box(0.46, 0.19, 0.36, 'team2Light', [0, top, -0.2]),

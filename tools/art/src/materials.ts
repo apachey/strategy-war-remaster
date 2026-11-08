@@ -5,8 +5,11 @@ import type { RampName } from './palette';
  * another; the pixel step turns (material, light) into a palette colour. Ids start at 1; 0 means empty.
  */
 export interface MaterialDef {
-  /** 'team' and 'team2' are the side's main and secondary colours, 'team3' light in the secondary (palette.ts). */
-  ramp: RampName | 'team' | 'team2' | 'team3';
+  /**
+   * 'team' and 'team2' are the side's main and secondary colours, 'team3' light in the secondary and 'chassis' the
+   * third colour, of what carries the unit (palette.ts).
+   */
+  ramp: RampName | 'team' | 'team2' | 'team3' | 'chassis';
   /** Moves the light level up or down the ramp (in steps), to tell apart surfaces that share a ramp. */
   shift?: number;
   /** Ignores lighting and always uses the brightest step (lamps, muzzle flash). */
@@ -23,6 +26,10 @@ export const MATERIALS = {
   team2: { ramp: 'team2' },
   team2Dark: { ramp: 'team2', shift: -1 },
   team2Light: { ramp: 'team2', shift: 1 },
+  // The side's third colour: tracks, tyres, walker legs and hover bellies.
+  chassis: { ramp: 'chassis' },
+  chassisDark: { ramp: 'chassis', shift: -1 },
+  chassisLight: { ramp: 'chassis', shift: 1 },
   steel: { ramp: 'steel' },
   steelLight: { ramp: 'steel', shift: 1 },
   steelDark: { ramp: 'steel', shift: -1 },

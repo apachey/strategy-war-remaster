@@ -38,7 +38,7 @@ document.documentElement.style.setProperty('--k', '2');
 /** Loads a mission or a skirmish; `start` skips its start screen (the skirmish screen already showed the choices). */
 function open(setup: Setup, load?: Slot, start = false): void {
   const p = new URLSearchParams(location.search);
-  for (const key of ['m', 's', 'vs', 'money', 'r', 'c', 'c2', 'd', 'load', 'go']) p.delete(key);
+  for (const key of ['m', 's', 'vs', 'money', 'r', 'c', 'c2', 'c3', 'sym', 'n1', 'n2', 'd', 'load', 'go']) p.delete(key);
   for (const [k, v] of Object.entries(setupQuery(setup))) p.set(k, v);
   if (load) p.set('load', load);
   if (start) p.set('go', '1');
@@ -109,8 +109,8 @@ async function start(): Promise<void> {
   document.getElementById('stage')!.appendChild(app.canvas);
   const { player: s1, enemy: s2 } = game.world.sides;
   const art = await loadArt([
-    [s1.color, s1.color2],
-    [s2.color, s2.color2],
+    [s1.color, s1.color2, s1.color3],
+    [s2.color, s2.color2, s2.color3],
   ]);
   app.canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
@@ -148,6 +148,7 @@ async function start(): Promise<void> {
   const views = game.commanders.map((c, i) => new View(c, art, panelHeight(i)));
   for (const v of views) app.stage.addChild(v.root);
   const minimaps = views.map((v, i) => new Minimap(v, i, i === 0));
+  minimaps.forEach((m, i) => hud.panels[i]!.mountMinimap(m.element));
   const divider = new Graphics();
   app.stage.addChild(divider);
   const layout = () => {
@@ -161,7 +162,6 @@ async function start(): Promise<void> {
       divider.clear().rect(half - 1, 0, 2, h).fill(0x4a4234);
     }
     for (const v of views) v.fit();
-    for (const m of minimaps) m.place();
   };
   layout();
   window.addEventListener('resize', () => requestAnimationFrame(layout));
@@ -222,6 +222,10 @@ async function start(): Promise<void> {
   /** Where player 1 was last attacked, for Space. */
   let lastAlert: { x: number; y: number } | null = null;
 
+  /** The last plain click on an object, so a second one on it soon after selects every unit of its type. */
+  let lastClick: { id: number; at: number } | null = null;
+  const DOUBLE_CLICK_MS = 400;
+
   app.canvas.addEventListener('pointerdown', (ev) => {
     if (!game.started || !v1.contains(ev.offsetX, ev.offsetY)) return;
     const p = v1.toWorld(ev.offsetX, ev.offsetY);
@@ -267,7 +271,14 @@ async function start(): Promise<void> {
       p1.selectBox(d.x0, d.y0, d.x1, d.y1, d.shift);
     } else {
       const hit = p1.pick(d.x0, d.y0);
-      if (hit) p1.select([hit.id], d.shift);
+      const now = performance.now();
+      const double = hit && lastClick && lastClick.id === hit.id && now - lastClick.at < DOUBLE_CLICK_MS;
+      lastClick = hit && !double ? { id: hit.id, at: now } : null;
+      if (hit && double) {
+        const a = v1.toWorld(v1.rect.x, v1.rect.y);
+        const b = v1.toWorld(v1.rect.x + v1.rect.w, v1.rect.y + v1.rect.h);
+        p1.selectSameType(hit, a.x, a.y, b.x, b.y, d.shift);
+      } else if (hit) p1.select([hit.id], d.shift);
       else if (!d.shift) p1.select([]);
     }
   });
@@ -288,7 +299,7 @@ async function start(): Promise<void> {
     if (ev.key.length === 1) cheat(ev.key);
     // A letter on a panel button presses it (Q W E R T, A S D F G, X stop), ahead of any other use of the key.
     const letter = /^Key([A-Z])$/.exec(ev.code)?.[1];
-    if (letter && !ev.metaKey && !ev.ctrlKey && game.started && hud.panels[0]!.pressKey(letter)) {
+    if (letter && !ev.metaKey && !ev.ctrlKey && game.started && !hud.dialogOpen && hud.panels[0]!.pressKey(letter)) {
       ev.preventDefault();
       return;
     }
@@ -311,9 +322,10 @@ async function start(): Promise<void> {
     }
     switch (ev.code) {
       case 'Escape':
-        if (p1.placing) p1.placing = null;
-        else if (p1.aiming) p1.aiming = null;
-        else p1.select([]);
+        // Escape first drops a building being placed or a Move/Attack waiting for its target; then it pauses.
+        if (p1.placing && !hud.dialogOpen) p1.placing = null;
+        else if (p1.aiming && !hud.dialogOpen) p1.aiming = null;
+        else hud.escape();
         break;
       case 'Space':
         // Space jumps to the last place under attack; pause moved to P.
@@ -388,6 +400,7 @@ async function start(): Promise<void> {
   Object.assign(window, {
     __sw: {
       game,
+      hud,
       players: game.commanders,
       views,
       issue: (cmd: Command, side: Side = 'player') => issue(game.world, side, cmd),

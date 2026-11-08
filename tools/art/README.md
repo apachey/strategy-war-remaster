@@ -20,13 +20,15 @@ pnpm sprites:check                 # CI: fail if assets/sprites is stale
    19 for the ground); surfaces that pass behind a nearer
    one get an inner line two steps darker; a 2 px outline, two ramp steps darker than the body it touches, goes round the silhouette and the floor shadow becomes a
    38% dark overlay.
-4. **Team colours**: a side wears a main and a secondary colour, any of the 24 `TEAM_COLORS` in `@sw/data` (8 hues
-   × dark, base, light). `team` surfaces are drawn once in olive, `team2` (secondary) in the red `accent` ramp, and
-   `team3`, light in the secondary (the walkers' eyes), in the magenta `glow` ramp. `recolor` (and the game, when
-   it loads the atlas) swaps the three ramps for the side's two colours and `glowRamp(secondary)`; the atlas meta
-   lists the drawn ramps (`teamRamp`, `secondRamp`, `glowRamp`) and `teamColors`. Nothing else in the palette uses
-   those fifteen colours. Which parts wear which colour:
-   - humans: hulls, cabs and building shells in the main colour; tracks, tyres, glass, bands and fittings in the
+4. **Team colours**: a side wears a main, a secondary and a chassis colour, any of the 24 `TEAM_COLORS` in `@sw/data`
+   (8 hues × dark, base, light). `team` surfaces are drawn once in olive, `team2` (secondary) in the red `accent`
+   ramp, `chassis` in the blue `frame` ramp, and `team3`, light in the secondary (the walkers' eyes), in the magenta
+   `glow` ramp. `recolor` (and the game, when it loads the atlas) swaps the four ramps for the side's three colours
+   and `glowRamp(secondary)`; the atlas meta lists the drawn ramps (`teamRamp`, `secondRamp`, `chassisRamp`,
+   `glowRamp`) and `teamColors`. Nothing else in the palette uses those twenty colours. The chassis colour paints
+   what carries a unit: human tracks and tyres, walker legs and knees, the skirt a hover shell floats on
+   (`defaultChassisColor` gives a side without one its old look). Which parts wear the other colours:
+   - humans: hulls, cabs and building shells in the main colour; glass, bands and fittings in the
      secondary; small fittings (turret rings, grilles, hatches, vents, gun sleeves), wheel hubs, the harvester's
      cutter, guns, platforms, the silo's and factory's thin rings and masts and the factory's big dark blocks stay
      grey, so a side in two equal colours still has some contrast; cyan lights stay cyan;

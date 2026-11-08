@@ -67,10 +67,10 @@ describe('team colours', () => {
       for (const b of TEAM_COLOR_NAMES) if (a < b) expect(deltaE(TEAM_COLORS[a][2], TEAM_COLORS[b][2]), `${a} / ${b}`).toBeGreaterThan(10);
   });
 
-  it('never use a colour of the shared palette except the two drawn ramps', () => {
+  it('never use a colour of the shared palette except the drawn ramps', () => {
     const palette = new Set(PALETTE.map((c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('')));
     const inPalette = TEAM_COLOR_NAMES.filter((c) => TEAM_COLORS[c].some((x) => palette.has(x)));
-    expect(inPalette.sort()).toEqual(['cyan', 'olive', 'red']);
+    expect(inPalette.sort()).toEqual(['blue', 'cyan', 'olive', 'red']);
   });
 
   for (const [what, around] of Object.entries(SURROUNDINGS)) {

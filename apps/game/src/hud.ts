@@ -1,4 +1,23 @@
-import { campaign, LANGS, ObjectType, RACES, spriteName, TEAM_COLOR_GRID, TEAM_COLORS, TEAM_HUES, type Lang, type Race, type TeamColor } from '@sw/data';
+import {
+  campaign,
+  CAMPAIGN_FACTIONS,
+  CELL as MAP_CELL,
+  FACTION_NAME_MAX,
+  FACTION_SYMBOLS,
+  LANGS,
+  ObjectType,
+  PRESET_FACTIONS,
+  RACES,
+  spriteName,
+  TEAM_COLOR_GRID,
+  TEAM_COLORS,
+  TEAM_HUES,
+  type Faction,
+  type FactionSymbol,
+  type Lang,
+  type Race,
+  type TeamColor,
+} from '@sw/data';
 import {
   BUILDING_RULES,
   buildBlockedGrid,
@@ -22,8 +41,9 @@ import {
   type Team,
   type UnitType,
 } from '@sw/sim';
-import { hqType, nextMission, type Commander, type Game, type Setup } from './game';
-import { completed, markCompleted, readSave, SLOTS, type Slot } from './storage';
+import { hqType, nextMission, skirmishFactions, type Commander, type Game, type Setup } from './game';
+import { completed, loadFactions, markCompleted, readSave, saveFactions, SLOTS, type Slot } from './storage';
+import { emblemHtml } from './ui/emblems';
 import { logoHtml } from './ui/logo';
 import { flagHtml } from './ui/flags';
 import type { Dress, PixelScene } from './ui/scene3d';
@@ -39,7 +59,7 @@ let scene3d: typeof import('./ui/scene3d') | null = null;
 let faces: typeof import('./ui/faces') | null = null;
 const scene3dReady = Promise.all([import('./ui/scene3d'), import('./ui/faces')]).then(([m, f]) => ((faces = f), (scene3d = m)));
 
-const dress = (s: SideState): Dress => ({ race: s.race, color: s.color, color2: s.color2 });
+const dress = (s: SideState): Dress => ({ race: s.race, color: s.color, color2: s.color2, color3: s.color3 });
 
 type SkirmishSetup = Extract<Setup, { kind: 'skirmish' }>;
 
@@ -76,6 +96,13 @@ const OPPONENT_ICONS: Record<Opponent, string> = { easy: '☠', normal: '☠☠'
 /** Is this the desktop app (Tauri), where the main menu can quit? */
 const inApp = () => '__TAURI_INTERNALS__' in window;
 
+/** Closes the desktop app's window, which quits it (the window permission is in apps/desktop's capabilities). */
+function quitApp(): void {
+  const tauri = (window as unknown as { __TAURI_INTERNALS__?: { invoke(cmd: string, args?: unknown): Promise<unknown> } }).__TAURI_INTERNALS__;
+  if (!tauri) return window.close();
+  void tauri.invoke('plugin:window|destroy', { label: 'main' }).catch(() => tauri.invoke('plugin:window|close', { label: 'main' })).catch(() => window.close());
+}
+
 export interface HudActions {
   /** Opens another setup (a mission or a skirmish); `load` continues a save. */
   open(setup: Setup, load?: Slot, start?: boolean): void;
@@ -103,6 +130,10 @@ export class Hud {
   readonly panels: PlayerPanel[];
   /** The skirmish screen's choices before Start loads them. */
   private draft: SkirmishSetup | null = null;
+  /** The faction studio's open faction: which of the player's factions it is (-1 for a new one) and its edits. */
+  private studio: { index: number; edit: Faction } | null = null;
+  /** The faction last saved since the studio opened, handed to its `back` when it closes. */
+  private studioSaved: Faction | null = null;
 
   constructor(
     private readonly game: Game,
@@ -121,10 +152,6 @@ export class Hud {
     document.body.style.setProperty('--player', TEAM_COLORS[game.world.sides.player.color][3]);
     document.body.style.setProperty('--enemy', TEAM_COLORS[game.world.sides.enemy.color][3]);
     this.panels = game.commanders.map((c) => new PlayerPanel(c, game.twoPlayers));
-    $('btn-pause').onclick = () => this.togglePause();
-    $('btn-menu').onclick = () => this.actions.toMenu();
-    $('btn-saves').onclick = () => this.showSaves();
-    $('btn-settings').onclick = () => this.showSettings();
     this.applyLang();
     if (game.loaded || startNow) game.started = true;
     else this.showBriefing();
@@ -135,12 +162,7 @@ export class Hud {
 
   /** Fills the static page text in the current language. */
   applyLang(): void {
-    $('btn-menu').textContent = `☰ ${t().menu}`;
-    $('topbar').dataset.paused = t().paused;
-    $('btn-saves').textContent = t().saves;
-    $('btn-settings').title = t().settings;
-    $('btn-settings').setAttribute('aria-label', t().settings);
-    $('help').textContent = this.game.twoPlayers ? t().helpDuo : t().help;
+    $('paused').textContent = t().paused;
     for (const p of this.panels) p.refresh();
   }
 
@@ -162,14 +184,8 @@ export class Hud {
 
   update(): void {
     const g = this.game;
-    const T = t();
-    const s = g.setup;
-    $('hud').textContent =
-      s.kind === 'campaign'
-        ? `${mapName(g.mapIndex)} · ${missionTitle(g.mapIndex, g.missionIndex)} · ${T.difficulty[g.difficulty]}`
-        : `${T.skirmish} · ${mapName(g.mapIndex)} · ${T.opponent[s.opponent]}`;
-    $('btn-pause').textContent = g.paused ? T.resume : T.pause;
     document.body.classList.toggle('paused', g.paused && g.started);
+    $('paused').classList.toggle('show', g.paused && g.started && !$('modal').classList.contains('show'));
     for (const p of this.panels) p.update();
     if (g.world.outcome !== 'playing' && !this.shownOutcome) {
       this.shownOutcome = true;
@@ -177,9 +193,83 @@ export class Hud {
     }
   }
 
+  /** What is being played: the mission, or the skirmish's map and opponent. */
+  private matchTitle(): string {
+    const g = this.game;
+    const T = t();
+    const s = g.setup;
+    return s.kind === 'campaign'
+      ? `${mapName(g.mapIndex)} · ${missionTitle(g.mapIndex, g.missionIndex)} · ${T.difficulty[g.difficulty]}`
+      : `${T.skirmish} · ${mapName(g.mapIndex)} · ${T.opponent[s.opponent]}`;
+  }
+
+  /** Is a dialog open over the game? */
+  get dialogOpen(): boolean {
+    return $('modal').classList.contains('show');
+  }
+
+  /**
+   * What Escape does once the game runs: opens the pause menu, or closes the dialog that is open (a dialog opened
+   * from the pause menu goes back to it).
+   */
+  escape(): void {
+    if (!this.game.started || this.game.world.outcome !== 'playing') return;
+    const m = $('modal');
+    if (!m.classList.contains('show')) return this.showPauseMenu();
+    (m.querySelector<HTMLButtonElement>('[data-no]') ?? m.querySelector<HTMLButtonElement>('[data-close]') ?? m.querySelector<HTMLButtonElement>('[data-resume]'))?.click();
+  }
+
+  /**
+   * The pause menu: the game stops under a light shade, and from here the player continues, saves, changes the
+   * settings, restarts, or leaves for the main screen or the desktop. Leaving and restarting ask first.
+   */
+  showPauseMenu(): void {
+    if (!this.game.started || this.game.world.outcome !== 'playing') return;
+    const close = this.pauseBehind();
+    const T = t();
+    const back = () => this.showPauseMenu();
+    const m = this.modal(
+      `<div class="kicker">${this.matchTitle()}</div><h1>${T.paused}</h1>
+       <div class="menu-buttons">
+         <button class="primary" data-resume>${T.continueGame}</button>
+         <button data-saves>${T.saves}</button>
+         <button data-settings>${T.settings}</button>
+         <button data-restart>${T.restartMission}</button>
+         <button data-menu>${T.toMenu}</button>
+         ${inApp() ? `<button data-exit>${T.exitGame}</button>` : ''}
+       </div>`,
+    );
+    m.classList.add('dim');
+    m.querySelector('.card')!.classList.add('pause');
+    const on = (attr: string, f: () => void) => m.querySelector<HTMLButtonElement>(`[data-${attr}]`)?.addEventListener('click', f);
+    on('resume', close);
+    on('saves', () => {
+      close();
+      this.showSaves(back);
+    });
+    on('settings', () => {
+      close();
+      this.showSettings(back);
+    });
+    const ask = (question: string, yes: () => void) => () => {
+      const q = this.modal(
+        `<h1>${question}</h1><p class="hint">${T.unsavedLost}</p><div class="row"><button data-no>${T.no}</button><button class="primary" data-yes>${T.yes}</button></div>`,
+      );
+      q.classList.add('dim');
+      q.querySelector<HTMLButtonElement>('[data-no]')!.onclick = () => {
+        close();
+        back();
+      };
+      q.querySelector<HTMLButtonElement>('[data-yes]')!.onclick = yes;
+    };
+    on('restart', ask(T.askRestart, () => this.actions.restart()));
+    on('menu', ask(T.askMenu, () => this.actions.toMenu()));
+    on('exit', ask(T.askExit, quitApp));
+  }
+
   private modal(html: string): HTMLElement {
     const m = $('modal');
-    m.classList.remove('over-scene');
+    m.classList.remove('over-scene', 'dim');
     m.innerHTML = `<div class="card">${html}</div>`;
     m.classList.add('show');
     return m;
@@ -234,27 +324,31 @@ export class Hud {
          <figure class="map"><canvas class="preview" width="1" height="1"></canvas></figure>
          <div class="match">
            <div class="option"><span>${T.opponentLabel}</span><div class="levels">${levels('opponent', OPPONENTS, s.opponent, (o) => T.opponent[o], OPPONENT_ICONS)}</div></div>
-           <p class="hint">${T.opponentHint[s.opponent]}${s.opponent === 'human' ? ` ${T.helpDuo}` : ''}</p>
-           <div class="option"><span>${T.moneyLabel}</span><div class="money">${choice('money', SKIRMISH_MONEY.map(String), String(s.money), (v) => `$${v}`)}</div></div>
+           <p class="hint"${s.opponent === 'human' ? ` title="${T.helpDuo}"` : ''}>${T.opponentHint[s.opponent]}</p>
+           <div class="option"><span>${T.moneyLabel}</span><div class="money">${choice('money', SKIRMISH_MONEY.map(String), String(s.money), (v) => v)}</div></div>
            <p class="goal">${s.opponent === 'human' ? T.duoGoal : T.skirmishGoal}</p>
          </div>
        </div>
-       <div class="sides">${[0, 1].map((i) => sideOptions(s, i)).join('')}</div>
+       <div class="sides">${[0, 1].map((i) => sideOptions(s, i, loadFactions())).join('')}</div>
        <footer><button data-campaign>${T.campaign}</button><button class="primary" data-go>${T.start}</button></footer>`,
     );
     m.querySelector('.card')!.classList.add('setup', 'screen');
-    drawPreview(m.querySelector('canvas')!, s.mapIndex, s.colors);
+    drawPreview(m.querySelector('canvas')!, s.mapIndex, [s.factions[0].color, s.factions[1].color]);
     const change = (patch: Partial<SkirmishSetup>) => {
       this.draft = { ...s, ...patch };
       this.showSkirmishSetup();
     };
     m.querySelectorAll<HTMLButtonElement>('[data-map]').forEach((b) => (b.onclick = () => change({ mapIndex: Number(b.dataset.map) })));
     m.querySelectorAll<HTMLButtonElement>('[data-opponent]').forEach((b) => (b.onclick = () => change({ opponent: b.dataset.opponent as Opponent })));
+    const choices = [...PRESET_FACTIONS, ...loadFactions()];
+    const seat = (i: 0 | 1, f: Faction) => skirmishFactions(i === 0 ? [f, s.factions[1]] : [s.factions[0], f]);
     for (const i of [0, 1] as const) {
-      const pair = <V>(list: [V, V], v: V): [V, V] => (i === 0 ? [v, list[1]] : [list[0], v]);
-      m.querySelectorAll<HTMLButtonElement>(`[data-race${i}]`).forEach((b) => (b.onclick = () => change({ races: pair(s.races, b.dataset[`race${i}`] as Race) })));
-      m.querySelectorAll<HTMLButtonElement>(`[data-color${i}]`).forEach((b) => (b.onclick = () => change({ colors: pair(s.colors, b.dataset[`color${i}`] as TeamColor) })));
-      m.querySelectorAll<HTMLButtonElement>(`[data-second${i}]`).forEach((b) => (b.onclick = () => change({ colors2: pair(s.colors2, b.dataset[`second${i}`] as TeamColor) })));
+      m.querySelectorAll<HTMLButtonElement>(`[data-faction${i}]`).forEach((b) => (b.onclick = () => change({ factions: seat(i, choices[Number(b.dataset[`faction${i}`])]!) })));
+      m.querySelector<HTMLButtonElement>(`[data-studio${i}]`)!.onclick = () =>
+        this.showFactionStudio((made) => {
+          if (made) this.draft = { ...s, factions: seat(i, made) };
+          this.showSkirmishSetup();
+        }, s.factions[i]);
     }
     m.querySelectorAll<HTMLButtonElement>('[data-money]').forEach((b) => (b.onclick = () => change({ money: Number(b.dataset.money) })));
     m.querySelector<HTMLButtonElement>('[data-campaign]')!.onclick = () => this.showMissions();
@@ -315,6 +409,7 @@ export class Hud {
            `<button data-campaign>${T.campaign}</button>`,
            `<button data-skirmish>${T.skirmish}</button>`,
            `<button data-duo>${T.duo}</button>`,
+           `<button data-factions>${T.factions}</button>`,
            `<button data-saves>${T.load}</button>`,
            `<button data-settings>${T.settings}</button>`,
            inApp() ? `<button data-exit>${T.exit}</button>` : '',
@@ -334,11 +429,9 @@ export class Hud {
     on('skirmish', () => this.actions.open({ ...last, opponent: last.opponent === 'human' ? 'normal' : last.opponent }));
     on('duo', () => this.actions.open({ ...last, opponent: 'human' }));
     on('saves', () => this.showSaves());
+    on('factions', () => this.showFactionStudio(() => this.showMenu()));
     on('settings', () => this.showSettings());
-    on('exit', () => {
-      const tauri = (window as unknown as { __TAURI_INTERNALS__?: { invoke(cmd: string, args?: unknown): Promise<unknown> } }).__TAURI_INTERNALS__;
-      void tauri?.invoke('plugin:window|close', { label: 'main' }).catch(() => window.close());
-    });
+    on('exit', quitApp);
     this.bindLang(m);
     if (!this.scene) void this.showScene((s3, canvas) => s3.battleScene(canvas));
   }
@@ -409,33 +502,92 @@ export class Hud {
     };
   }
 
+  /**
+   * The campaign, one full screen like the skirmish's: the seven maps down the left with a pip per mission (filled when
+   * won), the chosen map large in the middle with both sides' starting positions, and its missions on the right, the
+   * picked one with its briefing. Missions open in order; Start plays the picked one. Picking only redraws the screen.
+   */
   showMissions(): void {
     const close = this.pauseBehind();
-    const T = t();
     const done = completed();
-    let list = '';
+    // Missions open in order: every completed one, plus the first one not yet completed.
+    const state: ('done' | 'open' | 'locked')[][] = [];
     let open = true;
+    let next: [number, number] = [0, 0];
     campaign.maps.forEach((map, mi) => {
-      list += `<div class="map"><b>${mi + 1}. ${mapName(mi)}</b>`;
-      map.missions.forEach((_, si) => {
-        // Missions open in order: every completed one, plus the first one not yet completed.
-        const isDone = done.has(`${mi + 1}.${si + 1}`);
-        const locked = !isDone && !open;
-        if (!isDone) open = false;
-        list += `<button data-m="${mi}" data-s="${si}"${locked ? ` disabled title="${T.locked}"` : ''}>${si + 1}. ${missionTitle(mi, si)}${isDone ? ' ✓' : ''}</button>`;
+      state.push(
+        map.missions.map((_, si) => {
+          if (done.has(`${mi + 1}.${si + 1}`)) return 'done';
+          if (!open) return 'locked';
+          open = false;
+          next = [mi, si];
+          return 'open';
+        }),
+      );
+    });
+    // From a mission, the screen opens on it; from the main screen, on the first mission not yet won.
+    const here = !this.menu && this.game.setup.kind === 'campaign' ? this.game.setup : null;
+    let [pm, ps] = here && state[here.mapIndex]?.[here.missionIndex] !== 'locked' ? [here.mapIndex, here.missionIndex] : next;
+    const render = () => {
+      const T = t();
+      const pips = (mi: number) => state[mi]!.map((st) => `<i class="pip ${st}"></i>`).join('');
+      const maps = campaign.maps
+        .map((_, mi) => {
+          const locked = state[mi]![0] === 'locked';
+          return `<button class="chapter${mi === pm ? ' active' : ''}" data-cm="${mi}"${locked ? ` disabled title="${T.locked}"` : ''}><span class="no">${mi + 1}</span><span class="name">${mapName(mi)}</span><span class="pips">${pips(mi)}</span></button>`;
+        })
+        .join('');
+      const missions = campaign.maps[pm]!.missions
+        .map((_, si) => {
+          const st = state[pm]![si]!;
+          const mark = st === 'done' ? '<span class="mark">✓</span>' : '';
+          return `<button class="mission ${st}${si === ps ? ' active' : ''}" data-cs="${si}"${st === 'locked' ? ` disabled title="${T.locked}"` : ''}><span class="no">${pm + 1}.${si + 1}</span><span class="name">${missionTitle(pm, si)}</span>${mark}</button>`;
+        })
+        .join('');
+      const m = this.modal(
+        `<header><div class="kicker">${T.campaign}</div><h1>${mapName(pm)}</h1></header>
+         <div class="campaign">
+           <nav class="chapters">${maps}</nav>
+           <figure class="map"><canvas class="preview" width="1" height="1"></canvas></figure>
+           <div class="brief">
+             <div class="missions">${missions}</div>
+             <h2>${missionTitle(pm, ps)}</h2>
+             <p>${missionBrief(pm, ps)}</p>
+           </div>
+         </div>
+         <footer><button data-close>${T.back}</button><button class="primary" data-go>${T.start}</button></footer>`,
+      );
+      m.querySelector('.card')!.classList.add('campaign-screen', 'screen');
+      drawMissionPreview(m.querySelector('canvas')!, pm, ps);
+      m.querySelectorAll<HTMLButtonElement>('[data-cm]').forEach((b) => {
+        b.onclick = () => {
+          pm = Number(b.dataset.cm);
+          const st = state[pm]!;
+          ps = Math.max(0, st.includes('open') ? st.indexOf('open') : st.lastIndexOf('done'));
+          render();
+        };
       });
-      list += '</div>';
-    });
-    const m = this.modal(`<h1>${T.missions}</h1><div class="missions">${list}</div><div class="row"><button data-close>${T.close}</button></div>`);
-    m.querySelectorAll<HTMLButtonElement>('[data-m]').forEach((b) => {
-      b.onclick = () => this.actions.open({ kind: 'campaign', mapIndex: Number(b.dataset.m), missionIndex: Number(b.dataset.s), difficulty: this.game.difficulty });
-    });
-    m.querySelector<HTMLButtonElement>('[data-close]')!.onclick = close;
+      m.querySelectorAll<HTMLButtonElement>('[data-cs]').forEach((b) => {
+        b.onclick = () => {
+          ps = Number(b.dataset.cs);
+          render();
+        };
+        b.ondblclick = () => start();
+      });
+      m.querySelector<HTMLButtonElement>('[data-close]')!.onclick = close;
+      m.querySelector<HTMLButtonElement>('[data-go]')!.onclick = () => start();
+    };
+    const start = () => this.actions.open({ kind: 'campaign', mapIndex: pm, missionIndex: ps, difficulty: this.game.difficulty });
+    render();
   }
 
   /** Volumes, language, and a few words about the game with its version. */
-  showSettings(): void {
-    const close = this.pauseBehind();
+  showSettings(back?: () => void): void {
+    const shut = this.pauseBehind();
+    const close = () => {
+      shut();
+      back?.();
+    };
     const T = t();
     const v = this.actions.volumes();
     const slider = (id: string, label: string, value: number) =>
@@ -463,15 +615,111 @@ export class Hud {
       b.onclick = () => {
         this.actions.setLang(b.dataset.lang as Lang);
         this.applyLang();
-        close();
-        this.showSettings();
+        shut();
+        this.showSettings(back);
       };
     });
     m.querySelector<HTMLButtonElement>('[data-close]')!.onclick = close;
   }
 
-  showSaves(): void {
-    const close = this.pauseBehind();
+  /**
+   * The faction studio: the player's own factions on the left, the open one large in the middle (its emblem and its
+   * army) and its race, name, symbol and three colours on the right. `back` gets the faction that was last saved, or
+   * null; `start` is the faction to open (one of the player's, or a new one made from it).
+   */
+  showFactionStudio(back: (saved: Faction | null) => void, start?: Faction): void {
+    const T = t();
+    const mine = loadFactions();
+    if (!this.studio || start) {
+      const k = start ? mine.findIndex((f) => sameFaction(f, start)) : -1;
+      this.studio = { index: k, edit: { ...(start ?? PRESET_FACTIONS[0]!) } };
+      this.studioSaved = null;
+    }
+    const st = this.studio;
+    const f = st.edit;
+    const redraw = () => this.showFactionStudio(back);
+    const chip = (c: Faction, attr: string, on: boolean) =>
+      `<button class="faction-chip${on ? ' active' : ''}" ${attr}>${emblemHtml(c, 2)}<span>${factionName(c)}</span></button>`;
+    const symbols = FACTION_SYMBOLS.map(
+      (sym) => `<button class="symbol${sym === f.symbol ? ' active' : ''}" data-symbol="${sym}" title="${T.symbol[sym]}" aria-label="${T.symbol[sym]}">${emblemHtml({ ...f, symbol: sym }, 2)}</button>`,
+    ).join('');
+    const army = [ObjectType.PlayerHQ, ObjectType.Harvester, ObjectType.LightTank, ObjectType.HeavyTank].map((type) => img(portraitFor(f, type, 96))).join('');
+    const m = this.modal(
+      `<header><div class="kicker">${T.factionStudio}</div><h1>${factionName(f)}</h1></header>
+       <div class="studio-body">
+         <nav class="faction-list">
+           <span>${T.myFactions}</span>
+           ${mine.map((c, k) => chip(c, `data-mine="${k}"`, k === st.index)).join('')}
+           <button class="faction-chip new${st.index < 0 ? ' active' : ''}" data-new>+ ${T.newFaction}</button>
+           <span>${T.presetFactions}</span>
+           ${PRESET_FACTIONS.map((c, k) => chip(c, `data-preset="${k}"`, false)).join('')}
+         </nav>
+         <figure class="faction-show" style="--c: ${TEAM_COLORS[f.color][1]}">${emblemHtml(f, 6, 'emblem big')}<div class="army">${army}</div></figure>
+         <div class="faction-edit">
+           <label class="name"><span>${T.nameLabel}</span><input type="text" maxlength="${FACTION_NAME_MAX}" value="${f.name}" placeholder="${T.race[f.race]}" data-name></label>
+           <div class="option"><span>${T.raceLabel}</span><div class="races">${choice('race', RACES, f.race, (r) => T.race[r])}</div></div>
+           <div class="option"><span>${T.symbolLabel}</span><div class="symbols">${symbols}</div></div>
+           <div class="palettes">
+             ${swatches('color', T.colorLabel, f.color, null, true)}
+             ${swatches('second', T.color2Label, f.color2, null, true)}
+             ${swatches('chassis', `${T.color3Label} · ${T.chassisOf[f.race]}`, f.color3, null, true)}
+           </div>
+         </div>
+       </div>
+       <footer><button data-back>${T.back}</button><span class="spacer"></span>${st.index >= 0 ? `<button data-delete>${T.deleteFaction}</button>` : ''}<button class="primary" data-save>${T.saveFaction}</button></footer>`,
+    );
+    m.querySelector('.card')!.classList.add('faction-studio', 'screen');
+    const set = (patch: Partial<Faction>) => {
+      st.edit = { ...st.edit, ...patch };
+      redraw();
+    };
+    const each = (attr: string, f: (v: string) => void) =>
+      m.querySelectorAll<HTMLButtonElement>(`[data-${attr}]`).forEach((b) => (b.onclick = () => f(b.getAttribute(`data-${attr}`)!)));
+    each('race', (v) => set({ race: v as Race }));
+    each('symbol', (v) => set({ symbol: v as FactionSymbol }));
+    each('color', (v) => set({ color: v as TeamColor }));
+    each('second', (v) => set({ color2: v as TeamColor }));
+    each('chassis', (v) => set({ color3: v as TeamColor }));
+    each('mine', (v) => ((this.studio = { index: Number(v), edit: { ...mine[Number(v)]! } }), redraw()));
+    each('preset', (v) => ((this.studio = { index: -1, edit: { ...PRESET_FACTIONS[Number(v)]! } }), redraw()));
+    each('new', () => ((this.studio = { index: -1, edit: { ...f, name: '' } }), redraw()));
+    // Typing changes only the draft and the title, so the field keeps its focus.
+    const name = m.querySelector<HTMLInputElement>('[data-name]')!;
+    name.oninput = () => {
+      st.edit = { ...st.edit, name: name.value.replace(/[<>&"|]/g, '') };
+      m.querySelector('header h1')!.textContent = factionName(st.edit);
+    };
+    m.querySelector<HTMLButtonElement>('[data-save]')!.onclick = () => {
+      const list = loadFactions();
+      const edit = { ...st.edit, name: st.edit.name.trim() };
+      if (st.index >= 0 && st.index < list.length) list[st.index] = edit;
+      else st.index = list.push(edit) - 1;
+      st.edit = edit;
+      saveFactions(list);
+      this.studioSaved = edit;
+      this.toast(T.factionSaved);
+      redraw();
+    };
+    m.querySelector<HTMLButtonElement>('[data-delete]')?.addEventListener('click', () => {
+      const list = loadFactions();
+      list.splice(st.index, 1);
+      saveFactions(list);
+      this.studio = { index: -1, edit: { ...f } };
+      redraw();
+    });
+    m.querySelector<HTMLButtonElement>('[data-back]')!.onclick = () => {
+      this.studio = null;
+      back(this.studioSaved);
+    };
+    if (!scene3d) void scene3dReady.then(() => this.studio === st && $('modal').querySelector('.faction-studio') && redraw());
+  }
+
+  showSaves(back?: () => void): void {
+    const shut = this.pauseBehind();
+    const close = () => {
+      shut();
+      back?.();
+    };
     const T = t();
     const canSave = this.game.started && this.game.world.outcome === 'playing';
     let rows = '';
@@ -494,7 +742,7 @@ export class Hud {
     m.querySelectorAll<HTMLButtonElement>('[data-save]').forEach((b) => {
       b.onclick = () => {
         this.actions.save(b.dataset.save as Slot);
-        close();
+        shut();
       };
     });
     m.querySelectorAll<HTMLButtonElement>('[data-load]').forEach((b) => {
@@ -532,29 +780,50 @@ function swatches(attr: string, label: string, current: TeamColor, taken: TeamCo
   return `<div class="colors${small ? ' small' : ''}"><span>${label}</span><div class="grid" role="group" aria-label="${label}">${cells.join('')}</div></div>`;
 }
 
+/** A faction's name to show: the player's own, or its race's. */
+const factionName = (f: Faction) => f.name || t().race[f.race];
+const sameFaction = (a: Faction, b: Faction) => JSON.stringify(a) === JSON.stringify(b);
+
 /**
- * One side's race, team colour and secondary colour on the skirmish screen. The colour the other side wears cannot be
- * picked, so the two sides never look alike (other shades of its hue can); any secondary colour can, also one already worn.
+ * One side on the skirmish screen: its faction's emblem, name and army, and every faction it can play (the ready-made
+ * ones, then the player's own from the studio). A faction in the other side's main colour cannot be picked, so the two
+ * sides never look alike; the studio button opens the faction studio on this side's faction.
  */
-function sideOptions(s: SkirmishSetup, i: number): string {
+function sideOptions(s: SkirmishSetup, i: number, mine: readonly Faction[]): string {
   const T = t();
   const who = s.opponent === 'human' ? T.playerName(i + 1) : i === 0 ? T.you : T.computer;
-  const look: Dress = { race: s.races[i]!, color: s.colors[i]!, color2: s.colors2[i]! };
-  const army = ARMY.map((type) => img(portraitFor(look, type, 64))).join('');
-  return `<div class="side" data-side="${i}"><div class="who"><b>${who}</b><div class="races">${choice(`race${i}`, RACES, s.races[i]!, (r) => T.race[r])}</div></div>
-    <div class="look"><div class="army" style="--c: ${TEAM_COLORS[look.color][1]}">${army}</div>
-    <div class="palettes">${swatches(`color${i}`, T.colorLabel, s.colors[i]!, s.colors[1 - i]!)}${swatches(`second${i}`, T.color2Label, s.colors2[i]!, null, true)}</div></div></div>`;
+  const f = s.factions[i]!;
+  const other = s.factions[1 - i]!;
+  const army = ARMY.map((type) => img(portraitFor(f, type, 64))).join('');
+  const chips = [...PRESET_FACTIONS, ...mine]
+    .map((c, k) => {
+      const on = sameFaction(c, f);
+      return `<button class="faction-chip${on ? ' active' : ''}" data-faction${i}="${k}" title="${factionName(c)}"${!on && c.color === other.color ? ' disabled' : ''}>${emblemHtml(c, 2)}<span>${factionName(c)}</span></button>`;
+    })
+    .join('');
+  return `<div class="side" data-side="${i}"><div class="who"><b>${who}</b>${emblemHtml(f, 2)}<span class="faction-name">${factionName(f)}</span>
+    <button class="studio-link" data-studio${i}>${T.factionStudio}</button></div>
+    <div class="look"><div class="army" style="--c: ${TEAM_COLORS[f.color][1]}">${army}</div><div class="faction-chips">${chips}</div></div></div>`;
 }
 
 /** What the skirmish screen shows of each side's army: its HQ and the three tanks. */
 const ARMY = [ObjectType.PlayerHQ, ObjectType.LightTank, ObjectType.MiddleTank, ObjectType.HeavyTank] as const;
 
-/** A small map of the skirmish in the game's colours: sand, fir forest, crystal fields and the two starts. */
-function drawPreview(canvas: HTMLCanvasElement, mapIndex: number, colors: readonly [TeamColor, TeamColor]): void {
+/** Where a preview marks something, in cells: crystal fields, starts (numbered squares) and smaller pieces. */
+interface PreviewMarks {
+  fields: readonly { cx: number; cy: number }[];
+  starts: readonly { cx: number; cy: number; color: TeamColor; label: string }[];
+  pieces?: readonly { cx: number; cy: number; size: number; color: TeamColor }[];
+}
+
+/**
+ * A small map in the game's colours, as large as fits a `boxW`×`boxH` box: sand, fir forest, crystal fields drawn as
+ * little clusters of yellow crystals (as on the map), and what stands there.
+ */
+function drawMap(canvas: HTMLCanvasElement, mapIndex: number, marks: PreviewMarks, boxW = 440, boxH = 330): void {
   const map = campaign.maps[mapIndex]!;
   const { cols, rows, blocked } = buildBlockedGrid(map);
-  const layout = skirmishLayout(map);
-  const px = Math.max(3, Math.floor(Math.min(440 / cols, 330 / rows)));
+  const px = Math.max(3, Math.floor(Math.min(boxW / cols, boxH / rows)));
   canvas.width = cols * px;
   canvas.height = rows * px;
   const g = canvas.getContext('2d');
@@ -574,45 +843,98 @@ function drawPreview(canvas: HTMLCanvasElement, mapIndex: number, colors: readon
       g.fillRect(x, y, px, px);
     }
   }
-  for (const f of layout.fields) {
-    const cx = (f.cx + 1) * px;
-    const cy = (f.cy + 1) * px;
-    g.fillStyle = '#a87a12';
-    g.beginPath();
-    g.moveTo(cx, cy - px * 1.1);
-    g.lineTo(cx + px * 0.9, cy);
-    g.lineTo(cx, cy + px * 1.1);
-    g.lineTo(cx - px * 0.9, cy);
-    g.fill();
-    g.fillStyle = '#f0c43a';
-    g.fillRect(cx - px * 0.3, cy - px * 0.6, px * 0.6, px * 0.9);
+  // A crystal field: three upright crystals of different heights, each with a lit and a shaded half and a dark foot.
+  const u = Math.max(1, Math.floor(px / 3));
+  for (const f of marks.fields) {
+    const cx = Math.round((f.cx + 1) * px);
+    const base = Math.round((f.cy + 1) * px + px * 0.7);
+    g.fillStyle = 'rgb(90 60 10 / 0.45)';
+    g.fillRect(cx - 4 * u, base - u, 8 * u, 2 * u);
+    for (const [dx, hgt] of [[-3, 4], [0, 6], [2, 3]] as const) {
+      const x = cx + dx * u;
+      for (let k = 0; k < hgt; k++) {
+        const y = base - (k + 1) * u;
+        const tip = k === hgt - 1;
+        g.fillStyle = '#ffe27a';
+        g.fillRect(x, y, u, u);
+        if (!tip) {
+          g.fillStyle = '#d29a1c';
+          g.fillRect(x + u, y, u, u);
+        }
+      }
+    }
   }
-  layout.starts.forEach((s, i) => {
-    const ramp = TEAM_COLORS[colors[i]!];
+  for (const p of marks.pieces ?? []) {
+    const ramp = TEAM_COLORS[p.color];
+    g.fillStyle = '#000';
+    g.fillRect(p.cx * px - 1, p.cy * px - 1, p.size * px + 2, p.size * px + 2);
+    g.fillStyle = ramp[3];
+    g.fillRect(p.cx * px, p.cy * px, p.size * px, p.size * px);
+  }
+  for (const s of marks.starts) {
+    const ramp = TEAM_COLORS[s.color];
     g.fillStyle = '#000';
     g.fillRect(s.cx * px - 2, s.cy * px - 2, 2 * px + 4, 2 * px + 4);
     g.fillStyle = ramp[2];
     g.fillRect(s.cx * px, s.cy * px, 2 * px, 2 * px);
     g.fillStyle = ramp[4];
     g.fillRect(s.cx * px, s.cy * px, 2 * px, Math.max(1, Math.floor(px / 3)));
+    if (!s.label) continue;
     g.fillStyle = '#fff';
     g.font = `${Math.max(12, Math.floor(px * 1.6))}px Shardfall, Menlo, monospace`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.fillText(String(i + 1), (s.cx + 1) * px, (s.cy + 1) * px + 1);
-  });
+    g.fillText(s.label, (s.cx + 1) * px, (s.cy + 1) * px + 1);
+  }
+}
+
+/** The skirmish's map with its crystal fields and the two numbered starts in the sides' colours. */
+function drawPreview(canvas: HTMLCanvasElement, mapIndex: number, colors: readonly [TeamColor, TeamColor]): void {
+  const layout = skirmishLayout(campaign.maps[mapIndex]!);
+  drawMap(canvas, mapIndex, { fields: layout.fields, starts: layout.starts.map((s, i) => ({ ...s, color: colors[i]!, label: String(i + 1) })) }, 340, 340);
+}
+
+/** A campaign mission's map: its crystal fields, both headquarters and every other building and unit, in the campaign's colours. */
+function drawMissionPreview(canvas: HTMLCanvasElement, mapIndex: number, missionIndex: number): void {
+  const objects = campaign.maps[mapIndex]!.missions[missionIndex]!.objects;
+  const [me, foe] = CAMPAIGN_FACTIONS;
+  const cell = (o: { x: number; y: number }) => ({ cx: Math.floor(o.x / MAP_CELL), cy: Math.floor(o.y / MAP_CELL) });
+  const enemy = (o: (typeof objects)[number]) => o.type === ObjectType.EnemyHQ || o.type === ObjectType.EnemyTank || (!isUnit(o.type) && o.enemy);
+  const hq = (o: (typeof objects)[number]) => o.type === ObjectType.PlayerHQ || o.type === ObjectType.EnemyHQ;
+  drawMap(
+    canvas,
+    mapIndex,
+    {
+      fields: objects.filter((o) => o.type === ObjectType.ResourceField).map(cell),
+      starts: objects.filter(hq).map((o) => ({ ...cell(o), color: enemy(o) ? foe.color : me.color, label: '' })),
+      pieces: objects
+        .filter((o) => !hq(o) && o.type !== ObjectType.ResourceField)
+        .map((o) => ({ ...cell(o), size: isUnit(o.type) || o.type === ObjectType.Wall || o.type === ObjectType.Defender ? 1 : 2, color: enemy(o) ? foe.color : me.color })),
+    },
+    560,
+    470,
+  );
 }
 
 /**
- * One person's part of the interface: the selection panel with build buttons, their money and their toasts.
- * In a two-player game each half of the screen has its own; a gamepad moves a highlight over the buttons.
+ * One person's part of the interface: a bar along the bottom of their view with the minimap and their crystals on
+ * the left, the selection in the middle (every selected unit, or one object's portrait with its bars) and a fixed
+ * grid of icon buttons on the right. Names, prices and hotkeys live in tooltips. The bar never changes size, so
+ * nothing jumps when the selection changes. In a two-player game each half of the screen has its own.
  */
 export class PlayerPanel {
   private key = '';
   private toastTimer = 0;
   private readonly panel: HTMLElement;
   private readonly money: HTMLElement;
+  private readonly info: HTMLElement;
+  private readonly grid: HTMLElement;
+  private readonly mm: HTMLElement;
   private readonly toastEl: HTMLElement;
+  /** Self-destruct waits for a second press on the same object within ARM_MS. */
+  private armed: { id: number; at: number } | null = null;
+  private infoShown = '';
+  private gridShown = '';
 
   constructor(
     private readonly c: Commander,
@@ -621,14 +943,17 @@ export class PlayerPanel {
     const n = c.number;
     const id = (base: string) => (n === 1 ? base : `${base}-${n}`);
     this.panel = ensure('section', id('panel'), `panel side-${n}`);
+    this.panel.innerHTML = `<div class="mm"><div class="money" id="${id('money')}"></div><div class="mm-slot"></div></div><div class="info"></div><div class="grid"></div>`;
+    this.money = this.panel.querySelector('.money')!;
+    this.mm = this.panel.querySelector('.mm-slot')!;
+    this.info = this.panel.querySelector('.info')!;
+    this.grid = this.panel.querySelector('.grid')!;
     this.toastEl = ensure('div', id('toast'), `toast side-${n}`);
-    this.money = n === 1 && !duo ? $('money') : ensure('div', `badge-${n}`, `badge side-${n}`);
-    $('money').hidden = duo;
     c.onToast = (text) => this.toast(text);
     this.panel.oncontextmenu = (ev) => this.onRightClick(ev);
     if (duo) {
       const look = skin(this.own.race, this.own.color, this.own.color2);
-      for (const el of [this.panel, this.money, this.toastEl]) applySkin(el, look);
+      for (const el of [this.panel, this.toastEl]) applySkin(el, look);
     }
     // Buttons act on press: the panel redraws while something is being built, and a redraw between press and
     // release used to swallow the click. Gamepad and keyboard presses come as clicks with no pointer behind them.
@@ -638,6 +963,8 @@ export class PlayerPanel {
     this.panel.onclick = (ev) => {
       if (ev.detail === 0) this.onClick(ev);
     };
+    this.panel.onpointerover = (ev) => showTip((ev.target as HTMLElement).closest<HTMLElement>('[data-name]'));
+    this.panel.onpointerleave = () => showTip(null);
   }
 
   private get own(): SideState {
@@ -646,6 +973,11 @@ export class PlayerPanel {
 
   get element(): HTMLElement {
     return this.panel;
+  }
+
+  /** Puts the view's minimap into the bar's left corner. */
+  mountMinimap(canvas: HTMLCanvasElement): void {
+    this.mm.appendChild(canvas);
   }
 
   refresh(): void {
@@ -662,37 +994,35 @@ export class PlayerPanel {
 
   update(): void {
     const c = this.c;
-    const duo = c.game.twoPlayers;
-    this.money.textContent = duo ? `${t().playerName(c.number)} · $${c.money}` : `$${c.money}`;
+    if (this.armed && performance.now() - this.armed.at > ARM_MS) this.armed = null;
     const sel = c.selected();
     const key = this.signature(sel);
     if (key === this.key) return;
     this.key = key;
-    this.panel.innerHTML = this.html(sel);
-    this.assignKeys();
+    this.money.innerHTML = `${CRYSTAL}<span>${c.money}</span>`;
+    this.money.dataset.name = t().crystals;
+    // Only replace what changed: a button that stays the same element keeps a press that lands mid-redraw.
+    const info = this.infoHtml(sel);
+    if (info !== this.infoShown) this.info.innerHTML = this.infoShown = info;
+    const grid = this.gridHtml(sel);
+    if (grid !== this.gridShown) {
+      this.grid.innerHTML = this.gridShown = grid;
+      this.assignKeys();
+    }
     const buttons = this.focusable();
     buttons.forEach((b, i) => b.classList.toggle('pad-focus', c.cursor !== null && i === c.focus % buttons.length));
+    // The redraw replaced the button under the mouse: point the tooltip at its successor.
+    const tip = document.getElementById('tip');
+    if (tip?.classList.contains('show')) showTip(this.panel.querySelector<HTMLElement>('[data-name]:hover'));
   }
 
-  /**
-   * Hotkeys by place, not by name: the first row of buttons is Q W E R T, the second A S D F G, so the hand never
-   * hunts for a letter. Stop is always X. Self-destruct has none. Only the keyboard player's panel shows them.
-   */
+  /** Hotkeys by place in the grid, not by name: Q W E R T, A S D F G, Z X C V B. Self-destruct has none. */
   private assignKeys(): void {
     if (this.c.number !== 1) return;
-    const letters = ['QWERT', 'ASDFG'];
-    let row = 0;
-    for (const group of this.panel.querySelectorAll('.buttons')) {
-      const buttons = [...group.querySelectorAll<HTMLButtonElement>('button:not(.danger)')];
-      if (buttons.length === 0) continue;
-      buttons.forEach((b, i) => {
-        const key = b.dataset.action === 'stop' ? 'X' : letters[row]?.[i];
-        if (!key) return;
-        b.dataset.key = key;
-        b.insertAdjacentHTML('beforeend', `<kbd>${key}</kbd>`);
-      });
-      if (buttons.some((b) => b.dataset.action !== 'stop')) row++;
-    }
+    this.grid.querySelectorAll<HTMLButtonElement>('button[data-cell]').forEach((b) => {
+      if (b.classList.contains('danger')) return;
+      b.dataset.key = KEYS[Number(b.dataset.cell)];
+    });
   }
 
   /** Presses the panel button bound to a letter key; true when the key belongs to a button (even a disabled one). */
@@ -705,7 +1035,7 @@ export class PlayerPanel {
 
   /** Buttons a gamepad can reach; self-destruct needs the mouse, to rule out accidents. */
   focusable(): HTMLButtonElement[] {
-    return [...this.panel.querySelectorAll<HTMLButtonElement>('button:not(.danger)')];
+    return [...this.panel.querySelectorAll<HTMLButtonElement>('.grid button:not(.danger), .queue button')];
   }
 
   /** Moves the gamepad highlight by `delta` buttons. */
@@ -732,7 +1062,8 @@ export class PlayerPanel {
       c.aiming,
       c.focus,
       c.cursor !== null,
-      sel.map((e) => [e.id, e.hp, e.order.kind, e.phase, e.cargo, e.complete, e.job ? Math.floor(('elapsedMs' in e.job ? e.job.elapsedMs : 0) / 500) : -1, Math.floor(e.buildElapsedMs / 500)]),
+      this.armed?.id ?? null,
+      sel.map((e) => [e.id, e.hp, e.order.kind, e.phase, e.cargo, e.complete, e.queue.length, e.job ? Math.floor(('elapsedMs' in e.job ? e.job.elapsedMs : 0) / 500) : -1, Math.floor(e.buildElapsedMs / 500)]),
     ]);
   }
 
@@ -751,67 +1082,95 @@ export class PlayerPanel {
     return this.c.world.sides[this.c.side].race;
   }
 
-  private html(sel: Entity[]): string {
+  /** The middle of the bar: nothing, every selected unit, or one object in detail. */
+  private infoHtml(sel: Entity[]): string {
     const T = t();
     const c = this.c;
-    if (sel.length === 0) return `<div class="hint">${c.cursor ? T.padHint : T.hint}</div>`;
+    if (sel.length === 0) return c.cursor ? `<div class="hint">${T.padHint}</div>` : '';
     if (sel.length > 1) {
-      // A squad: a small portrait per unit with its hit points underneath, the commands on the right.
+      // A squad: a portrait per unit with its hit points underneath; a click picks that one.
       const faces = sel
-        .slice(0, 12)
-        .map((e) => `<span class="mini">${img(portraitOf(this.sideOf(e.team), e.type, 24))}${meter(e.hp / e.maxHp, hpTone(e))}</span>`)
+        .slice(0, SQUAD_MAX)
+        .map((e) => `<button class="mini" data-pick="${e.id}" data-name="${this.name(e)}">${img(portraitOf(this.sideOf(e.team), e.type, 40))}${meter(e.hp / e.maxHp, hpTone(e))}</button>`)
         .join('');
-      const more = sel.length > 12 ? `<span class="more">+${sel.length - 12}</span>` : '';
-      return `<div class="sel"><div class="stats"><div class="title">${T.squad}: ${sel.length}</div><div class="squad">${faces}${more}</div></div>${this.unitButtons()}</div>`;
+      const more = sel.length > SQUAD_MAX ? `<span class="more">+${sel.length - SQUAD_MAX}</span>` : '';
+      return `<div class="squad">${faces}${more}</div>`;
     }
     const e = sel[0]!;
     const own = c.isOwn(e);
     const team = e.team === 'neutral' ? 'neutral' : own ? 'own' : 'foe';
-    const face = speakerOf(this.sideOf(e.team), e.type);
-    const rows: string[] = [];
-    if (e.type === ObjectType.ResourceField) rows.push(gauge(T.resource, e.hp / Math.max(e.hp, e.maxHp), 'cargo', `${e.hp}`));
-    else rows.push(gauge(T.hp, e.hp / e.maxHp, hpTone(e), `${Math.max(0, e.hp)}/${e.maxHp}`));
+    const bars: string[] = [];
+    if (e.type === ObjectType.ResourceField) bars.push(bar(CRYSTAL, e.hp / Math.max(e.hp, e.maxHp), 'cargo', `${e.hp}`, T.resource));
+    else bars.push(bar(PIX.hp, e.hp / e.maxHp, hpTone(e), `${Math.max(0, e.hp)}/${e.maxHp}`, T.hp));
+    if (e.type === ObjectType.Harvester) bars.push(bar(CRYSTAL, e.cargo / 50, 'cargo', `${e.cargo}/50`, T.cargo));
+    const about: string[] = [`<div class="title ${team}">${this.name(e)}</div>`];
     if (isUnit(e.type)) {
-      rows.push(chip(e.type === ObjectType.Harvester && e.phase ? T.phase[e.phase] : T.order[e.order.kind], e.order.kind === 'idle' && !e.phase));
-      if (e.type === ObjectType.Harvester) rows.push(gauge(T.cargo, e.cargo / 50, 'cargo', `${e.cargo}/50`));
+      about.push(chip(e.type === ObjectType.Harvester && e.phase ? T.phase[e.phase] : T.order[e.order.kind], e.order.kind === 'idle' && !e.phase));
     } else if (!e.complete) {
-      rows.push(gauge(siteName(raceOf(this.c.world, e.team) ?? 'human'), e.buildElapsedMs / e.buildTotalMs, 'work', `${Math.floor((e.buildElapsedMs / e.buildTotalMs) * 100)}%`));
-    } else if (e.job?.kind === 'produce') {
-      rows.push(gauge(`${T.producing}: ${objectName(raceOf(this.c.world, e.team), e.job.unit)}${e.queue.length > 0 ? ` (+${e.queue.length})` : ''}`, e.job.elapsedMs / e.job.totalMs, 'work', `${Math.floor((e.job.elapsedMs / e.job.totalMs) * 100)}%`));
-    } else if (e.job?.kind === 'construct') rows.push(chip(T.constructing, false));
-    const cmds = own && isUnit(e.type) ? this.unitButtons() : '';
-    let html = `<div class="sel">${face}<div class="stats"><div class="title ${team}">${this.name(e)}</div>${rows.join('')}</div>${cmds}</div>`;
-    if (!own) return html;
-    if (isUnit(e.type)) return html;
-    if (e.type === hqType(c.side) && e.complete) {
-      html += '<div class="buttons">';
-      for (const type of HQ_BUILDS) html += this.buildButton(type, BUILDING_RULES[type].price, e.job !== null && type !== ObjectType.Wall);
-      html += '</div>';
-      if (e.job) html += `<div class="buttons"><button data-action="cancel" data-id="${e.id}">${T.cancelBuild}</button></div>`;
-    } else if (e.type === ObjectType.TankFactory && e.complete) {
-      html += '<div class="buttons">';
-      for (const type of FACTORY_BUILDS) html += this.produceButton(type, e);
-      html += '</div>';
-      html += this.queue(e);
-      if (productionLine(e).length > 0) html += `<div class="buttons"><button data-action="cancel" data-id="${e.id}">${T.cancel}</button></div>`;
-    } else if (!e.complete) {
-      html += `<div class="buttons"><button data-action="cancel" data-id="${e.id}">${T.cancel}</button></div>`;
+      about.push(bar(PIX.build, e.buildElapsedMs / e.buildTotalMs, 'work', `${Math.floor((e.buildElapsedMs / e.buildTotalMs) * 100)}%`, siteName(raceOf(c.world, e.team) ?? 'human')));
+    } else if (e.job?.kind === 'construct') about.push(chip(T.constructing, false));
+    if (own && e.type === ObjectType.TankFactory) about.push(this.queue(e));
+    return `<div class="one"><div class="pic">${speakerOf(this.sideOf(e.team), e.type)}${bars.join('')}</div><div class="about">${about.join('')}</div></div>`;
+  }
+
+  /**
+   * The button grid, three rows of five: the top two rows build, produce or command; the bottom row controls
+   * (Stop, Cancel, Self-destruct), set apart. Empty cells stay, so the grid never moves.
+   */
+  private gridHtml(sel: Entity[]): string {
+    const T = t();
+    const c = this.c;
+    const cells: string[] = Array(15).fill('');
+    const e = sel[0];
+    const ownUnits = sel.filter((s) => c.isOwn(s) && isUnit(s.type));
+    if (ownUnits.length > 0) {
+      const armed = c.ownUnits().some((u) => UNIT_RULES[u.type as UnitType].weapon);
+      cells[0] = this.button(0, 'move', PIX.move, T.move, { active: c.aiming === 'move' });
+      cells[1] = this.button(1, 'attack', PIX.attack, T.attack, { active: c.aiming === 'attack', disabled: !armed });
+      cells[11] = this.button(11, 'stop', PIX.stop, T.stop);
+    } else if (e && sel.length === 1 && c.isOwn(e)) {
+      if (e.type === hqType(c.side) && e.complete) {
+        HQ_BUILDS.forEach((type, i) => {
+          const price = BUILDING_RULES[type].price;
+          const busy = e.job !== null && type !== ObjectType.Wall;
+          cells[i] = this.button(i, 'place', img(portraitOf(this.own, type, 40)), objectName(this.ownRace, type), {
+            type,
+            price,
+            active: c.placing?.type === type,
+            disabled: busy || price > c.money,
+          });
+        });
+        if (e.job) cells[10] = this.button(10, 'cancel', PIX.cancel, T.cancelBuild, { id: e.id });
+      } else if (e.type === ObjectType.TankFactory && e.complete) {
+        const line = productionLine(e).length;
+        FACTORY_BUILDS.forEach((type, i) => {
+          const price = UNIT_RULES[type].price;
+          cells[i] = this.button(i, 'produce', img(portraitOf(this.own, type, 40)), objectName(this.ownRace, type), {
+            type,
+            price,
+            id: e.id,
+            disabled: line >= QUEUE_MAX || (line === 0 && price > c.money),
+          });
+        });
+        if (line > 0) cells[10] = this.button(10, 'cancel', PIX.cancel, T.cancel, { id: e.id });
+      } else if (!e.complete) cells[10] = this.button(10, 'cancel', PIX.cancel, T.cancel, { id: e.id });
+      const armedHere = this.armed?.id === e.id;
+      cells[14] = this.button(14, 'destruct', PIX.destruct, armedHere ? T.destructConfirm : T.destruct, { id: e.id, danger: true, active: armedHere });
     }
-    html += `<div class="buttons"><button class="danger" data-action="destruct" data-id="${e.id}">${T.destruct}</button></div>`;
-    return html;
+    const fill = (from: number, to: number) => cells.slice(from, to).map((h) => h || '<span class="cell"></span>').join('');
+    return `<div class="group">${fill(0, 10)}</div><div class="group ctl">${fill(10, 15)}</div>`;
   }
 
-  private buildButton(type: BuildingType, price: number, busy: boolean): string {
-    const active = this.c.placing?.type === type ? ' active' : '';
-    const disabled = busy || price > this.c.money ? ' disabled' : '';
-    return `<button class="build${active}" data-action="place" data-type="${type}"${disabled}>${img(portraitOf(this.own, type, 24))}<span>${objectName(this.ownRace, type)}</span><small>$ ${price}</small></button>`;
-  }
-
-  private produceButton(type: UnitType, factory: Entity): string {
-    const price = UNIT_RULES[type].price;
-    const line = productionLine(factory).length;
-    const disabled = line >= QUEUE_MAX || (line === 0 && price > this.c.money) ? ' disabled' : '';
-    return `<button class="build" data-action="produce" data-type="${type}" data-id="${factory.id}"${disabled}>${img(portraitOf(this.own, type, 24))}<span>${objectName(this.ownRace, type)}</span><small>$ ${price}</small></button>`;
+  private button(
+    cell: number,
+    action: string,
+    icon: string,
+    name: string,
+    o: { type?: number; price?: number; id?: number; active?: boolean; disabled?: boolean; danger?: boolean } = {},
+  ): string {
+    const cls = ['cmd', o.active ? 'active' : '', o.danger ? 'danger' : ''].filter(Boolean).join(' ');
+    const label = o.price === undefined ? name : `${name} ${o.price}`;
+    return `<button class="${cls}" data-cell="${cell}" data-action="${action}" data-name="${name}"${o.price === undefined ? '' : ` data-price="${o.price}"`}${o.type === undefined ? '' : ` data-type="${o.type}"`}${o.id === undefined ? '' : ` data-id="${o.id}"`} aria-label="${label}"${o.disabled ? ' disabled' : ''}>${icon}</button>`;
   }
 
   /** The side an entity belongs to (a neutral field is shown in this player's colours). */
@@ -828,7 +1187,7 @@ export class PlayerPanel {
     if (!job && waiting.length === 0) return '';
     const T = t();
     const icon = (type: UnitType, i: number, progress: number | null) =>
-      `<button class="slot" data-queue="${i}" data-id="${factory.id}" title="${objectName(this.ownRace, type)} · ${T.queueCancel}">${img(portraitOf(this.own, type, 24))}${progress === null ? '' : `<i style="width: ${Math.floor(progress * 100)}%"></i>`}</button>`;
+      `<button class="slot" data-queue="${i}" data-id="${factory.id}" data-name="${objectName(this.ownRace, type)}" data-note="${T.queueCancel}">${img(portraitOf(this.own, type, 40))}${progress === null ? '' : `<i style="width: ${Math.floor(progress * 100)}%"></i>`}</button>`;
     let html = '<div class="queue">';
     if (job) html += icon(job.unit, 0, job.elapsedMs / job.totalMs);
     waiting.forEach((type, i) => (html += icon(type, i + (job ? 1 : 0), null)));
@@ -844,21 +1203,17 @@ export class PlayerPanel {
     this.key = '';
   }
 
-  /** Move, Attack and Stop as a column of icon buttons on the right of the panel; Move and Attack then wait for a click. */
-  private unitButtons(): string {
-    const T = t();
-    const armed = this.c.ownUnits().some((u) => UNIT_RULES[u.type as UnitType].weapon);
-    const cmd = (action: 'move' | 'attack' | 'stop', label: string, disabled = false) =>
-      `<button class="cmd${this.c.aiming === action ? ' active' : ''}" data-action="${action}"${disabled ? ' disabled' : ''}>${ICONS[action]}<span>${label}</span>${action === 'stop' && this.c.cursor ? '<small>↓</small>' : ''}</button>`;
-    return `<div class="buttons cmds">${cmd('move', T.move)}${cmd('attack', T.attack, !armed)}${cmd('stop', T.stop)}</div>`;
-  }
-
   private onClick(ev: MouseEvent): void {
     const btn = (ev.target as HTMLElement).closest('button');
     if (!btn || btn.disabled) return;
     const c = this.c;
     const id = Number(btn.dataset.id);
     const type = Number(btn.dataset.type);
+    if (btn.dataset.pick) {
+      c.select([Number(btn.dataset.pick)]);
+      this.key = '';
+      return;
+    }
     switch (btn.dataset.action) {
       case 'place':
         if (c.placing?.type === type) c.placing = null;
@@ -871,7 +1226,11 @@ export class PlayerPanel {
         c.run({ kind: 'cancel', id });
         break;
       case 'destruct':
-        if (confirm(t().destructConfirm)) c.run({ kind: 'destruct', id });
+        // No browser dialog (the desktop app's web view has none): the button arms, a second press destroys.
+        if (this.armed?.id === id && performance.now() - this.armed.at <= ARM_MS) {
+          this.armed = null;
+          c.run({ kind: 'destruct', id });
+        } else this.armed = { id, at: performance.now() };
         break;
       case 'stop':
         c.aiming = null;
@@ -886,17 +1245,53 @@ export class PlayerPanel {
   }
 }
 
-/** Pixel icons for the unit commands, 9 × 9, drawn in the button's text colour. */
-const ICONS = Object.fromEntries(
-  Object.entries({
-    move: ['.........', '.........', '##...##..', '.##...##.', '..##...##', '.##...##.', '##...##..', '.........', '.........'],
-    attack: ['....#....', '..#####..', '.#..#..#.', '.#.....#.', '####.####', '.#.....#.', '.#..#..#.', '..#####..', '....#....'],
-    stop: ['.........', '.#######.', '.#.....#.', '.#.###.#.', '.#.###.#.', '.#.###.#.', '.#.....#.', '.#######.', '.........'],
-  }).map(([name, rows]) => {
-    const rects = rows.flatMap((row, y) => [...row].map((ch, x) => (ch === '#' ? `<rect x="${x}" y="${y}" width="1" height="1"/>` : ''))).join('');
-    return [name, `<svg class="icon" viewBox="0 0 9 9" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true">${rects}</svg>`];
-  }),
-) as Record<'move' | 'attack' | 'stop', string>;
+const KEYS = 'QWERTASDFGZXCVB';
+const ARM_MS = 3000;
+const SQUAD_MAX = 24;
+
+/** The tooltip over the bar: a name, a price in crystals and a hotkey. */
+function showTip(el: HTMLElement | null): void {
+  const tip = document.getElementById('tip') ?? ensure('div', 'tip', 'tip');
+  if (!el) {
+    tip.classList.remove('show');
+    return;
+  }
+  const { name, price, key, note } = el.dataset;
+  tip.innerHTML = `<b>${name}</b>${price ? `<span class="price">${CRYSTAL}${price}</span>` : ''}${key ? `<kbd>${key}</kbd>` : ''}${note ? `<small>${note}</small>` : ''}`;
+  tip.classList.add('show');
+  const r = el.getBoundingClientRect();
+  const w = tip.offsetWidth;
+  tip.style.left = `${Math.round(Math.max(4, Math.min(window.innerWidth - w - 4, r.left + r.width / 2 - w / 2)))}px`;
+  tip.style.top = `${Math.round(r.top - tip.offsetHeight - 6)}px`;
+}
+
+/**
+ * Pixel icons: rows of palette letters, one rect per pixel. `c` is the button's text colour (currentColor), the
+ * rest fixed colours, so the crystal stays the colour of the fields on the map whatever the race's skin.
+ */
+const PALETTE: Record<string, string> = {
+  c: 'currentColor', a: 'var(--accent)', r: '#e05a3a', R: '#ff8a6a', k: '#1a1410', w: '#fff6d8', g: '#6ee06e', G: '#2f8f3a',
+  y: '#ffe27a', Y: '#f0c43a', o: '#b9831c', O: '#6d4a12',
+};
+function pixelIcon(rows: string[], cls = 'icon'): string {
+  const w = rows[0]!.length;
+  const rects = rows.flatMap((row, y) => [...row].map((ch, x) => (PALETTE[ch] ? `<rect x="${x}" y="${y}" width="1" height="1" fill="${PALETTE[ch]}"/>` : ''))).join('');
+  return `<svg class="${cls}" viewBox="0 0 ${w} ${rows.length}" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
+}
+
+/** The crystal: a yellow shard with a lit face and a dark one, the currency of the game. */
+const CRYSTAL = pixelIcon(['...y...', '..yyY..', '.yywYY.', '.ywyYo.', 'yywYYoo', '.yyYoo.', '.yYYoO.', '..YoO..', '...O...'], 'icon crystal');
+
+const PIX = {
+  move: pixelIcon(['.........', '.........', 'aa...aa..', '.aa...aa.', '..aa...aa', '.aa...aa.', 'aa...aa..', '.........', '.........']),
+  attack: pixelIcon(['....r....', '..rrrrr..', '.r..r..r.', '.r.....r.', 'rrrr.rrrr', '.r.....r.', '.r..r..r.', '..rrrrr..', '....r....']),
+  stop: pixelIcon(['.........', '.ccccccc.', '.c.....c.', '.c.ccc.c.', '.c.ccc.c.', '.c.ccc.c.', '.c.....c.', '.ccccccc.', '.........']),
+  cancel: pixelIcon(['.........', '.cc...cc.', '..cc.cc..', '...ccc...', '....c....', '...ccc...', '..cc.cc..', '.cc...cc.', '.........']),
+  /** A bomb with a lit fuse. */
+  destruct: pixelIcon(['......y.Y', '.....Y.y.', '....o....', '...kkk...', '..kkkkk..', '.kkwkkkk.', '.kwkkkkk.', '.kkkkkkk.', '..kkkkk..'], 'icon bomb'),
+  hp: pixelIcon(['.......', '..ggg..', '..gGg..', 'gggGggg', 'gGGGGGg', 'gggGggg', '..gGg..', '..ggg..', '.......'], 'icon small'),
+  build: pixelIcon(['.......', '.cc....', 'cccc...', '.cccc..', '..cccc.', '...cc.c', '....ccc', '.....c.', '.......'], 'icon small'),
+};
 
 type Tone = 'good' | 'mid' | 'bad' | 'cargo' | 'work';
 
@@ -907,9 +1302,9 @@ const hpTone = (e: Entity): Tone => (e.hp / e.maxHp > 0.6 ? 'good' : e.hp / e.ma
 const meter = (value: number, tone: Tone) =>
   `<span class="meter ${tone}"><i style="width: ${Math.round(Math.min(1, Math.max(0, value)) * 100)}%"></i></span>`;
 
-/** A labelled bar: the label and the number above, the bar below. */
-const gauge = (label: string, value: number, tone: Tone, text: string) =>
-  `<div class="gauge"><span class="label">${label}</span><b>${text}</b>${meter(value, tone)}</div>`;
+/** An icon and a tall bar with its number written on it; the word for it is the tooltip. */
+const bar = (icon: string, value: number, tone: Tone, text: string, name: string) =>
+  `<div class="bar" data-name="${name}">${icon}<span class="meter big ${tone}"><i style="width: ${Math.round(Math.min(1, Math.max(0, value)) * 100)}%"></i><b>${text}</b></span></div>`;
 
 /** A status light: what the object is doing, dimmed while it waits. */
 const chip = (text: string, idle: boolean) => `<div class="chip${idle ? ' idle' : ''}">${text}</div>`;

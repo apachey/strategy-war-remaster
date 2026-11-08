@@ -6,7 +6,10 @@
     "tauri": "tauri",
     "typecheck": "echo \"@sw/desktop: Rust shell, checked by cargo\"",
     "test": "echo \"@sw/desktop: no tests\"",
-    "build": "echo \"@sw/desktop: use pnpm desktop:build\""
+    "build": "echo \"@sw/desktop: use pnpm desktop:build\"",
+    "icon": "node ../game/scripts/icon.mjs && tauri icon src-tauri/icons/source.png"
   },
-  "devDependencies": { "@tauri-apps/cli": "^2.8.4" }
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.8.4"
+  }
 }

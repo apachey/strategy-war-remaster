@@ -21,7 +21,7 @@ The simulation follows the decompiled v1.3.5 code (v1.6.3 has the same balance).
 | Enemy factory | a new enemy tank after 45 s of quiet plus 10 s of building, while the enemy has fewer than 10 |
 | Enemy tank AI | shoots player buildings in range first, then units; otherwise wanders up to 10 cells |
 | Fog | classic shroud: units uncover 2 cells around them (4 in 1.1), buildings twice their size; seen stays seen |
-| Mission end | enemy HQ destroyed: won; own HQ destroyed: lost; 2 s pause before the result |
+| Mission end | enemy HQ destroyed: won; own HQ destroyed: lost; 2 s pause before the result (1.2 adds the lost cause, below) |
 | Hit points of placed objects | taken from the mission file, so starting units are often weaker than new ones |
 
 ## Deliberate changes
@@ -44,7 +44,7 @@ Asked for by Pavlo after playing 1.0 (the 46-point review). Tests: `packages/sim
 - **Shell speeds.** Light gun 340 px/s (400), cannon 65 px/s (50). Shells aim where a driving target will be when
   they arrive, so slow cannons hit moving tanks.
 - **Line of fire.** Forest between shooter and target forbids the shot; a tank ordered to attack drives until it
-  has a clear line. Walls and buildings never block the line (they stop the shell itself, as before).
+  has a clear line. Walls and buildings never block the line (in 1.1 they stopped the shell itself; since 1.2 shells fly over them).
 - **Auto-attack.** An idle tank shoots what comes into range, goes after enemy units or towers it sees (or that
   shot at it), but no further than 6 cells from where it stood (`CHASE_CELLS`); then it drives back, firing only at
   what is in range on the way. A plain move order is still just a move.
@@ -68,6 +68,24 @@ Asked for by Pavlo after playing 1.0 (the 46-point review). Tests: `packages/sim
 - **The computer defends its base.** When something shoots its buildings or walls, every free home tank goes after
   the shooter, after the brain's reaction time (`defendDelayMs`: easy 6 s, normal 2 s, hard at once), even when the
   shooter stands outside a walled base. The classic enemy stays the original's.
+
+## Version 1.2 changes
+
+From Pavlo's 1.2 list (items 6, 7, 15, 18, 21, 27). Tests: `packages/sim/test/v12.test.ts`, one per change.
+
+- **No stacking in a fight.** Tanks that close in on the same target used to stop on the same pixel, and stopping
+  to fire every tick undid the step aside. A unit stepping off another one keeps stepping while it fires
+  (`halt`). Group moves no longer pick cells where another unit already stands.
+- **Shells hit only their target.** A shell carries its `targetId`; other enemies, walls and buildings on the way are
+  flown over, and a shell that misses falls harmlessly. Attacking a wall is still how you break through one.
+- **Self-destruct** leaves the object to the next step, so its explosion, sound and stats are no longer lost (every
+  step clears the events first). The game asks for a second press of the button instead of `window.confirm()`,
+  which does nothing in the macOS app.
+- **A lost cause loses.** Checked once a second (`hopeless`): a side with no units at all, no factory that is busy
+  or can pay for a unit, and not the money for a factory and a unit ($600) loses even with its HQ standing.
+  The original campaign enemy gets free tanks, so only a skirmish enemy is judged this way.
+- **Heavy tank range** is the original's 4 cells again, one more than the middle tank.
+- **Double click** on a unit selects every unit of that type on screen (game side; Shift adds them).
 
 ## Computer enemy and difficulty (stage 3)
 

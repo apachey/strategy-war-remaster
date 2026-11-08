@@ -109,6 +109,8 @@ export function glowRamp(color: TeamColor): string[] {
 /** The ramps the sprites are drawn in: main colour and secondary colour. */
 export const SPRITE_TEAM_COLOR: TeamColor = 'olive';
 export const SPRITE_SECOND_COLOR: TeamColor = 'red';
+/** The ramp chassis surfaces are drawn in (TEAM_COLORS.blue); recoloured to a side's third colour. */
+export const SPRITE_CHASSIS_COLOR: TeamColor = 'blue';
 
 /**
  * Main colours by seat: olive humans with turquoise accents (the original's olive army) against red hovers with white
@@ -117,6 +119,16 @@ export const SPRITE_SECOND_COLOR: TeamColor = 'red';
 export const DEFAULT_COLORS: readonly [TeamColor, TeamColor] = ['olive', 'red'];
 /** Secondary colours by seat when none is chosen; any colour may be a secondary, also the other side's. */
 export const DEFAULT_SECOND_COLORS: readonly [TeamColor, TeamColor] = ['cyan', 'white'];
+/**
+ * Third colour of a side: the chassis that carries it, which the secondary colour no longer paints. Humans wear it on
+ * their tracks and tyres, walkers on their legs, hovers on the dark belly they float on. When none is chosen a side
+ * keeps the look it had before there was a third colour: the secondary on human tracks and hover bellies, a dark
+ * main colour on walker legs.
+ */
+export function defaultChassisColor(race: Race, color: TeamColor, color2: TeamColor): TeamColor {
+  return race === 'walker' ? color : color2;
+}
+
 /** The campaign is the original's war: humans against the hover race. */
 export const CAMPAIGN_RACES: readonly [Race, Race] = ['human', 'hover'];
 

@@ -79,11 +79,14 @@ describe('races', () => {
     expect([same.sides.player.color2, same.sides.enemy.color2]).toEqual(['olive', 'olive']);
   });
 
-  it('a save keeps each side race and colours', () => {
-    const w = createSkirmish(2, { opponent: 'normal', races: ['hover', 'walker'], colors: ['pink', 'white'], colors2: ['lilac', 'pink'] });
+  it('a save keeps each side race and colours, the chassis colour too', () => {
+    const w = createSkirmish(2, { opponent: 'normal', races: ['hover', 'walker'], colors: ['pink', 'white'], colors2: ['lilac', 'pink'], colors3: ['black', 'olive'] });
     const l = loadWorld(saveWorld(w));
-    expect(l.sides.player).toMatchObject({ race: 'hover', color: 'pink', color2: 'lilac' });
-    expect(l.sides.enemy).toMatchObject({ race: 'walker', color: 'white', color2: 'pink' });
+    expect(l.sides.player).toMatchObject({ race: 'hover', color: 'pink', color2: 'lilac', color3: 'black' });
+    expect(l.sides.enemy).toMatchObject({ race: 'walker', color: 'white', color2: 'pink', color3: 'olive' });
+    // Without a chassis colour each race keeps its old look: the secondary on hover bellies, the main colour on walker legs.
+    const d = createSkirmish(2, { opponent: 'normal', races: ['hover', 'walker'], colors: ['pink', 'white'], colors2: ['lilac', 'pink'] });
+    expect([d.sides.player.color3, d.sides.enemy.color3]).toEqual(['lilac', 'white']);
     expect(hashWorld(l)).toBe(hashWorld(w));
   });
 

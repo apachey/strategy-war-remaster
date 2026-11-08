@@ -12,7 +12,7 @@ concurrency:
 jobs:
   check:
     name: Typecheck, tests, smoke screenshots
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # Playwright 1.56 has no browsers for ubuntu-latest (26.04)
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -68,7 +68,7 @@ jobs:
     # installation guide; pushes that keep the version change nothing.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: mac
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # Playwright 1.56 has no browsers for ubuntu-latest (26.04)
     permissions:
       contents: write
     steps:
