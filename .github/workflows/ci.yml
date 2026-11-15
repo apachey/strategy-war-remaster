@@ -38,7 +38,7 @@ jobs:
   mac:
     name: macOS app (Apple Silicon and Intel)
     needs: check
-    runs-on: macos-14
+    runs-on: macos-15  # macOS 14 images were retired on 2026-11-02
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

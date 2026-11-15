@@ -40,11 +40,17 @@ xattr -cr "/Applications/Shardfall.app"
 - **Кампанія:** 21 місія оригіналу. Мета кожної: знищити ворожий штаб і зберегти свій.
 - **Скірміш:** будь-яка з 7 мап проти комп'ютера або вдвох за одним Mac (екран ділиться навпіл, другий гравець з геймпадом).
 - **Миша:** ліва кнопка вибирає (рамкою кілька танків), права дає наказ: їхати, атакувати, збирати кристали.
-- **Клавіші:** Cmd+1…9 запам'ятати загін, 1…9 вибрати · H штаб · S стоп · Пробіл пауза · колесо або +/− зум ·
-  F уся мапа · F5/F9 швидке збереження й завантаження. Мінікарта у правому верхньому куті: клацни, щоб перейти.
+  Подвійний клік по танку вибирає всі такі самі на екрані.
+- **Панель унизу:** зліва мінікарта (клацни, щоб перейти) і кристали, посередині вибране, справа кнопки дій.
+  Кожна кнопка має свою клавішу за місцем у сітці: Q W E R T, A S D F G, Z X C V B (X стоп, Z скасувати).
+  Назви, ціни й клавіші видно в підказці, якщо навести мишу. Самознищення (бомба) спрацьовує з другого натискання.
+- **Клавіші:** Cmd+1…9 запам'ятати загін, 1…9 вибрати · H штаб · P пауза · Пробіл до місця атаки ·
+  колесо або +/− зум · F5/F9 швидке збереження й завантаження.
+- **Escape:** меню гри (продовжити, збереження, налаштування, рестарт, головне меню, вихід).
+- **Студія фракцій:** у скірміші створи свою фракцію: раса, назва, символ і три кольори.
 - **⚙ Налаштування:** гучність музики та звуків, мова (українська або англійська).
 
-Збереження й пройдені місії зберігаються на твоєму Mac. Щоб видалити гру, перетягни її з Applications у Кошик.
+Збереження з версії 1.1 у 1.2 не завантажуються. Збереження й пройдені місії зберігаються на твоєму Mac. Щоб видалити гру, перетягни її з Applications у Кошик.
 
 ---
 
@@ -90,8 +96,14 @@ Then start the game again.
 - **Campaign:** the original's 21 missions. Destroy the enemy HQ and keep your own.
 - **Skirmish:** any of the 7 maps against the computer, or two players on one Mac (split screen, player 2 on a gamepad).
 - **Mouse:** left button selects (drag a box for several tanks), right button orders: move, attack, harvest crystals.
-- **Keys:** Cmd+1…9 store a group, 1…9 recall it · H HQ · S stop · Space pause · wheel or +/− zoom · F whole map ·
-  F5/F9 quick save and load. The minimap is in the top right corner: click it to jump there.
+  Double-click a tank to select all of its kind on screen.
+- **Bottom panel:** minimap (click it to jump there) and crystals on the left, the selection in the middle, action
+  buttons on the right. Each button has a key by its place in the grid: Q W E R T, A S D F G, Z X C V B (X stop,
+  Z cancel). Names, prices and keys show in the tooltip. Self-destruct (the bomb) fires on the second press.
+- **Keys:** Cmd+1…9 store a group, 1…9 recall it · H HQ · P pause · Space jumps to the attack ·
+  wheel or +/− zoom · F5/F9 quick save and load.
+- **Escape:** the game menu (continue, saves, settings, restart, main menu, quit).
+- **Faction studio:** make your own skirmish faction: race, name, symbol and three colours.
 - **⚙ Settings:** music and sound volume, language (Ukrainian or English).
 
-Saves and finished missions stay on your Mac. To remove the game, drag it from Applications to the Bin.
+Saves from version 1.1 don't load in 1.2. Saves and finished missions stay on your Mac. To remove the game, drag it from Applications to the Bin.
