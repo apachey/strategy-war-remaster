@@ -1,6 +1,6 @@
 import { CAMPAIGN_FACTIONS, cleanFaction, LANGS, type Faction, type Lang } from '@sw/data';
 import { campaign } from '@sw/data';
-import { DEFAULT_SKIRMISH_MONEY, DIFFICULTIES, OPPONENTS, SAVE_VERSION, SKIRMISH_MONEY, type Difficulty, type WorldSave } from '@sw/sim';
+import { canLoadSave, DEFAULT_SKIRMISH_MONEY, DIFFICULTIES, migrateSave, OPPONENTS, SAVE_VERSION, SKIRMISH_MONEY, type Difficulty, type WorldSave } from '@sw/sim';
 import { skirmishFactions, type Setup } from './game';
 
 /**
@@ -87,9 +87,23 @@ export interface SaveGame {
   world: WorldSave;
 }
 
+/** A save from any released version, brought up to this one; null when the slot is empty or the save is unreadable. */
 export function readSave(slot: Slot): SaveGame | null {
   const s = read<SaveGame>(`save.${slot}`);
-  return s && s.version === SAVE_VERSION ? s : null;
+  if (!s || !canLoadSave(s.version) || !s.world || !canLoadSave(s.world.version)) return null;
+  try {
+    const world = migrateSave(s.world);
+    let setup = s.setup;
+    if (setup.kind === 'skirmish' && !setup.factions) {
+      // Saves from 1.0 and 1.1 have races and colours instead of factions; the world's sides still carry them.
+      const { races: _r, colors: _c, colors2: _c2, ...rest } = setup as typeof setup & { races?: unknown; colors?: unknown; colors2?: unknown };
+      const factions = skirmishFactions([world.world.sides.player, world.world.sides.enemy]);
+      setup = { ...rest, factions };
+    }
+    return { ...s, version: SAVE_VERSION, setup, world };
+  } catch {
+    return null;
+  }
 }
 
 export function writeSave(slot: Slot, save: SaveGame): boolean {
