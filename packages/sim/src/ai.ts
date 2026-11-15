@@ -1,5 +1,5 @@
 import { CELL, ObjectType } from '@sw/data';
-import { AI_BRAINS, BUILDING_RULES, SKIRMISH_BRAINS, ENEMY_BONUS, HARVESTER, TICK_MS, UNIT_RULES, type AiBrain, type AiBrainName, type BuildingType, type UnitType } from './rules';
+import { AI_BRAINS, BUILDING_RULES, SKIRMISH_BRAINS, ENEMY_BONUS, HARVESTER, REPAIR, TICK_MS, UNIT_RULES, type AiBrain, type AiBrainName, type BuildingType, type UnitType } from './rules';
 import { findPath } from './path';
 import { canPlace, canProduce, cellOf, cellPassable, centerOf, gapBetween, isUnit, isVisibleTo, issue, SIDES, type Entity, type Side, type World } from './world';
 
@@ -9,7 +9,8 @@ import { canPlace, canProduce, cellOf, cellPassable, centerOf, gapBetween, isUni
  *
  * Each decision round it: keeps harvesters mining, builds a silo, a factory and a few defender towers, produces
  * harvesters and tanks, sends home tanks at anything that attacks its buildings, and sends attack waves that
- * grow over time. Like a player who has seen the map before, it knows where the enemy buildings and resource
+ * grow over time. Smarter brains also send badly damaged tanks home for repair, scout the fields between the
+ * bases, build silos at far fields and guard them, and time their waves by strength instead of the clock. Like a player who has seen the map before, it knows where the enemy buildings and resource
  * fields are, but it fires only at what its units can see.
  */
 export interface AiState {
@@ -36,6 +37,15 @@ export interface AiState {
   stageTick: number;
   /** Tick at which its buildings started taking fire, -1 while none is. */
   alarmTick: number;
+  /** Damaged tanks driving home or waiting beside the HQ or a factory to be repaired. */
+  repairing: number[];
+  /** The tank out scouting and the points it still has to visit; the next scout leaves at nextScoutTick. */
+  scout: { id: number; route: Array<{ x: number; y: number }> } | null;
+  nextScoutTick: number;
+  /** Fields where its scout or tanks last saw armed enemies, by field id, with the tick. */
+  danger: Record<number, number>;
+  /** The field it is taking or holding away from home, and the tanks posted there. */
+  outpost: { fieldId: number; ids: number[] } | null;
 }
 
 /** The brain as it plays in this world: skirmish adjusts a few numbers. */
@@ -64,6 +74,11 @@ export function createAi(world: World, side: Side, brain: AiBrainName): AiState 
     stage: null,
     stageTick: 0,
     alarmTick: -1,
+    repairing: [],
+    scout: null,
+    nextScoutTick: world.tick + Math.round(SCOUT_FIRST_MS / TICK_MS),
+    danger: {},
+    outpost: null,
   };
 }
 
@@ -96,6 +111,8 @@ interface View {
   tanks: Entity[];
   harvesters: Entity[];
   fields: Entity[];
+  /** threatsTo() of this round, worked out once (it plans paths). */
+  threats?: Entity[];
 }
 
 /** A wave that has not gathered by then attacks anyway. */
@@ -109,6 +126,25 @@ const MORE_FACTORIES_MONEY = 1400;
 
 /** Harvesters only mine fields this close to a silo. */
 const HARVEST_RADIUS_CELLS = 16;
+
+/** The first scout leaves after this long, a new one this long after the last came back or died. */
+const SCOUT_FIRST_MS = 30_000;
+const SCOUT_AGAIN_MS = 150_000;
+
+/** A field where armed enemies were seen counts as dangerous this long. */
+const DANGER_MS = 90_000;
+
+/** A field farther than this from every own silo is a far field: a long haul, and out where the enemy roams. */
+const NEAR_SILO_CELLS = 8;
+
+/** Tanks it keeps at an outpost field. */
+const OUTPOST_TANKS = 3;
+
+/** A repaired tank goes back to work at this share of its health. */
+const REPAIRED_AT = 0.9;
+
+/** Towers count this much more than their health and gun, since they hit everything that drives past. */
+const TOWER_WEIGHT = 1.5;
 
 const isArmed = (e: Entity) => isUnit(e.type) && UNIT_RULES[e.type as UnitType].weapon !== null;
 const hqTypeOf = (side: Side) => (side === 'player' ? ObjectType.PlayerHQ : ObjectType.EnemyHQ);
@@ -146,12 +182,35 @@ function think(world: World, ai: AiState): void {
     harvesters: mine.filter((e) => e.type === ObjectType.Harvester),
     fields: world.entities.filter((e) => e.type === ObjectType.ResourceField && e.hp > 0),
   };
-  ai.attackers = ai.attackers.filter((id) => (world.byId.get(id)?.hp ?? 0) > 0);
+  const alive = (id: number) => (world.byId.get(id)?.hp ?? 0) > 0;
+  ai.attackers = ai.attackers.filter(alive);
+  ai.repairing = ai.repairing.filter(alive);
+  if (ai.outpost) ai.outpost.ids = ai.outpost.ids.filter(alive);
   const reserved = construct(v);
   produce(v, reserved);
   harvest(v);
+  if (v.brain.retreatAt > 0) retreat(v);
+  if (v.brain.scout) scout(v);
+  if (v.brain.expand) holdOutpost(v);
   guard(v);
   attack(v);
+}
+
+/** Tanks with a job of their own: on a wave, scouting, at the outpost. The rest are the home guard. */
+function away(v: View): Set<number> {
+  const { ai } = v;
+  return new Set([...ai.attackers, ...(ai.scout ? [ai.scout.id] : []), ...(ai.outpost?.ids ?? [])]);
+}
+
+/** Health times shots per second: how much a group of tanks or towers can take and dish out. */
+function strength(list: Entity[]): number {
+  let sum = 0;
+  for (const e of list) {
+    const w = isUnit(e.type) ? UNIT_RULES[e.type as UnitType].weapon : BUILDING_RULES[e.type as BuildingType].weapon;
+    if (!w || !e.complete) continue;
+    sum += ((e.hp * w.damage * 1000) / w.reloadMs) * (isUnit(e.type) ? 1 : TOWER_WEIGHT);
+  }
+  return sum;
 }
 
 /** Where the base is: the HQ, or failing that any own building or unit. */
@@ -201,29 +260,67 @@ function construct(v: View): boolean {
   // Money piling up faster than one factory can spend it: another factory. The bar stays where it was when a
   // factory cost 700, so a cheaper factory does not eat the starting money of a poor mission.
   else if (factories < brain.factories && world.sides[side].money >= MORE_FACTORIES_MONEY) want = ObjectType.TankFactory;
+  // A silo at a far field once the home fields run low or money piles up.
+  let at: Entity | undefined;
+  if (want === null && brain.expand && silos > 0 && factories > 0 && threats.length === 0) {
+    at = expansionField(v);
+    if (at) want = ObjectType.Silo;
+  }
   if (want === null) return false;
   const price = BUILDING_RULES[want].price;
-  if (world.sides[side].money < price) return want !== ObjectType.Defender;
-  const spot = findSpot(v, want, toward);
+  // Saving up for a far silo only while the army is not outnumbered.
+  if (world.sides[side].money < price) return want !== ObjectType.Defender && (!at || v.tanks.length >= v.foes.filter(isArmed).length);
+  const spot = findSpot(v, want, toward, at);
   if (!spot) return false;
-  if (issue(world, side, { kind: 'build', hqId: hq.id, building: want, cx: spot.cx, cy: spot.cy }).ok && emergency) v.ai.emergencies++;
+  const ok = issue(world, side, { kind: 'build', hqId: hq.id, building: want, cx: spot.cx, cy: spot.cy }).ok;
+  if (ok && emergency) v.ai.emergencies++;
+  if (ok && at) v.ai.outpost = { fieldId: at.id, ids: v.ai.outpost?.fieldId === at.id ? v.ai.outpost.ids : [] };
   return false;
+}
+
+/**
+ * The field worth a new silo: once the fields in reach hold less than a few loads per harvester, or money piles
+ * up. Out of reach of the silos it has, not under enemy towers or next to enemy buildings, no enemy army seen
+ * there lately, and nearer its own base than the enemy's.
+ */
+function expansionField(v: View): Entity | undefined {
+  const { world, ai, side } = v;
+  const silos = v.mine.filter((e) => e.type === ObjectType.Silo);
+  if (silos.some((s) => !s.complete) || silos.length >= 4) return undefined;
+  const near = minable(v).filter((f) => silos.some((s) => gapBetween(f, s) <= NEAR_SILO_CELLS * CELL));
+  const left = near.reduce((sum, f) => sum + f.hp, 0);
+  const money = world.sides[side].money;
+  if (left >= HARVESTER.capacity * 8 * Math.max(1, v.harvesters.length) && money < MORE_FACTORIES_MONEY) return undefined;
+  const base = home(v);
+  const foe = foeBase(v);
+  const foeBuildings = v.foes.filter((e) => !isUnit(e.type) && e.type !== ObjectType.Wall);
+  const candidates = v.fields.filter(
+    (f) =>
+      f.hp >= HARVESTER.capacity * 10 &&
+      !silos.some((s) => gapBetween(f, s) <= NEAR_SILO_CELLS * CELL) &&
+      !foeBuildings.some((b) => gapBetween(f, b) < (b.type === ObjectType.Defender ? 6 : 10) * CELL) &&
+      !(world.tick - (ai.danger[f.id] ?? -Infinity) < DANGER_MS / TICK_MS) &&
+      dist2(f, base) <= dist2(f, foe) * 1.2,
+  );
+  return closest(candidates, base);
 }
 
 /**
  * A free spot near the HQ that keeps a one-cell lane around every building, so the base never walls itself in.
  * Towers go on the side facing the enemy.
  */
-function findSpot(v: View, type: BuildingType, facing: { x: number; y: number }): { cx: number; cy: number } | null {
+function findSpot(v: View, type: BuildingType, facing: { x: number; y: number }, field?: Entity): { cx: number; cy: number } | null {
   const { world, side } = v;
   const n = BUILDING_RULES[type].cells;
-  const base = home(v);
+  // A silo for a far field goes right beside that field.
+  const base = field ? centerOf(field) : home(v);
+  if (field) facing = home(v);
   const hc = { cx: Math.floor(base.x / CELL), cy: Math.floor(base.y / CELL) };
   const tower = type === ObjectType.Defender;
   const spots: Array<{ cx: number; cy: number; score: number }> = [];
   const foeTowers = v.foes.filter((f) => f.type === ObjectType.Defender);
   const towerReach = BUILDING_RULES[ObjectType.Defender].weapon!.range + CELL;
-  for (let r = tower ? 3 : 2; r <= (tower ? 6 : 12); r++) {
+  for (let r = tower ? 3 : 2; r <= (tower ? 6 : field ? 5 : 12); r++) {
     for (let dy = -r; dy <= r; dy++)
       for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
@@ -239,7 +336,8 @@ function findSpot(v: View, type: BuildingType, facing: { x: number; y: number })
         const py = (cy + n / 2) * CELL;
         // Towers go toward the danger, everything else behind the HQ.
         const d = (px - facing.x) ** 2 + (py - facing.y) ** 2;
-        spots.push({ cx, cy, score: (exposed ? 1e15 : 0) + (cramped ? 1e14 : 0) + (tower ? d : r * 1e9 - d) });
+        if (field && exposed) continue;
+        spots.push({ cx, cy, score: (exposed ? 1e15 : 0) + (cramped ? 1e14 : 0) + (tower || field ? d + (field ? r * 1e9 : 0) : r * 1e9 - d) });
       }
   }
   spots.sort((a, b) => a.score - b.score);
@@ -359,11 +457,155 @@ function harvest(v: View): void {
   }
 }
 
+
+// ---------------------------------------------------------------------------------------------------------------
+// Retreat, scouting and outposts (smarter brains)
+
+/** Where a tank gets repaired: beside the own HQ or a factory (rules REPAIR). */
+function repairSpots(v: View): Entity[] {
+  return v.mine.filter((e) => e.complete && (e.type === hqTypeOf(v.side) || e.type === ObjectType.TankFactory));
+}
+
+/**
+ * Badly damaged tanks leave the fight and drive to the nearest HQ or factory, wait there until repaired and then
+ * join the home guard. Without money for repairs nobody retreats: a dying tank still shoots.
+ */
+function retreat(v: View): void {
+  const { world, side, brain, ai } = v;
+  const spots = repairSpots(v);
+  const money = world.sides[side].money;
+  for (const id of [...ai.repairing]) {
+    const t = world.byId.get(id)!;
+    // Without money it waits only until it gets home, then guards as it is.
+    if (t.hp >= t.maxHp * REPAIRED_AT || spots.length === 0 || (money <= 0 && t.path.length === 0)) ai.repairing.splice(ai.repairing.indexOf(id), 1);
+  }
+  if (spots.length === 0 || money < 20) return;
+  const reach = (REPAIR.gapCells * CELL) / 2;
+  for (const t of v.tanks) {
+    if (ai.repairing.includes(t.id) || t.hp >= t.maxHp * brain.retreatAt) continue;
+    const spot = closest(spots, centerOf(t))!;
+    if (gapBetween(spot, t) <= reach && t.path.length === 0) continue;
+    ai.attackers = ai.attackers.filter((id) => id !== t.id);
+    if (ai.scout?.id === t.id) endScout(v);
+    if (ai.outpost) ai.outpost.ids = ai.outpost.ids.filter((id) => id !== t.id);
+    ai.repairing.push(t.id);
+    const c = centerOf(spot);
+    issue(world, side, { kind: 'move', ids: [t.id], x: c.x, y: c.y });
+  }
+}
+
+function endScout(v: View): void {
+  v.ai.scout = null;
+  v.ai.nextScoutTick = v.world.tick + Math.round(SCOUT_AGAIN_MS / TICK_MS);
+}
+
+/** Fields away from its silos, the ones a scout checks and an outpost may take. */
+function farFields(v: View): Entity[] {
+  const silos = v.mine.filter((e) => e.type === ObjectType.Silo);
+  return v.fields.filter((f) => !silos.some((s) => gapBetween(f, s) <= NEAR_SILO_CELLS * CELL));
+}
+
+/**
+ * Once in a while the fastest free home tank drives round the far fields on its side of the map, nearest first,
+ * without stopping to fight. What it sees opens the land for a silo there and marks fields where the enemy army is.
+ */
+function scout(v: View): void {
+  const { world, side, ai } = v;
+  // Every own unit is an eye: note the fields where armed enemies stand in sight.
+  for (const f of v.fields) {
+    if (v.foes.some((e) => isArmed(e) && !e.hidden && gapBetween(e, f) <= 5 * CELL && isVisibleTo(world, side, e))) ai.danger[f.id] = world.tick;
+  }
+  if (ai.scout) {
+    const t = world.byId.get(ai.scout.id);
+    if (!t || t.hp <= 0) return endScout(v);
+    const next = ai.scout.route[0];
+    // Shot at: home before the scout is lost.
+    if (t.hitBy && world.tick - t.hitTick < 20 && next) ai.scout.route = [];
+    if (next && dist2(t, next) > (2 * CELL) ** 2 && t.order.kind !== 'idle') return;
+    if (next) ai.scout.route.shift();
+    const to = ai.scout.route[0];
+    if (to) issue(world, side, { kind: 'move', ids: [t.id], x: to.x, y: to.y });
+    else {
+      const h = home(v);
+      issue(world, side, { kind: 'move', ids: [t.id], x: h.x, y: h.y });
+      endScout(v);
+    }
+    return;
+  }
+  if (world.tick < ai.nextScoutTick || threatsTo(v).length > 0) return;
+  const busy = away(v);
+  const free = v.tanks.filter((t) => !busy.has(t.id) && !ai.repairing.includes(t.id) && t.order.kind === 'idle' && t.targetId === 0);
+  if (free.length < 1 || v.tanks.length < 3) return;
+  const fastest = free.reduce((a, b) => (UNIT_RULES[b.type as UnitType].stepMs < UNIT_RULES[a.type as UnitType].stepMs ? b : a));
+  const base = home(v);
+  const foe = foeBase(v);
+  const foeTowers = v.foes.filter((e) => e.type === ObjectType.Defender);
+  let left = farFields(v).filter((f) => dist2(f, base) <= dist2(f, foe) * 1.5 && !foeTowers.some((t) => gapBetween(t, f) < 6 * CELL));
+  const route: Array<{ x: number; y: number }> = [];
+  let at = centerOf(fastest);
+  while (left.length > 0 && route.length < 5) {
+    const f = closest(left, at)!;
+    left = left.filter((o) => o !== f);
+    at = centerOf(f);
+    route.push(at);
+  }
+  if (route.length === 0) {
+    ai.nextScoutTick = world.tick + Math.round(SCOUT_AGAIN_MS / TICK_MS);
+    return;
+  }
+  ai.scout = { id: fastest.id, route };
+  issue(world, side, { kind: 'move', ids: [fastest.id], x: route[0]!.x, y: route[0]!.y });
+}
+
+/**
+ * Keeps a few tanks at the field it is taking: the far field it builds a silo at, or a field near its silos where
+ * it lost a harvester. Once the tanks stand there with no armed enemy in sight, harvesters may mine it again.
+ */
+function holdOutpost(v: View): void {
+  const { world, side, ai } = v;
+  const silos = v.mine.filter((e) => e.type === ObjectType.Silo);
+  // A lost field near its silos is the first to take back.
+  if (!ai.outpost || !world.byId.get(ai.outpost.fieldId)) {
+    const lost = v.fields.filter((f) => ai.avoid.includes(f.id) && silos.some((s) => gapBetween(f, s) <= HARVEST_RADIUS_CELLS * CELL));
+    const f = closest(lost, home(v));
+    ai.outpost = f ? { fieldId: f.id, ids: ai.outpost?.ids ?? [] } : ai.outpost && world.byId.get(ai.outpost.fieldId) ? ai.outpost : null;
+  }
+  const post = ai.outpost;
+  if (!post) return;
+  const field = world.byId.get(post.fieldId);
+  if (!field || field.hp <= 0) {
+    ai.outpost = null;
+    return;
+  }
+  const c = centerOf(field);
+  if (threatsTo(v).length === 0 && post.ids.length < OUTPOST_TANKS) {
+    const busy = away(v);
+    const free = v.tanks.filter((t) => !busy.has(t.id) && !ai.repairing.includes(t.id) && t.order.kind === 'idle' && t.targetId === 0);
+    // Never strip the base: half the home guard at most.
+    const n = Math.min(OUTPOST_TANKS - post.ids.length, Math.floor(free.length / 2));
+    for (const t of free.sort((a, b) => dist2(a, c) - dist2(b, c) || a.id - b.id).slice(0, n)) post.ids.push(t.id);
+  }
+  const posted = post.ids.map((id) => world.byId.get(id)!);
+  for (const t of posted) {
+    if (t.order.kind === 'idle' && t.targetId === 0 && dist2(t, c) > (3 * CELL) ** 2) issue(world, side, { kind: 'attackMove', ids: [t.id], x: c.x, y: c.y });
+  }
+  const there = posted.filter((t) => dist2(t, c) <= (4 * CELL) ** 2);
+  const enemyNear = v.foes.some((e) => (isArmed(e) || e.type === ObjectType.Defender) && !e.hidden && gapBetween(e, field) <= 6 * CELL && isVisibleTo(world, side, e));
+  if (there.length > 0 && !enemyNear && ai.avoid.includes(field.id)) {
+    ai.avoid = ai.avoid.filter((id) => id !== field.id);
+    delete ai.danger[field.id];
+  }
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Fighting
 
 /** Armed enemies near any own building (walls aside). */
 function threatsTo(v: View): Entity[] {
+  return (v.threats ??= findThreats(v));
+}
+
+function findThreats(v: View): Entity[] {
   const buildings = v.mine.filter((e) => !isUnit(e.type) && e.type !== ObjectType.Wall);
   const reach = v.brain.guardCells * CELL;
   const homeTanks = v.tanks.filter((t) => !v.ai.attackers.includes(t.id));
@@ -408,14 +650,15 @@ function shootersAtBase(v: View): Entity[] {
 function guard(v: View): void {
   const { world, side, brain, ai } = v;
   const threats = threatsTo(v);
-  const homeTanks = v.tanks.filter((t) => !ai.attackers.includes(t.id));
+  const busy = away(v);
+  const homeTanks = v.tanks.filter((t) => !busy.has(t.id));
   // Buildings under fire: after the brain's reaction time, every free home tank goes for the shooters.
   const shooters = shootersAtBase(v);
   if (shooters.length === 0) ai.alarmTick = -1;
   else if (ai.alarmTick < 0) ai.alarmTick = world.tick;
   if (shooters.length > 0 && (world.tick - ai.alarmTick) * TICK_MS >= brain.defendDelayMs) {
     for (const t of homeTanks) {
-      if (t.order.kind === 'attack' || t.targetId !== 0) continue;
+      if (t.order.kind === 'attack' || t.targetId !== 0 || (ai.repairing.includes(t.id) && t.path.length > 0)) continue;
       const s = closest(shooters, centerOf(t))!;
       if (!issue(world, side, { kind: 'attack', ids: [t.id], targetId: s.id }).ok) {
         const c = centerOf(s);
@@ -428,13 +671,15 @@ function guard(v: View): void {
   const underFire = (e: Entity) => towers.some((f) => gapBetween(f, e) <= towerReach);
   const base = rallyPoint(v, underFire);
   for (const t of homeTanks) {
-    const busy = t.order.kind === 'attack' || (t.order.kind === 'attackMove' && t.path.length > 0) || t.targetId !== 0;
+    const fighting = t.order.kind === 'attack' || (t.order.kind === 'attackMove' && t.path.length > 0) || t.targetId !== 0;
+    const repairing = ai.repairing.includes(t.id);
     if (threats.length > 0) {
-      if (busy) continue;
+      // A tank on its way to repair only fights what comes to it.
+      if (fighting || (repairing && t.path.length > 0)) continue;
       const threat = closest(threats, centerOf(t))!;
       const c = centerOf(threat);
       issue(world, side, { kind: 'attackMove', ids: [t.id], x: c.x, y: c.y });
-    } else if (t.order.kind === 'idle' && t.targetId === 0 && (underFire(t) || dist2(t, base) > (brain.guardCells * CELL) ** 2)) {
+    } else if (!repairing && t.order.kind === 'idle' && t.targetId === 0 && (underFire(t) || dist2(t, base) > (brain.guardCells * CELL) ** 2)) {
       issue(world, side, { kind: 'attackMove', ids: [t.id], x: base.x, y: base.y });
     }
   }
@@ -492,7 +737,8 @@ function pickTarget(v: View): Entity | undefined {
 function attack(v: View): void {
   const { world, side, brain, ai } = v;
   if (world.tick >= ai.nextWaveTick) {
-    const ready = v.tanks.filter((t) => !ai.attackers.includes(t.id) && t.order.kind !== 'attack' && t.targetId === 0);
+    const busy = away(v);
+    const ready = v.tanks.filter((t) => !busy.has(t.id) && !ai.repairing.includes(t.id) && t.order.kind !== 'attack' && t.targetId === 0);
     // Never fewer tanks than the enemy has (a player who has seen the map can count them), up to the brain's maximum.
     const foeArmy = v.foes.filter(isArmed).length;
     const size = Math.min(brain.waveMax, Math.max(brain.waveSize + ai.wave, foeArmy));
@@ -503,7 +749,11 @@ function attack(v: View): void {
     const next = mix[ai.produced % mix.length];
     const mining = v.harvesters.some((h) => h.order.kind === 'harvest');
     const stalled = !building && !mining && (!next || world.sides[side].money < UNIT_RULES[next].price);
-    if (ready.length >= size || (stalled && ready.length > 0)) {
+    const target0 = brain.smartWaves ? pickTarget(v) : undefined;
+    const go = brain.smartWaves ? strongEnough(v, ready, target0) : ready.length >= size;
+    // A smart brain does not throw a stalled army at a stronger one; it waits for it at home.
+    const desperate = stalled && ready.length > 0 && (!brain.smartWaves || strength(ready) >= strength(v.foes.filter(isArmed)));
+    if (go || desperate) {
       ai.attackers.push(...ready.map((t) => t.id));
       ai.wave++;
       ai.nextWaveTick = world.tick + Math.round(brain.waveCooldownMs / TICK_MS);
@@ -515,6 +765,15 @@ function attack(v: View): void {
   const target = pickTarget(v);
   if (!target) return;
   const wave = ai.attackers.map((id) => world.byId.get(id)!);
+  if (brain.smartWaves && losing(v, wave)) {
+    // Better home with half the wave than dead with all of it: back to the base, regroup, come again.
+    const h = home(v);
+    issue(world, side, { kind: 'move', ids: ai.attackers, x: h.x, y: h.y });
+    ai.attackers = [];
+    ai.stage = null;
+    ai.nextWaveTick = world.tick + Math.round(brain.waveCooldownMs / TICK_MS);
+    return;
+  }
   // First gather just outside the enemy towers, so the whole wave goes in at once.
   if (ai.stage) {
     const stage = ai.stage;
@@ -537,6 +796,27 @@ function attack(v: View): void {
   const stuck = go.find((t) => dist2(t, goal) > (8 * CELL) ** 2);
   if (stuck) breach(v, stuck, goal);
   issue(world, side, { kind: 'attackMove', ids: go.map((t) => t.id), x: goal.x, y: goal.y });
+}
+
+/**
+ * A smart wave leaves once it is big enough and outweighs everything that can meet it: the whole enemy army and
+ * the towers around the target. An army at the brain's maximum leaves anyway, since waiting would not make it bigger.
+ */
+function strongEnough(v: View, ready: Entity[], target: Entity | undefined): boolean {
+  const { brain } = v;
+  if (ready.length < brain.waveSize) return false;
+  if (v.tanks.length >= brain.maxTanks) return true;
+  const towers = target ? v.foes.filter((f) => f.type === ObjectType.Defender && gapBetween(f, target) <= 8 * CELL) : [];
+  return strength(ready) >= brain.waveEdge * (strength(v.foes.filter(isArmed)) + strength(towers));
+}
+
+/** A wave that has met more than it can take: armed enemies and towers in sight around it outweigh it twice. */
+function losing(v: View, wave: Entity[]): boolean {
+  if (wave.length === 0 || v.ai.stage) return false;
+  const near = v.foes.filter(
+    (f) => (isArmed(f) || f.type === ObjectType.Defender) && !f.hidden && isVisibleTo(v.world, v.side, f) && wave.some((t) => gapBetween(t, f) <= 6 * CELL),
+  );
+  return near.length > 0 && strength(near) > 2 * strength(wave);
 }
 
 /** The reachable cell closest to `goal` that no enemy tower covers. */

@@ -10,8 +10,8 @@ import { BUILDING_RULES, type AiBrainName } from './rules';
  */
 
 /** Who commands the second side: a computer brain of some difficulty, or a person. */
-export type Opponent = 'easy' | 'normal' | 'hard' | 'human';
-export const OPPONENTS: readonly Opponent[] = ['easy', 'normal', 'hard', 'human'];
+export type Opponent = 'easy' | 'normal' | 'hard' | 'veryhard' | 'human';
+export const OPPONENTS: readonly Opponent[] = ['easy', 'normal', 'hard', 'veryhard', 'human'];
 
 export const SKIRMISH_MONEY = [1500, 3000, 6000] as const;
 export const DEFAULT_SKIRMISH_MONEY = 3000;

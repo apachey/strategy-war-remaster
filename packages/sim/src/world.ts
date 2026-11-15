@@ -20,6 +20,7 @@ import {
   BUILDING_RULES,
   CHASE_CELLS,
   ENEMY_BONUS,
+  REPAIR,
   ENEMY_FACTORY_PAUSE_MS,
   ENEMY_MAX_TANKS,
   FACTORY_BUILDS,
@@ -350,7 +351,8 @@ export function createWorld(map: CampaignMap, missionIndex: number, seed = 1, op
   }
   if (difficulty !== 'classic') {
     world.ai.enemy = createAi(world, 'enemy', difficulty);
-    world.sides.enemy.money = ENEMY_BONUS[difficulty].money;
+    // Very hard gets no bonus: it starts with what the mission gives the player.
+    world.sides.enemy.money = difficulty === 'veryhard' ? mission.money : ENEMY_BONUS[difficulty].money;
   }
   if (options.playerAi) world.ai.player = createAi(world, 'player', options.playerAi);
   return world;
@@ -935,6 +937,28 @@ function updateUnit(world: World, e: Entity): void {
   if (rules.weapon && e.targetId) fireAt(world, e, rules.weapon);
   else if (rules.weapon) turnTurret(e, e.dir);
   if (e.path.length === 0 && (world.tick + e.id) % UNSTACK_TICKS === 0) unstack(world, e);
+  if (e.hp < e.maxHp && e.team !== 'neutral' && world.tick % REPAIR_TICKS === 0) repair(world, e);
+}
+
+const REPAIR_TICKS = Math.round(REPAIR.msPerHp / TICK_MS);
+
+/**
+ * Remaster: a damaged unit standing still beside its own HQ or factory gets one hit point back per REPAIR.msPerHp,
+ * paying REPAIR.priceShare of its price for a full repair (a hit point at a time, so it stops when the money does).
+ */
+function repair(world: World, e: Entity): void {
+  if (e.path.length > 0 || e.targetId !== 0 || e.team === 'neutral') return;
+  const side = world.sides[e.team];
+  const hq = e.team === 'player' ? ObjectType.PlayerHQ : ObjectType.EnemyHQ;
+  const near = world.entities.some(
+    (b) => b.team === e.team && b.complete && b.hp > 0 && (b.type === hq || b.type === ObjectType.TankFactory) && gapBetween(b, e) <= REPAIR.gapCells * CELL,
+  );
+  if (!near) return;
+  const k = (UNIT_RULES[e.type as UnitType].price * REPAIR.priceShare) / e.maxHp;
+  const cost = Math.floor((e.maxHp - e.hp) * k) - Math.floor((e.maxHp - e.hp - 1) * k);
+  if (side.money < cost) return;
+  side.money -= cost;
+  e.hp++;
 }
 
 /** How often a unit standing on another one checks for a free cell. */

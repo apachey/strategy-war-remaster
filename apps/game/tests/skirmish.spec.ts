@@ -89,7 +89,7 @@ test('the skirmish screen picks a map, an opponent and money, then plays', async
   await expect(page.locator('#modal [data-faction1="0"]')).toBeDisabled();
   await page.screenshot({ path: 'test-results/skirmish-setup.png' });
   // Choices redraw the screen without loading anything; Start loads the match and goes straight in.
-  await page.getByRole('button', { name: 'Важкий ШІ' }).click();
+  await page.locator('[data-opponent="hard"]').click();
   await page.getByRole('button', { name: '6. Шукач' }).click();
   await expect(page.locator('#modal h1')).toHaveText('Шукач');
   expect(page.url()).toContain('s=4');

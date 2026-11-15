@@ -211,8 +211,8 @@ function levels(): void {
   dressBar(s, false);
   const draw = () => {
     const T = t();
-    $('.body', s).innerHTML = `<div class="buttons">${(['classic', 'easy', 'normal', 'hard'] as const)
-      .map((d, i) => `<button class="level${i === 2 ? ' active' : ''}"><span class="icons">${['★', '☠', '☠☠', '☠☠☠'][i]}</span>${T.difficulty[d]}</button>`)
+    $('.body', s).innerHTML = `<div class="buttons">${(['classic', 'easy', 'normal', 'hard', 'veryhard'] as const)
+      .map((d, i) => `<button class="level${i === 2 ? ' active' : ''}"><span class="icons">${['★', '☠', '☠☠', '☠☠☠', '☠☠☠☠'][i]}</span>${T.difficulty[d]}</button>`)
       .join('')}<button class="level"><span class="icons">⚔</span>${T.opponent.human}</button></div>`;
   };
   onDress(draw);
