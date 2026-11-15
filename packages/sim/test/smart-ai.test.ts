@@ -85,7 +85,9 @@ describe('smarter computer player', () => {
     const mission = createWorld(campaign.maps[3]!, 0, 1, { difficulty: 'veryhard' });
     expect(mission.sides.enemy.money).toBe(campaign.maps[3]!.missions[0]!.money);
     // Map 7 has fields between the bases. With its home fields nearly mined out, it scouts them and builds a silo there.
-    const w = createSkirmish(6, { opponent: 'veryhard', playerAi: 'easy' });
+    // The idle player's HQ is made unbreakable so the game lasts.
+    const w = createSkirmish(6, { opponent: 'veryhard' });
+    unit(w, 'player', ObjectType.PlayerHQ).hp = 1e6;
     const hq = unit(w, 'enemy', ObjectType.EnemyHQ);
     const away = (e: Entity) => Math.hypot(e.x - hq.x, e.y - hq.y);
     for (const f of w.entities) if (f.type === ObjectType.ResourceField && gapBetween(f, hq) <= 10 * 15) f.hp = 100;
