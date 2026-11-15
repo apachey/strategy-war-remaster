@@ -1,6 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { campaign, ObjectType, type CampaignMap, type MapObject } from '@sw/data';
-import { createWorld, hashWorld, issue, loadWorld, SAVE_VERSION, saveWorld, step, TICKS_PER_SECOND, type World, type WorldOptions } from '../src';
+import { createWorld, hashWorld, issue, loadWorld, saveWorld, step, TICKS_PER_SECOND, type World, type WorldOptions } from '../src';
 
 /** A 20×10 tile sand map (40×20 cells) with the given objects. */
 function arena(objects: Array<Partial<MapObject> & { type: MapObject['type'] }>, money: number, options: WorldOptions): World {
@@ -162,8 +163,24 @@ describe('saves', () => {
     expect(JSON.stringify(save)).toBe(before);
   });
 
-  it('refuses saves from another version', () => {
+  it('saves from 1.0 and 1.1 load and play on; unknown versions are refused', () => {
+    const keys = (o: object) => Object.keys(o).sort().join();
+    const fresh = saveWorld(createWorld(campaign.maps[5]!, 1, 9)).world;
+    for (const file of ['v4-1.0.0', 'v6-1.1.0']) {
+      const old = JSON.parse(readFileSync(new URL(`saves/${file}.json`, import.meta.url), 'utf8')) as { version: number; world: unknown };
+      const a = loadWorld(old);
+      const b = loadWorld(old);
+      const save = saveWorld(a).world;
+      expect(keys(save.sides.player)).toBe(keys(fresh.sides.player));
+      expect(keys(save.entities[0]!)).toBe(keys(fresh.entities[0]!));
+      expect(save.projectiles.length).toBeGreaterThan(0);
+      expect(save.projectiles.some((p) => p.targetId > 0)).toBe(true);
+      run(a, 20);
+      run(b, 20);
+      expect(hashWorld(a)).toBe(hashWorld(b));
+    }
     const save = saveWorld(createWorld(campaign.maps[0]!, 0, 1));
-    expect(() => loadWorld({ ...save, version: 99 as typeof SAVE_VERSION })).toThrow(/version/);
+    expect(() => loadWorld({ ...save, version: 99 })).toThrow(/version/);
+    expect(() => loadWorld({ ...save, version: 3 })).toThrow(/version/);
   });
 });

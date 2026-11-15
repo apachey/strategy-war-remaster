@@ -64,7 +64,8 @@ pnpm --filter @sw/desktop icon  # re-render the app icon from the 3D models (ico
   the side's ramp.
 - `packages/sim/src/ai.ts` is the computer player (difficulty levels); `test/campaign.test.ts` plays all 21 missions on
   every difficulty and is the stage 3 gate. Saves are `saveWorld`/`loadWorld` in `src/save.ts`; bump `SAVE_VERSION`
-  whenever the World shape changes.
+  whenever the World shape changes and add a `MIGRATIONS` step there, so saves from every released version (from 1.0,
+  version 4) still load; `test/saves/` holds a save from each release.
 - Interface text lives in `apps/game/src/text.ts` (UA and EN); mission titles and briefings in `packages/data/src/text.ts`.
 - Art direction: style B (HD pixel art) via low-poly 3D models rendered to 8-direction sprites; style E
   (low-poly 3D, three.js) is the fallback decided at the end of phase 2.
