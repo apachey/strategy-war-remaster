@@ -152,6 +152,16 @@ white for the second by default), which may be any colour, also the other side's
 muzzle flashes keep their race's own colours, except the walkers', which glow in the side's colours (`glowRamp`). The
 original's raider (type 100) is drawn as the hover race's middle tank.
 
+## Replays and online lockstep
+
+`packages/sim/src/lockstep.ts` is the base of online play. A `Recorder` plays a world and writes a `Replay`: how the
+world started (`ReplayStart`), every command with the tick it was applied on, and a full-precision `syncHash` of the
+world every `HASH_EVERY` (20) ticks; `verifyReplay()` plays it again and names the first tick that differs.
+`Lockstep` runs one machine of a two-player match over any `Transport`: a local command is sent at once and applied
+`inputDelay` ticks later (default 3, 150 ms) on both machines, a machine steps a tick only once it has the other's
+turn for it, both sides' commands apply in a fixed order (first side, then second), and the fingerprints travel
+with the turns, so a desync is caught within a second. The lobby and the network channel come next.
+
 ## Saves
 
 `saveWorld()` turns the whole world (RNG state and the computer players included) into plain JSON and `loadWorld()`

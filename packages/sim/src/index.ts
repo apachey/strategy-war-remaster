@@ -5,3 +5,4 @@ export * from './rules';
 export * from './save';
 export * from './world';
 export * from './skirmish';
+export * from './lockstep';
