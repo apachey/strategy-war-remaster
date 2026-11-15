@@ -93,17 +93,17 @@ The original enemy only waits at its base and trickles out tanks. That is kept a
 hand the enemy side to a computer player (`packages/sim/src/ai.ts`) that sends ordinary commands through `issue()`,
 exactly like the player. It is deterministic (seeded RNG, fixed ticks), so the same mission plays out the same way.
 
-| | Easy | Normal | Hard |
-|---|---|---|---|
-| Thinks every | 2 s | 1 s | 0.5 s |
-| Builds (silo, factory, towers) | no | yes | yes |
-| Harvesters | 1 | 2 | 3 |
-| Tanks | enemy, light | enemy, light, medium | medium, light, heavy |
-| First wave / then every | 4 min / 2 min | 2.5 min / 80 s | 100 s / 50 s |
-| Wave size (grows to) | 3 (4) | 4 (7) | 5 (10) |
-| Wave target | your HQ | the nearest building | your economy (harvesters, silos, factory) |
-| Focus fire, guard radius | no, 3 cells | no, 8 cells | yes, 10 cells |
-| Starting money, income on top of harvesting | $300, $60/min | $700, $120/min | $1500, $200/min |
+| | Easy | Normal | Hard | Very hard (1.3) |
+|---|---|---|---|---|
+| Thinks every | 2 s | 1 s | 0.5 s | 0.25 s |
+| Builds (silo, factory, towers) | no | yes | yes | yes |
+| Harvesters | 1 | 2 | 3 | 3 |
+| Tanks | enemy, light | enemy, light, medium | medium, light, heavy | medium, heavy, light |
+| First wave / then every | 4 min / 2 min | 2.5 min / 80 s | 100 s / 50 s | by strength (earliest 90 s / 20 s) |
+| Wave size (grows to) | 3 (4) | 4 (7) | 5 (10) | at least 5 |
+| Wave target | your HQ | the nearest building | your economy (harvesters, silos, factory) | your economy |
+| Focus fire, guard radius | no, 3 cells | no, 8 cells | yes, 10 cells | yes, 10 cells |
+| Starting money, income on top of harvesting | $300, $60/min | $700, $120/min | $1500, $200/min | the mission's money, none |
 
 - The computer player builds tanks the player can build too (light, medium, heavy), as the design doc asks; the
   enemy tank stays in its mix on easy and normal.
@@ -112,6 +112,43 @@ exactly like the player. It is deterministic (seeded RNG, fixed ticks), so the s
   towers when outnumbered. Harvesters avoid fields where harvesters died or that a player tower covers.
 - Waves gather at a staging point out of tower range, then move together; a wave also launches when the enemy's
   economy has stalled.
+
+## Smarter computer player (1.3)
+
+Tests: `packages/sim/test/smart-ai.test.ts`. Balance tool: `TOURNAMENT=veryhard:hard pnpm --filter @sw/sim exec vitest
+run test/tournament.test.ts` plays two brains against each other on all 7 maps from both starts (30 minutes each).
+
+- **Repair (rule for every side, the person too):** a damaged unit standing still within 2 cells of its own HQ or
+  factory gets 1 hit point back every 0.25 s and pays half its price for a full repair, a hit point at a time
+  (it stops when the money runs out). Units placed weaker by a mission are repaired only up to what they started with.
+- **Retreat** (hard below 35% health, very hard below 40%): a badly damaged tank leaves its wave and drives home to
+  be repaired, then rejoins the home guard at 90%. Without money for repairs nobody retreats.
+- **Scouting** (hard, very hard): after 30 s and then every 2.5 minutes the fastest free tank drives round the far
+  fields on its side of the map without stopping to fight, and turns home when shot at. Fields where it, or any own
+  unit, sees armed enemies are avoided for 90 s. Most campaign maps have few fields between the bases, so a scout
+  often has nothing to visit.
+- **Taking fields** (hard, very hard): once the fields near its silos run low (or money piles up) it builds a silo by
+  the nearest far field on its half of the map that no enemy tower or building covers, and keeps up to 3 tanks there
+  (never more than half the home guard). A field near its silos where it lost a harvester is taken back the same way:
+  once its tanks stand there with no enemy in sight, harvesters mine it again.
+- **Waves by strength** (hard, very hard): a wave leaves when the waiting tanks outweigh the whole enemy army plus the
+  towers around the target (health × firepower, towers ×1.5) by 1.3 (hard) or 1.4 (very hard), not when the clock
+  says so; the old first-wave time and cooldown are only the earliest moments. A wave that meets twice its weight
+  turns back home. A stalled economy no longer throws a weaker army at a stronger one.
+- **Very hard** gets no bonus money: in a skirmish the same money as the person and no income on top, in the campaign
+  the mission's starting money. It thinks every 0.25 s and builds mostly medium tanks.
+- Normal and easy play as before (retreat on normal made 7.1 beyond the scripted player again).
+
+Tournament on 2026-11-15 (14 games each, both starts on all 7 maps):
+
+| | wins |
+|---|---|
+| very hard (no bonus) vs normal (+$120/min) | 10 of 14 |
+| very hard (no bonus) vs hard (+$200/min) | 7 of 14 (6 of 7 when hard plays the first side and so gets no bonus) |
+| hard vs normal | 11 of 14 |
+
+Mirror games show that the second (right) start wins on maps 1, 3, 6 and 7 between equal brains: on map 7 the right
+start harvests about 45% more in the first three minutes.
 
 ## Skirmish and two players (stage 4)
 
@@ -123,7 +160,7 @@ crystal fields stay in between as contested fields. Each side sees 8 cells aroun
 
 - Skirmish sides are equal: both build the player's four vehicles. The alien enemy tank and the original enemy's free
   raiders belong to the campaign.
-- The second side is the computer (easy, normal, hard) or a second person at the same Mac (`vs=human`). The computer
+- The second side is the computer (easy, normal, hard, very hard) or a second person at the same Mac (`vs=human`). The computer
   gets the same money and only its difficulty's income bonus on top.
 - The computer builds from a bare HQ on every difficulty in a skirmish (easy does not build in the campaign).
 - New for every computer player: a second or third factory once money piles up (normal 2, hard 3), an army cap
@@ -156,7 +193,7 @@ original's raider (type 100) is drawn as the hover race's middle tank.
 
 `saveWorld()` turns the whole world (RNG state and the computer players included) into plain JSON and `loadWorld()`
 restores it; the game continues tick for tick as if it had never stopped. Saves carry a version and older versions
-are refused (version 2 added the skirmish mode, version 3 each side's race and colour, version 4 the secondary colour, version 5 the 1.1 gameplay: turrets, factory queues, rally points, routes, alerts). Skirmishes save like missions. The game keeps a quick slot (F5 saves, F9 loads) and three slots in localStorage.
+are refused (version 2 added the skirmish mode, version 3 each side's race and colour, version 4 the secondary colour, version 5 the 1.1 gameplay: turrets, factory queues, rally points, routes, alerts; version 9 the 1.3 computer player's memory: repairs, scout, outpost). Skirmishes save like missions. The game keeps a quick slot (F5 saves, F9 loads) and three slots in localStorage.
 
 ## Cheats
 

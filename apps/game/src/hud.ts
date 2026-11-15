@@ -90,8 +90,8 @@ function speakerOf(s: SideState, type: ObjectType): string {
 const img = (src: string, cls = '') => (src ? `<img${cls ? ` class="${cls}"` : ''} src="${src}" alt="">` : '');
 
 /** Skull counts on the difficulty and opponent buttons; the original's own pace gets a star. */
-const DIFFICULTY_ICONS: Record<Difficulty, string> = { classic: '★', easy: '☠', normal: '☠☠', hard: '☠☠☠' };
-const OPPONENT_ICONS: Record<Opponent, string> = { easy: '☠', normal: '☠☠', hard: '☠☠☠', human: '⚔' };
+const DIFFICULTY_ICONS: Record<Difficulty, string> = { classic: '★', easy: '☠', normal: '☠☠', hard: '☠☠☠', veryhard: '☠☠☠☠' };
+const OPPONENT_ICONS: Record<Opponent, string> = { easy: '☠', normal: '☠☠', hard: '☠☠☠', veryhard: '☠☠☠☠', human: '⚔' };
 
 /** Is this the desktop app (Tauri), where the main menu can quit? */
 const inApp = () => '__TAURI_INTERNALS__' in window;
@@ -290,7 +290,7 @@ export class Hud {
        <p class="brief">${missionBrief(g.mapIndex, g.missionIndex)}</p>
        <p class="goal">${T.goal}</p>
        <div class="options">
-         <div class="option"><span>${T.difficultyLabel}</span>${levels('difficulty', DIFFICULTIES, g.difficulty, (d) => T.difficulty[d], DIFFICULTY_ICONS)}</div>
+         <div class="option"><span>${T.difficultyLabel}</span><div class="levels">${levels('difficulty', DIFFICULTIES, g.difficulty, (d) => T.difficulty[d], DIFFICULTY_ICONS)}</div></div>
          <p class="hint">${T.difficultyHint[g.difficulty]}</p>
          <div class="option"><span>${T.languageLabel}</span>${choice('lang', LANGS, getLang(), (l) => `${flagHtml(l)}<span class="sr">${LANG_NAMES[l]}</span>`)}</div>
        </div>

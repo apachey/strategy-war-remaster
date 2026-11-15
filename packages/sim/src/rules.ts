@@ -167,8 +167,8 @@ export const OUTCOME_DELAY_MS = 2000;
  * `classic` is the original 2004 enemy: raiders that wander and a factory that sends one out every 55 s.
  * The other three hand the enemy side to the computer player in ai.ts.
  */
-export type Difficulty = 'classic' | 'easy' | 'normal' | 'hard';
-export const DIFFICULTIES: readonly Difficulty[] = ['classic', 'easy', 'normal', 'hard'];
+export type Difficulty = 'classic' | 'easy' | 'normal' | 'hard' | 'veryhard';
+export const DIFFICULTIES: readonly Difficulty[] = ['classic', 'easy', 'normal', 'hard', 'veryhard'];
 
 /** How a computer player thinks. The same brain can play either side (the tests let it play the player). */
 export interface AiBrain {
@@ -200,6 +200,19 @@ export interface AiBrain {
   guardCells: number;
   /** A building shot by something farther away sends the free home tanks after the shooter this long after the first hit. */
   defendDelayMs: number;
+  /** A tank below this share of its health drives home for repair (0: fights to the end). */
+  retreatAt: number;
+  /** Sends a fast tank round the fields between the bases to find out where it can expand and where the enemy is. */
+  scout: boolean;
+  /** Builds silos at fields away from its base and keeps tanks there, and takes back fields where it lost harvesters. */
+  expand: boolean;
+  /**
+   * Launches a wave when its waiting tanks outweigh the enemy army and the towers at the target by `waveEdge`
+   * (health times firepower), instead of waiting for a fixed number of tanks; firstWaveMs and waveCooldownMs are
+   * then only the earliest times. It also calls a wave back that is losing.
+   */
+  smartWaves: boolean;
+  waveEdge: number;
 }
 
 export const AI_BRAINS = {
@@ -219,6 +232,11 @@ export const AI_BRAINS = {
     focusFire: false,
     guardCells: 3,
     defendDelayMs: 6000,
+    retreatAt: 0,
+    scout: false,
+    expand: false,
+    smartWaves: false,
+    waveEdge: 0,
   },
   normal: {
     thinkMs: 1000,
@@ -236,6 +254,11 @@ export const AI_BRAINS = {
     focusFire: false,
     guardCells: 8,
     defendDelayMs: 2000,
+    retreatAt: 0,
+    scout: false,
+    expand: false,
+    smartWaves: false,
+    waveEdge: 0,
   },
   hard: {
     thinkMs: 500,
@@ -253,6 +276,34 @@ export const AI_BRAINS = {
     focusFire: true,
     guardCells: 10,
     defendDelayMs: 0,
+    retreatAt: 0.35,
+    scout: true,
+    expand: true,
+    smartWaves: true,
+    waveEdge: 1.3,
+  },
+  /** Very hard: no bonus money at all, it wins by playing better (retreat and repair, scouting, expansions, waves timed by strength). */
+  veryhard: {
+    thinkMs: 250,
+    harvesters: 3,
+    tankMix: [ObjectType.MiddleTank, ObjectType.MiddleTank, ObjectType.HeavyTank, ObjectType.LightTank, ObjectType.MiddleTank],
+    builds: true,
+    defenders: 2,
+    factories: 3,
+    maxTanks: 40,
+    firstWaveMs: 90_000,
+    waveCooldownMs: 20_000,
+    waveSize: 5,
+    waveMax: 14,
+    targeting: 'economy',
+    focusFire: true,
+    guardCells: 10,
+    defendDelayMs: 0,
+    retreatAt: 0.4,
+    scout: true,
+    expand: true,
+    smartWaves: true,
+    waveEdge: 1.4,
   },
   /** Scripted player for tests: builds an economy and goes straight for the enemy HQ. */
   autoplay: {
@@ -271,6 +322,11 @@ export const AI_BRAINS = {
     focusFire: true,
     guardCells: 8,
     defendDelayMs: 0,
+    retreatAt: 0,
+    scout: false,
+    expand: false,
+    smartWaves: false,
+    waveEdge: 0,
   },
 } as const satisfies Record<string, AiBrain>;
 export type AiBrainName = keyof typeof AI_BRAINS;
@@ -288,7 +344,12 @@ export const ENEMY_BONUS: Record<Exclude<Difficulty, 'classic'>, { money: number
   easy: { money: 300, incomePerMinute: 60 },
   normal: { money: 700, incomePerMinute: 120 },
   hard: { money: 1500, incomePerMinute: 200 },
+  // No bonus: in a skirmish the same money as the person, in the campaign the mission's starting money (below).
+  veryhard: { money: 0, incomePerMinute: 0 },
 };
+
+/** How fast a unit standing still beside its own HQ or factory is repaired, and at what share of its price. */
+export const REPAIR = { gapCells: 2, msPerHp: 250, priceShare: 0.5 } as const;
 
 /** On the training map (map 1) the computer enemy commands what it has but never builds. */
 export const TRAINING_MAPS = 1;

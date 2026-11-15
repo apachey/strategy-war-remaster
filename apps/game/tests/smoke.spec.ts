@@ -163,7 +163,7 @@ test('victory shows its scene and the match numbers', async ({ page }) => {
 
 test('difficulty and language are chosen on the briefing and remembered', async ({ page }) => {
   const errors = await open(page, '?m=1.2');
-  await page.getByRole('button', { name: 'Важко' }).click();
+  await page.locator('[data-difficulty="hard"]').click();
   await page.getByRole('button', { name: 'English' }).click();
   await expect(page.locator('#modal')).toContainText('Harvest');
   await expect(page.locator('#modal')).toContainText('yellow crystals');
